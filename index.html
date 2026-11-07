@@ -62,26 +62,19 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 /* ---------- 月历细条：横屏在右侧，竖屏在底部；淡淡的透明色，不抢照片 ---------- */
 #v-home{gap:8px}
 .home-cal{flex:0 0 44px;align-self:stretch;display:flex;flex-direction:column;min-height:0;min-width:0;border-radius:10px;padding:4px 2px;
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);text-shadow:0 1px 3px rgba(0,0,0,.6);margin-right:-8px}
+  background:transparent;border:none;text-shadow:0 1px 3px rgba(0,0,0,.75);margin-right:-8px}
 .cal-m{font-size:10px;font-weight:700;color:rgba(255,255,255,.85);text-align:center;padding:1px 0 3px;cursor:pointer}
 .cal-list{flex:1;display:grid;gap:1px;min-height:0;min-width:0;grid-template-rows:repeat(var(--n),minmax(0,1fr))}
-.r{display:flex;align-items:center;border-radius:3px;min-height:0;min-width:0;overflow:hidden;position:relative;background:rgba(255,255,255,.03);color:#fff}
+.r{display:flex;align-items:center;border-radius:3px;min-height:0;min-width:0;overflow:hidden;position:relative;background:transparent;color:#fff}
 .r .dn{position:absolute;left:1px;top:50%;transform:translateY(-50%);font-size:7.5px;font-weight:600;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums;width:9px;text-align:right}
 .r .ct{flex:1;min-width:0;margin-left:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.02;white-space:nowrap;overflow:hidden}
 .r .ct b{font-size:9px;font-weight:800;letter-spacing:.01em}
 .r .ct span{font-size:8px;font-weight:600;font-variant-numeric:tabular-nums;opacity:.92}
-.r.t-off{background:rgba(70,220,120,.22)}
-.r.t-rest{background:rgba(255,214,60,.24)}
-.r.t-flt{background:rgba(232,190,110,.34)}
-.r.t-ret{background:rgba(255,255,255,.26)}
-.r.t-lay{background:rgba(120,180,255,.18)}
-.r.t-sim{background:rgba(190,110,240,.32)}
-.r.t-grd{background:rgba(150,170,200,.28)}
-.r.t-sby{background:rgba(255,160,40,.30)}
-.r.t-leave{background:rgba(60,200,220,.26)}
-.r.t-unk{background:rgba(255,255,255,.03)}
-.r.past{opacity:.45}
-.r.td{box-shadow:inset 0 0 0 1.5px rgba(242,214,150,.95);opacity:1}
+.r.t-off{background:rgba(110,230,150,.20)}
+.r.t-rest .ct span{opacity:.55;font-weight:500;font-size:7.5px;letter-spacing:.04em}
+.r.t-lay .ct span{opacity:.6;font-weight:500}
+.r.past{opacity:.4}
+.r.td{box-shadow:inset 0 0 0 1px rgba(255,255,255,.85);opacity:1}
 @media (orientation:portrait){
   #v-home{flex-direction:column}
   .home-cal{flex:0 0 auto;height:clamp(40px,5.2vh,58px);flex-direction:row;align-items:stretch;padding:2px 3px;margin:0 0 -6px}
@@ -282,7 +275,7 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
       <div><label>呼号前缀</label><input type="text" id="s-cs" spellcheck="false"></div>
     </div>
     <div class="row">
-      <div><label>报到提前（分钟，日历没写时用）</label><input type="number" id="s-pickup" min="0" max="600"></div>
+      <div><label>接车：起飞前（分钟）</label><input type="number" id="s-pickup" min="0" max="600"></div>
       <div><label>夜间变暗 从</label><input type="number" id="s-dimfrom" min="0" max="23"></div>
       <div><label>到（点）</label><input type="number" id="s-dimto" min="0" max="23"></div>
     </div>
@@ -317,13 +310,14 @@ window.onerror = function (m, src, line) {
    ===================================================================== */
 const DEFAULTS = {
   api: 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
-  token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 85,
+  token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 135,
   drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: true
 };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 let CFG = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(lsGet('fc.cfg') || '{}'); } catch (e) { return {}; } })());
 if (/AKfycbxSmqqVM38/.test(CFG.api)) CFG.api = DEFAULTS.api; // 旧接口自动换成新接口
+if (CFG.pickup === 85) CFG.pickup = 135;                         // 以前的默认值（报到）→ 接车
 const Q = new URLSearchParams(location.search);
 if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
 if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
@@ -713,7 +707,7 @@ const clk = (tz, f) => '<span data-tz="' + tz + '" data-f="' + (f || 'hm') + '">
 function nextCard(f, upcoming) {
   if (!f) return '<div class="nc"><div class="empty">暂无航班安排 · 日历里还没有下一班</div></div>';
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
-  const pickup = f.report || (f.std - CFG.pickup * MIN);
+  const pickup = f.std - CFG.pickup * MIN; // 接车 = 起飞前 2 小时 15 分（设置里可改）
   const toPick = pickup - Date.now();
   const dubaiNote = isHome(f.origin) ? '' : ' · 迪拜 ' + hm(f.std, HOME_TZ);
   let more = '';
@@ -726,11 +720,11 @@ function nextCard(f, upcoming) {
       '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
       '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + '</div></div></div>' +
     '<div class="kvs">' +
-      '<div class="kv"><span class="lbl">报到 Report</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayWord(pickup, oTz) + ' · 当地' + (f.reportEst ? ' · 约' : '') + '</span></div>' +
+      '<div class="kv"><span class="lbl">接车 Pickup</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayWord(pickup, oTz) + ' · 当地</span></div>' +
       '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayWord(f.std, oTz) + dubaiNote + '</span></div>' +
       '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayWord(f.sta, dTz) + ' · ' + esc(apCity(f.dest)) + (f.staEst ? ' · 约' : '') + '</span></div>' +
     '</div>' +
-    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距报到' : '距起飞') + '</span>' +
+    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距接车' : '距起飞') + '</span>' +
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span>' +
       '<span class="s">飞行 ' + hmDur(f.sta - f.std) + '</span></div>' +
     '</div>' + more + '</div>';
@@ -815,7 +809,7 @@ function renderCal() {
     let o = info[k];
     if (!o) {
       if (k < known0 || k > known1) o = { type: 't-unk', parts: [''] };
-      else if (homeDep[addDays(k, 1)]) o = { type: 't-rest', parts: [''] };
+      else if (homeDep[addDays(k, 1)]) o = { type: 't-rest', parts: ['<span>REST</span>'] };
       else if (S.apiVer < 4) o = { type: 't-unk', parts: [''] };   // 旧版脚本不传模拟机/地面任务，不乱标休息
       else o = { type: 't-off', parts: [''] };
     }
