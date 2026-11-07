@@ -77,25 +77,34 @@ function setup() {
 }
 
 // ======== 日历 ========
+// 非航班的排班任务（模拟机、地面、备份、休息、休假……）：标题里有这些代码，或者来自 CrewPulse 的日程
+const DUTY_CODE = /\b(SIM|FFS|LOFT|LPC|OPC|SBY|STBY|ASBY|HSBY|RSV|GRD|GND|TRG|CRM|SEP|DGR|OFF|DO|RDO|AL|LV|REST)\b/;
+const DUTY_WORD = /simulator|standby|reserve|ground|training|course|classroom|leave|vacation|day off|rest day|medical/i;
+
 function events_(from, to) {
   const list = [], seen = {};
   CALENDAR_IDS.forEach(function (id) {
     const cal = id === 'primary' ? CalendarApp.getDefaultCalendar() : CalendarApp.getCalendarById(id);
     if (!cal) return;
     cal.getEvents(from, to).forEach(function (ev) {
-      if (ev.isAllDayEvent()) return;
+      const allDay = ev.isAllDayEvent();
       const title = (ev.getTitle() || '').trim();
-      if (!FLIGHT_TITLE.test(title.toUpperCase())) return;
+      const desc = ev.getDescription() || '';
+      const isFlight = !allDay && FLIGHT_TITLE.test(title.toUpperCase());
+      const isDuty = !isFlight && (/crewpulse/i.test(desc) || DUTY_CODE.test(title) || DUTY_WORD.test(title));
+      if (!isFlight && !isDuty) return;          // 私人日程不发出去
       const start = ev.getStartTime().toISOString();
       const key = title.toUpperCase() + '|' + start;
       if (seen[key]) return;
       seen[key] = 1;
       list.push({
-        title: title,
+        title: title.slice(0, 60),
         start: start,
         end: ev.getEndTime().toISOString(),
-        location: ev.getLocation() || '',
-        description: legsOnly_(ev.getDescription()),
+        allDay: allDay,
+        kind: isFlight ? 'flight' : 'duty',
+        location: isFlight ? (ev.getLocation() || '') : '',
+        description: isFlight ? legsOnly_(desc) : '',
       });
     });
   });
@@ -115,7 +124,7 @@ function flights_() {
       if (st) status[leg.origin + leg.dest + leg.std] = publicStatus_(st);
     });
   });
-  return { ok: true, version: 3, generated: now.toISOString(), flights: list, status: status };
+  return { ok: true, version: 4, generated: now.toISOString(), flights: list, status: status };
 }
 
 // 备注里只保留航班号、「机场 - 日期 时间」和呼号这几种行，
