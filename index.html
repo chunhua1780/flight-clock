@@ -58,36 +58,32 @@ body[data-mode=home] #v-home, body[data-mode=layover] #v-lay, body[data-mode=fli
 #v-home{flex-direction:row;gap:clamp(14px,2.2vw,30px)}
 .home-main{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
 body.nocal .home-cal{display:none}
-body:not(.nocal) #v-home .bigclock .t{font-size:min(19vw,44vh)}
-/* ---------- 右侧竖条月历 ---------- */
-.home-cal{flex:0 0 clamp(230px,24vw,300px);align-self:stretch;display:flex;flex-direction:column;min-height:0;border:1px solid rgba(255,255,255,.13);border-radius:18px;
-  background:rgba(10,10,12,.5);-webkit-backdrop-filter:blur(18px) saturate(1.25);backdrop-filter:blur(18px) saturate(1.25);padding:10px 9px 9px;text-shadow:none;box-shadow:0 10px 40px rgba(0,0,0,.25)}
-.cal-h{display:flex;align-items:center;gap:6px;margin:0 2px 7px}
-.cal-h .ttl{font-size:16px;font-weight:600;flex:1;letter-spacing:.02em}
-.cal-h .ttl small{font-size:11px;color:#a9a69e;font-weight:500;margin-left:5px}
-.cal-h .nav{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;cursor:pointer;color:#e9e6de;font-size:15px;background:rgba(255,255,255,.07)}
-.cal-h .today{font-size:11px;padding:0 8px;width:auto}
-.cal-list{flex:1;display:grid;gap:2px;min-height:0}
-.r{display:flex;align-items:center;gap:6px;border-radius:6px;padding:0 7px;min-height:0;overflow:hidden;white-space:nowrap;font-size:clamp(10px,1.5vh,13px);line-height:1;color:#d9d6ce}
-.r .dn{flex:none;width:3.1em;display:flex;align-items:baseline;gap:3px}
-.r .dn b{width:1.35em;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
-.r .dn i{font-style:normal;font-size:.82em;opacity:.65}
-.r .ct{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:600;letter-spacing:.01em}
-.r .ct em{font-style:normal;font-weight:500;opacity:.8}
-.r.t-off{background:rgba(52,199,89,.30);color:#d2fadd}
-.r.t-rest{background:rgba(255,204,0,.30);color:#fff0b0}
-.r.t-flt{background:rgba(210,173,98,.38);color:#fff0cc}
-.r.t-lay{background:rgba(111,180,255,.22);color:#d6e8ff}
-.r.t-sim{background:rgba(175,82,222,.36);color:#f0dbff}
-.r.t-grd{background:rgba(130,150,180,.36);color:#e3ebf6}
-.r.t-sby{background:rgba(255,149,0,.32);color:#ffe0b8}
-.r.t-leave{background:rgba(48,176,199,.32);color:#cdf4fa}
-.r.t-unk{color:#9a978f;background:rgba(255,255,255,.04)}
-.r.we .dn i{color:#f0b9a0;opacity:.9}
-.r.past{opacity:.5}
-.r.td{box-shadow:inset 0 0 0 2px var(--gold);opacity:1}
-.cal-f{margin:7px 2px 0;font-size:11px;color:#bdbab2;display:flex;justify-content:space-between}
-.cal-f b{color:#f3d99c;font-weight:600}
+body:not(.nocal) #v-home .bigclock .t{font-size:min(26vw,46vh)}
+/* ---------- 右侧细条月历（约 1 厘米宽） ---------- */
+#v-home{gap:10px}
+.home-cal{flex:0 0 62px;align-self:stretch;display:flex;flex-direction:column;min-height:0;border-radius:12px;padding:5px 3px;
+  background:rgba(10,10,12,.42);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.1);text-shadow:none;margin-right:-6px}
+.cal-m{font-size:11px;font-weight:700;color:#f3d99c;text-align:center;padding:1px 0 4px;cursor:pointer;letter-spacing:.02em}
+.cal-list{flex:1;display:grid;gap:1.5px;min-height:0}
+.r{display:flex;align-items:center;border-radius:4px;min-height:0;overflow:hidden;position:relative;background:rgba(255,255,255,.035)}
+.r .dn{position:absolute;left:2px;top:50%;transform:translateY(-50%);font-size:8.5px;font-weight:600;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums;width:11px;text-align:right}
+.r .ct{flex:1;min-width:0;margin-left:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;white-space:nowrap;overflow:hidden}
+.r .ct b{font-size:10px;font-weight:800;letter-spacing:.02em}
+.r .ct span{font-size:9px;font-weight:600;font-variant-numeric:tabular-nums;opacity:.9}
+.r.t-off{background:rgba(52,199,89,.55)}
+.r.t-rest{background:rgba(255,204,0,.55)}
+.r.t-flt{background:rgba(210,173,98,.85);color:#1d1504}
+.r.t-flt .dn{color:rgba(0,0,0,.55)}
+.r.t-ret{background:rgba(255,255,255,.9);color:#111}
+.r.t-ret .dn{color:rgba(0,0,0,.5)}
+.r.t-lay{background:rgba(111,180,255,.35);color:#e1eeff}
+.r.t-sim{background:rgba(175,82,222,.75);color:#fff}
+.r.t-grd{background:rgba(130,150,180,.6);color:#fff}
+.r.t-sby{background:rgba(255,149,0,.7);color:#1d1004}
+.r.t-leave{background:rgba(48,176,199,.6);color:#fff}
+.r.t-unk{background:rgba(255,255,255,.035)}
+.r.past{opacity:.45}
+.r.td{box-shadow:0 0 0 2px var(--gold);opacity:1;z-index:1}
 .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .datebox .d1{font-size:clamp(18px,3.6vmin,40px);font-weight:600}
 .datebox .d2{font-size:clamp(13px,2.1vmin,22px);color:var(--dim);margin-top:4px}
@@ -180,7 +176,7 @@ body[data-mode=flight] #tools{left:auto;right:var(--pad);transform:none}
 body[data-mode=layover] #tools{left:auto;right:var(--pad);transform:none}
 body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 @media (max-width:600px){#sync{display:none}}
-@media (max-width:700px){.home-cal{display:none!important} body #v-home .bigclock .t{font-size:min(30vw,30vh)}}
+
 @media (orientation:landscape) and (max-height:500px){.home-cal{display:none!important} body #v-home .bigclock .t{font-size:min(29vw,46vh)}}
 
 #settings{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px}
@@ -199,8 +195,7 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 
 /* ---------- portrait / small ---------- */
 @media (orientation:portrait){
-  body:not(.nocal) #v-home .bigclock .t{font-size:min(16vw,30vh)}
-  .home-cal{flex-basis:clamp(250px,38vw,330px)}
+  body:not(.nocal) #v-home .bigclock .t{font-size:min(24vw,30vh)}
   .dual{grid-template-columns:1fr;grid-template-rows:1fr 1px 1fr}
   .dual .sep{margin:0 8vw}
   body[data-mode=layover] #sc-a{right:0;bottom:50%}
@@ -780,51 +775,46 @@ function renderCal() {
   const F_ = S.flights, info = {};
   const put = (k, pri, type, txt) => { const o = info[k] = info[k] || { pri: 99, type: '', parts: [] }; o.parts.push(txt); if (pri < o.pri) { o.pri = pri; o.type = type; } };
   const homeDep = {};
+  const cell = (code, time) => '<b>' + code + '</b>' + (time ? '<span>' + time + '</span>' : '');
   F_.forEach(f => {
     const st = stOf(f), oTz = apTz(f.origin);
     const dep = st.off || f.std, k = ymd(dep, oTz);
     if (isHome(f.origin)) homeDep[ymd(f.std, HOME_TZ)] = 1;
     if (isHome(f.dest) && !isHome(f.origin)) {
+      // 回迪拜：显示落地迪拜的时间
       const land = st.on || f.sta, lk = ymd(land, HOME_TZ);
-      if (lk === k) put(k, 1, 't-flt', '✈ ' + f.dest + ' ' + hm(dep, oTz) + ' <em>· 落地 ' + hm(land, HOME_TZ) + '</em>');
-      else { put(k, 1, 't-flt', '✈ ' + f.dest + ' ' + hm(dep, oTz)); put(lk, 1, 't-flt', '落地迪拜 ' + hm(land, HOME_TZ)); }
-    } else put(k, 1, 't-flt', '✈ ' + f.dest + ' ' + hm(dep, oTz));
+      put(lk, 1, 't-ret', cell(f.dest, hm(land, HOME_TZ)));
+      if (lk !== k) put(k, 1, 't-flt', cell(f.dest, hm(dep, oTz)));
+    } else put(k, 1, 't-flt', cell(f.dest, hm(dep, oTz)));
   });
   const PRI = { sim: 2, grd: 3, sby: 4, leave: 5, rest: 6, off: 7 };
+  const SHORT = { sim: 'SIM', grd: 'GRD', sby: 'SBY', leave: 'AL', rest: '', off: '' };
   S.duties.forEach(d => {
-    const lbl = d.l + (d.allDay ? '' : ' ' + hm(d.start, HOME_TZ));
-    if (d.allDay) { for (let t = d.start, c = 0; t < d.end && c < 40; t += 864e5, c++) put(ymd(t + HOUR, HOME_TZ), PRI[d.k] || 3, 't-' + (d.k === 'off' ? 'off' : d.k), d.l); }
-    else put(ymd(d.start, HOME_TZ), PRI[d.k] || 3, 't-' + (d.k === 'off' ? 'off' : d.k), lbl);
+    const txt = SHORT[d.k] != null ? (SHORT[d.k] ? cell(SHORT[d.k], d.allDay || d.k === 'leave' ? '' : hm(d.start, HOME_TZ)) : '') : cell('DTY');
+    if (d.allDay) { for (let t = d.start, c = 0; t < d.end && c < 40; t += 864e5, c++) put(ymd(t + HOUR, HOME_TZ), PRI[d.k] || 3, 't-' + d.k, txt); }
+    else put(ymd(d.start, HOME_TZ), PRI[d.k] || 3, 't-' + d.k, txt);
   });
   // 驻外
   F_.forEach((f, i) => {
     if (isHome(f.dest)) return;
     const n = F_[i + 1], end = n && n.origin === f.dest ? n.std : f.sta, tz = apTz(f.dest), endK = ymd(end, tz);
-    for (let t = f.sta, c = 0; c < 40; t += 864e5, c++) { const k = ymd(t, tz); if (k > endK) break; if (!info[k]) put(k, 8, 't-lay', '驻外 ' + f.dest + ' <em>' + esc(apCity(f.dest)) + '</em>'); }
+    for (let t = f.sta, c = 0; c < 40; t += 864e5, c++) { const k = ymd(t, tz); if (k > endK) break; if (!info[k]) put(k, 8, 't-lay', '<span>' + f.dest + '</span>'); }
   });
-  let offN = 0, legsN = 0, block = 0;
-  F_.forEach(f => { if (ymd(f.std, apTz(f.origin)).slice(0, 6) === dk(1).slice(0, 6)) { legsN++; block += f.sta - f.std; } });
   let rows = '';
   for (let d = 1; d <= nDays; d++) {
-    const k = dk(d), wd = (new Date(Date.UTC(y, m, d)).getUTCDay() + 6) % 7;
+    const k = dk(d);
     let o = info[k];
     if (!o) {
-      if (k < known0 || k > known1) o = { type: 't-unk', parts: ['—'] };
-      else if (homeDep[addDays(k, 1)]) o = { type: 't-rest', parts: ['REST DAY <em>飞行前休息</em>'] };
-      // 旧版 Apps Script 不传模拟机/地面任务，没法确定是不是休息，先不标绿色
-      else if (S.apiVer < 4) o = { type: 't-unk', parts: ['无航班'] };
-      else o = { type: 't-off', parts: ['DAY OFF <em>休息</em>'] };
+      if (k < known0 || k > known1) o = { type: 't-unk', parts: [''] };
+      else if (homeDep[addDays(k, 1)]) o = { type: 't-rest', parts: [''] };
+      else if (S.apiVer < 4) o = { type: 't-unk', parts: [''] };   // 旧版脚本不传模拟机/地面任务，不乱标休息
+      else o = { type: 't-off', parts: [''] };
     }
-    if (o.type === 't-off') offN++;
-    const cls = ['r', o.type, wd >= 5 ? 'we' : '', k === today ? 'td' : '', k < today ? 'past' : ''].join(' ');
-    rows += '<div class="' + cls + '"><div class="dn"><b>' + d + '</b><i>' + '一二三四五六日'[wd] + '</i></div><div class="ct">' + o.parts.join(' · ') + '</div></div>';
+    const cls = ['r', o.type, k === today ? 'td' : '', k < today ? 'past' : ''].join(' ');
+    rows += '<div class="' + cls + '"><div class="dn">' + d + '</div><div class="ct">' + o.parts[0] + '</div></div>';
   }
-  el.innerHTML = '<div class="cal-h"><div class="ttl">' + (m + 1) + '月<small>' + y + '</small></div>' +
-    (S.calOff ? '<div class="nav today" onclick="calNav(0)">本月</div>' : '') +
-    '<div class="nav" onclick="calNav(-1)">‹</div><div class="nav" onclick="calNav(1)">›</div></div>' +
-    '<div class="cal-list" style="grid-template-rows:repeat(' + nDays + ',minmax(0,1fr))">' + rows + '</div>' +
-    (S.apiVer < 4 && !DEMO ? '<div class="cal-f" style="justify-content:center;color:#f3d99c">更新 Apps Script 后显示休息日和模拟机</div>' : '') +
-    '<div class="cal-f"><span>休息 <b>' + offN + '</b> 天</span><span>航班 <b>' + legsN + '</b> 段</span><span>飞行 <b>' + hmDur(block) + '</b></span></div>';
+  el.innerHTML = '<div class="cal-m" onclick="calNav(S.calOff ? 0 : 1)">' + (m + 1) + '月' + (S.calOff ? ' ↩' : '') + '</div>' +
+    '<div class="cal-list" style="grid-template-rows:repeat(' + nDays + ',minmax(0,1fr))">' + rows + '</div>';
 }
 
 function renderLayover(st) {
