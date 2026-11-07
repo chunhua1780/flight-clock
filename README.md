@@ -62,11 +62,35 @@ Apps Script 每 5 分钟用 ADS-B 信号检查一次正在进行的航班（iPad
 
 在 iPad 上：Safari → 分享 → 添加到主屏幕，就能全屏运行。
 
+## 背景照片（按时间和天气自动变化）
+
+- 按当地**太阳的实际高度**分为：清晨、上午、白天、傍晚、黄昏、夜晚，自动换成对应的照片和色调。
+- 按**实时天气**：晴、多云、阴、雾、雨、雷暴（会闪电）、雪、**沙尘暴/浮尘**（用空气质量数据里的沙尘浓度判断）。下雨、下雪、沙尘会有动画。
+- **驻外时**左右（手机上是上下）各显示自己城市当时的画面。
+- 目前有专门照片的城市：**迪拜**（清晨、白天、黄昏、夜景、沙尘、阴天、雨后）、**广州**（白天、黄昏、夜景、阴雨）。其他城市自动用维基百科上的城市照片（国内可能打不开），再不行就用渐变天空。
+- 想看效果：设置 → 「背景天气预览」，或在网址后面加 `?demo=layover&wx=dust`（`wx` 可选 dust / rain / storm / fog / snow / overcast / clear，`phase` 可选 dawn / day / dusk / night）。
+
+加一个新城市：把照片放进 `bg/`，在 `scene.js` 的 `LIB` 里按机场三字码登记，并在 `bg/credits.json` 里写上作者和授权。
+
+### 照片来源（Wikimedia Commons）
+- `dxb-dawn.jpg`：[Dubai Skyline](https://commons.wikimedia.org/w/index.php?curid=71442094)，作者 Francisco Anzola，CC BY 3.0
+- `dxb-day.jpg`：[Dubai Skyline mit Burj Khalifa (18241030269)](https://commons.wikimedia.org/w/index.php?curid=82789105)，作者 Tim Reckmann from Hamm, Deutschland，CC BY 2.0
+- `dxb-dusk.jpg`：[Burj Khalifa Night View 01](https://commons.wikimedia.org/w/index.php?curid=113514498)，作者 Sergei Gussev，CC BY 2.0
+- `dxb-night.jpg`：[Burj Khalifa Night View 04](https://commons.wikimedia.org/w/index.php?curid=113514852)，作者 Sergei Gussev，CC BY 2.0
+- `dxb-dust.jpg`：[Dubai Skyline and Burj Khalifa - 25072008](https://commons.wikimedia.org/w/index.php?curid=9107302)，作者 petter palander，CC BY 2.0
+- `dxb-haze.jpg`：[Dubai Skyline 2016](https://commons.wikimedia.org/w/index.php?curid=111199602)，作者 Tonenight，CC BY-SA 4.0
+- `dxb-rain.jpg`：[Dubai Marina and Sheikh Zayed Road from Saba 3 JLT after rains](https://commons.wikimedia.org/w/index.php?curid=167544618)，作者 Yourusernamewillbepublic2，CC0
+- `can-day.jpg`：[Canton Tower 20220626 (cropped)](https://commons.wikimedia.org/w/index.php?curid=122654159)，作者 Tim Wu，CC BY-SA 4.0
+- `can-dusk.jpg`：[20985652 Jpg](https://commons.wikimedia.org/w/index.php?curid=71411089)，作者 William Alen，CC BY 3.0
+- `can-night.jpg`：[Canton Tower 2013.12.02 18-16-47](https://commons.wikimedia.org/w/index.php?curid=29979838)，作者 Zhangzhugang，CC BY-SA 3.0
+- `can-rain.jpg`：[GuangzhouSkyline2020](https://commons.wikimedia.org/w/index.php?curid=89481087)，作者 Josephua，CC BY-SA 4.0
+
 ## 文件
 
 | 文件 | 说明 |
 |---|---|
 | `index.html` | 整个网页（时钟、状态判断、地图、设置都在里面） |
+| `scene.js` + `bg/` | 背景照片和天气动画 |
 | `airports.json` | 全球约 7,900 个机场的坐标和时区（来自 [mwgg/Airports](https://github.com/mwgg/Airports)，MIT） |
 | `apps-script/Code.gs` | Google Apps Script 后端 |
 
