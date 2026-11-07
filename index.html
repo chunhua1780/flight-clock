@@ -119,6 +119,9 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .kv .s{font-size:clamp(11px,1.6vmin,16px);color:var(--dim);white-space:nowrap}
 .nc-top{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .kvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,2vw,28px);margin-top:clamp(4px,1vh,10px);padding-top:clamp(4px,1vh,10px);border-top:1px solid rgba(255,255,255,.18)}
+.dxb{color:#8fd0ff;font-size:.6em;font-weight:500;margin-left:1px;letter-spacing:0}
+.dxb sup{font-size:.6em;margin-left:1px}
+.dxbc{color:#8fd0ff}
 .car{display:inline-block;vertical-align:-3px;width:34px;height:14px;color:var(--gold);filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .cdbox .lbl .car{margin-right:6px}
 .kvs .kv .s{white-space:normal;line-height:1.35}
@@ -303,7 +306,7 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 </div>
 
 <div id="err" style="display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:3000;background:#2a0f0f;color:#ffb4ae;border:1px solid #6b2a26;border-radius:12px;padding:10px 14px;font:13px/1.4 -apple-system,sans-serif;white-space:pre-wrap"></div>
-<script src="scene.js"></script>
+<script src="scene.js?v=__APP_VER__"></script>
 <script>
 window.onerror = function (m, src, line) {
   var e = document.getElementById('err');
@@ -731,6 +734,14 @@ function dxbConv(t, tz) {
   return '迪拜 ' + hm(t, HOME_TZ) + (ymd(t, HOME_TZ) !== ymd(t, tz) ? ' (' + dateShort(t, HOME_TZ) + ')' : '');
 }
 const brDxb = (t, tz) => dxbConv(t, tz) ? '<br>' + dxbConv(t, tz) : '';
+// 「20:00/16:00」：斜杠后面换颜色的是迪拜时间；迪拜日期不同时带 +1 / -1
+function hmDual(t, tz) {
+  const loc = hm(t, tz);
+  if (tzOffset(tz, t) === tzOffset(HOME_TZ, t)) return loc;
+  const dl = ymd(t, HOME_TZ), ll = ymd(t, tz);
+  return loc + '<span class="dxb">/' + hm(t, HOME_TZ) + (dl === ll ? '' : '<sup>' + (dl > ll ? '+1' : '-1') + '</sup>') + '</span>';
+}
+const dualNote = (t, tz) => tzOffset(tz, t) === tzOffset(HOME_TZ, t) ? '' : ' 当地<span class="dxbc">/迪拜</span>';
 // 旅行车侧影小图标（接车）
 const CAR = '<svg class="car" viewBox="0 0 68 28" aria-label="接车"><path fill="currentColor" d="M3 20v-5.2c0-1.6 1.1-2.8 2.7-3.2l9.6-2.2 7.6-6.1C24.2 2.3 25.9 1.7 27.8 1.7h28.6c2 0 3.6 1.1 4.3 3l3.2 7.5c.6 1.3.9 2.7.9 4.1V20c0 1-.8 1.8-1.8 1.8h-4.5a6.6 6.6 0 0 0-12.9 0H23.9a6.6 6.6 0 0 0-12.9 0H4.8C3.8 21.8 3 21 3 20z"/><path fill="rgba(0,0,0,.55)" d="M24.6 5.2c.8-.6 1.8-1 2.9-1H38v6.6H17.8zM40.6 4.2h11.1v6.6H40.6zM54.3 4.2h1.9c1 0 1.9.6 2.3 1.6l2 5H54.3z"/><circle cx="17.4" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/><circle cx="51.6" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/></svg>';
 function nextCard(f, upcoming) {
@@ -753,9 +764,9 @@ function nextCard(f, upcoming) {
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
     '</div>' +
     '<div class="kvs">' +
-      '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + brDxb(pickup, oTz) + '</span></div>' +
-      '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + brDxb(f.std, oTz) + '</span></div>' +
-      '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + ' 当地' + (f.staEst ? ' · 约' : '') + brDxb(f.sta, dTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hmDual(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + dualNote(pickup, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hmDual(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + dualNote(f.std, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hmDual(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + (dualNote(f.sta, dTz) || ' 当地') + (f.staEst ? ' · 约' : '') + '</span></div>' +
     '</div>' + more + '</div>';
 }
 
@@ -1064,8 +1075,8 @@ function renderFlight(st, light) {
     : '<div class="kv"><span class="lbl">计划起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
       (pos.phase === 'waiting' ? '<span style="color:var(--red)">尚未起飞 · 已过 ' + hmDur(now - f.std) + '</span>' : '当地 · ' + dayWord(f.std, oTz)) + '</span></div>';
   const arrCell = fs.on
-    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际落地 ' + f.dest + '</span><span class="v num">' + hm(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + brDxb(fs.on, dTz) + '</span></div>'
-    : '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hm(pos.eta, dTz) + '</span><span class="s">' + dayLbl(pos.eta, dTz) + ' 当地' + (fs.off ? ' · ' + diffTxt(pos.eta, f.sta) : '') + brDxb(pos.eta, dTz) + '</span></div>';
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际落地 ' + f.dest + '</span><span class="v num">' + hmDual(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + dualNote(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
+    : '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hmDual(pos.eta, dTz) + '</span><span class="s">' + dayLbl(pos.eta, dTz) + (dualNote(pos.eta, dTz) || ' 当地') + (fs.off ? ' · ' + diffTxt(pos.eta, f.sta) : '') + '</span></div>';
   const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
   const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
   const html =
@@ -1176,11 +1187,19 @@ async function pexelsPhoto(city, phase, cat) {
   }
   return null;
 }
+// 每 2 小时换一个角度（地标 / 市中心 / 海滨……），时段或天气一变也会换
+const FLAVORS = {
+  Dubai: ['', 'Burj Khalifa', 'Marina', 'Downtown', 'Creek', 'Palm Jumeirah', 'Business Bay'],
+  Guangzhou: ['', 'Canton Tower', 'Pearl River', 'Tianhe', 'skyline'],
+  _: ['', 'downtown', 'architecture', 'street', 'landmark']
+};
+const photoSlot = () => ymd(Date.now(), HOME_TZ) + '-' + Math.floor(+parts(Date.now(), HOME_TZ).hour / 2);
 function remotePhoto(city, phase, cat, cb) {
   if (!CFG.photos) return null;
+  const slot = photoSlot(), fl = FLAVORS[city] || FLAVORS._;
+  const flavor = fl[strHash(slot + '|' + city) % fl.length];
   if (CFG.pexels) {
-    const day = ymd(Date.now(), HOME_TZ);
-    if (PHOTO.day !== day) { PHOTO.day = day; PHOTO.m = {}; }
+    if (PHOTO.day !== slot) { PHOTO.day = slot; PHOTO.m = {}; }
     const k = 'px|' + city + '|' + phase + '|' + cat;
     if (k in PHOTO.m) return PHOTO.m[k];
     PHOTO.m[k] = null;
@@ -1188,14 +1207,16 @@ function remotePhoto(city, phase, cat, cb) {
     return null;
   }
   if (photoOff || S.legacy) return null;
-  const day = ymd(Date.now(), HOME_TZ);
-  if (PHOTO.day !== day) { PHOTO.day = day; PHOTO.m = {}; }
+  if (PHOTO.day !== slot) { PHOTO.day = slot; PHOTO.m = {}; }
   const k = city + '|' + phase + '|' + cat;
   if (k in PHOTO.m) return PHOTO.m[k];
   PHOTO.m[k] = null;
-  fetchT(apiUrl({ action: 'photo', city, phase, wx: cat, d: day }), 15000).then(r => r.json()).then(j => {
+  const ask = q => fetchT(apiUrl({ action: 'photo', city: q, phase, wx: cat, d: slot }), 15000).then(r => r.json());
+  ask((city + ' ' + flavor).trim()).then(j => (j.ok || !flavor) ? j : ask(city)).then(j => {
     if (j.ok && j.url) {
-      PHOTO.m[k] = { url: j.url, wx: j.wx, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } };
+      // 搜索词里没有时段词（比如晚上却找到白天的照片）时 ph=false，页面会按实际时段调暗
+      const pw = PX_PHASE[phase] || '';
+      PHOTO.m[k] = { url: j.url, wx: j.wx, ph: !pw || (j.query || '').toLowerCase().indexOf(pw) >= 0, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } };
       lsSet('fc.photos', JSON.stringify(PHOTO)); render(true);
     } else if (j.flights || j.error === 'no UNSPLASH_KEY') photoOff = true; // 旧版脚本或还没设 Key：用内置照片
   }).catch(() => {});
@@ -1317,6 +1338,18 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { ke
 setInterval(() => { $('app').style.transform = 'translate(' + (Math.round(Math.random() * 6) - 3) + 'px,' + (Math.round(Math.random() * 6) - 3) + 'px)'; }, 120000);
 addEventListener('resize', () => { S.view = null; render(true); });
 addEventListener('resize', () => { if (map && L_route && document.body.dataset.mode === 'flight') fitMap(L_route.getLatLngs()); });
+
+/* ---------- 自动更新：发现新版本就自己刷新（kiosk 里不用手动刷新） ---------- */
+const APP_VER = '__APP_VER__';
+setInterval(() => {
+  fetch('version.txt?_=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(v => {
+    v = (v || '').trim();
+    if (v && v.length < 40 && v !== APP_VER && APP_VER.indexOf('__') !== 0) {
+      const q = new URLSearchParams(location.search); q.set('v', v);
+      location.replace(location.pathname + '?' + q.toString());
+    }
+  }).catch(() => {});
+}, 10 * MIN);
 
 /* =====================================================================
    START
