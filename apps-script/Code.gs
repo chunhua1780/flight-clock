@@ -214,10 +214,12 @@ function poll() {
   const list = events_(new Date(now - 2 * 864e5), new Date(now + 864e5));
   list.forEach(function (ev) {
     legsOf_(ev).forEach(function (leg) {
-      if (now < leg.std - 45 * MIN || now > leg.sta + 4 * HOUR) return; // 不在这段航班的时间窗口里
       const st = getStatus_(leg);
+      const block = leg.sta - leg.std;
+      // 跟踪窗口：计划起飞前 45 分钟开始；没起飞的最多跟到计划起飞后 8 小时（延误）；起飞了就跟到落地后 30 分钟
+      const until = st && st.off ? st.off + block + 3 * HOUR : leg.std + 8 * HOUR;
+      if (now < leg.std - 45 * MIN || now > until) return;
       if (st && st.on && now - st.on > 30 * MIN) return;                  // 已经落地很久了
-      if (now > leg.sta + 90 * MIN && (!st || !st.off)) return;           // 根本没起飞（取消/换机）就别再查了
       track_(leg.callsign, leg);
     });
   });
