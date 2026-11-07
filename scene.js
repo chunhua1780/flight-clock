@@ -217,7 +217,13 @@
       remote = remoteFn(ap.city, phase, cat, () => update(el, code, ap, w, Date.now(), phaseOverride));
       if (remote && remote.failed) remote = null;
     }
-    if (remote) { url = remote.url; key = remote.wx ? cat : (phase === 'night' ? 'night' : phase === 'dawn' || phase === 'dusk' ? phase : 'day'); p = null; }
+    if (remote) {
+      url = remote.url; p = null;
+      // 搜索词里没有时段词（ph === false）时当作白天照片，让下面的逻辑按实际时段调暗或加暖色
+      const phaseKey = remote.ph === false ? 'day' : (phase === 'night' ? 'night' : phase === 'dawn' || phase === 'dusk' ? phase : 'day');
+      key = remote.wx ? cat : phaseKey;
+      if (remote.wx && remote.ph === false && phase === 'night') key = 'day';
+    }
     else if (p) { url = 'bg/' + p.f; pos = p.pos || pos; key = p.key; }
     else if (ap && ap.city) {
       const mem = wikiMem[ap.city];
@@ -256,8 +262,9 @@
       if (url) {
         // 先加载完再换，避免闪一下黑
         const im = new Image();
-        im.onload = () => { img.style.backgroundImage = bg; img.classList.add('on'); };
+        im.onload = () => { if (el.dataset.sig !== sig) return; img.style.backgroundImage = bg; img.classList.add('on'); }; // 过期的就不用了
         im.onerror = () => {
+          if (el.dataset.sig !== sig) return;
           if (remote) { remote.failed = true; el.dataset.sig = ''; update(el, code, ap, w, Date.now(), phaseOverride); return; }
           img.style.backgroundImage = SKY[phase]; img.classList.add('on');
         };

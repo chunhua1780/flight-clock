@@ -270,6 +270,8 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
     <p>航班从 Google 日历读取，经过你部署的 Apps Script 网址。设置只保存在这台设备上。</p>
     <label>Apps Script 网址（/exec 结尾）</label>
     <input type="url" id="s-api" spellcheck="false" autocomplete="off">
+    <label>Pexels 图片库 Key（只保存在这台设备上）</label>
+    <input type="text" id="s-pexels" spellcheck="false" autocomplete="off">
     <label>Token（Apps Script 里设了 TOKEN 才需要）</label>
     <input type="text" id="s-token" spellcheck="false" autocomplete="off">
     <div class="row">
@@ -324,6 +326,11 @@ if (CFG.pickup === 85) CFG.pickup = 135;                         // 以前的默
 const Q = new URLSearchParams(location.search);
 if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
 if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
+// ?pexels=KEY：把图片库 Key 存在这台设备上（不会写进代码仓库），然后从地址栏去掉
+if (Q.get('pexels')) {
+  CFG.pexels = Q.get('pexels').trim(); lsSet('fc.cfg', JSON.stringify(CFG));
+  Q.delete('pexels'); try { history.replaceState(null, '', location.pathname + (Q.toString() ? '?' + Q : '')); } catch (e) {}
+}
 const DEMO = Q.get('demo');
 const HOME_TZ = 'Asia/Dubai';
 const homeCodes = () => CFG.home.toUpperCase().split(/[^A-Z]+/).filter(Boolean);
@@ -1055,8 +1062,58 @@ const PHASE_PREVIEW = Q.get('phase');
 // 图片库照片：同一天、同一城市/时段/天气用同一张（Apps Script 按日期挑）
 const PHOTO = (() => { try { return JSON.parse(lsGet('fc.photos') || '{}'); } catch (e) { return {}; } })();
 let photoOff = false;
+// 直接在浏览器里查 Pexels（Key 存在本机设置里）
+const PX_PHASE = { dawn: 'sunrise', morning: 'morning', day: '', evening: 'golden hour', dusk: 'sunset', night: 'night' };
+const PX_WX = { rain: 'rain', storm: 'storm', snow: 'snow', fog: 'fog', dust: 'sandstorm', overcast: 'cloudy' };
+const strHash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+let PXC = (() => { try { return JSON.parse(lsGet('fc.px') || '{}'); } catch (e) { return {}; } })();
+async function pexelsSearch(q) {
+  const c = PXC[q];
+  if (c && Date.now() - c.t < 24 * HOUR) return c.list;
+  const r = await fetchT('https://api.pexels.com/v1/search?orientation=landscape&size=large&per_page=40&query=' + encodeURIComponent(q), 15000, { headers: { Authorization: CFG.pexels } });
+  if (!r.ok) throw new Error('Pexels ' + r.status);
+  const j = await r.json();
+  const list = (j.photos || []).filter(x => x.width >= 2000 && x.width > x.height * 1.2)
+    .map(x => ({ s: x.src.original.split('?')[0], by: x.photographer, u: x.url, a: (x.alt || '').toLowerCase() }));
+  for (const k in PXC) if (Date.now() - PXC[k].t > 2 * 864e5) delete PXC[k];
+  PXC[q] = { t: Date.now(), list };
+  lsSet('fc.px', JSON.stringify(PXC));
+  return list;
+}
+// 各城市的地标，搜索更准
+const LANDMARK = { Dubai: 'Burj Khalifa', Guangzhou: 'Canton Tower', 'Hong Kong': 'Victoria Harbour', Shanghai: 'Lujiazui', London: 'Tower Bridge', Amsterdam: 'canal', Paris: 'Eiffel Tower', Frankfurt: 'skyline', Chicago: 'skyline', 'New York': 'Manhattan', Singapore: 'Marina Bay', Tokyo: 'Tokyo Tower', Seoul: 'Namsan Tower' };
+async function pexelsPhoto(city, phase, cat) {
+  const pw = PX_PHASE[phase] || '', ww = PX_WX[cat] || '', tries = [];
+  const lm = LANDMARK[city] && LANDMARK[city] !== 'skyline' ? LANDMARK[city] : '';
+  const words = [city.toLowerCase()].concat(lm ? lm.toLowerCase().split(' ').filter(w => w.length > 3) : []);
+  // ph = 搜索词里有没有时段词（没有的话，页面会按实际时段给照片调暗/加暖色）
+  const add = (words, wx, ph) => { const q = words.filter(Boolean).join(' '); if (q && !tries.some(t => t.q === q)) tries.push({ q, wx, ph }); };
+  if (ww) { add([city, ww, pw === 'night' ? 'night' : ''], true, pw === 'night' || !pw); add([city, ww], true, !pw); }
+  if (lm) add([city, lm, pw], false, true);
+  add([city, pw, 'skyline'], false, true); add([city, pw], false, true); add([city, 'skyline'], false, !pw); add([city, 'city'], false, !pw);
+  const day = ymd(Date.now(), HOME_TZ);
+  for (const t of tries) {
+    const all = await pexelsSearch(t.q);
+    // 只要照片描述里提到这个城市或地标的，避免搜「广州」出来别的城市
+    const list = all.filter(x => !x.a || words.some(w => x.a.includes(w)));
+    if (list.length < 3) continue;
+    const ph = list[strHash(day + '|' + t.q) % list.length];
+    return { url: ph.s + '?auto=compress&cs=tinysrgb&w=1920', wx: t.wx, ph: t.ph, credit: { by: ph.by, license: 'Pexels', url: ph.u } };
+  }
+  return null;
+}
 function remotePhoto(city, phase, cat, cb) {
-  if (!CFG.photos || photoOff || S.legacy) return null;
+  if (!CFG.photos) return null;
+  if (CFG.pexels) {
+    const day = ymd(Date.now(), HOME_TZ);
+    if (PHOTO.day !== day) { PHOTO.day = day; PHOTO.m = {}; }
+    const k = 'px|' + city + '|' + phase + '|' + cat;
+    if (k in PHOTO.m) return PHOTO.m[k];
+    PHOTO.m[k] = null;
+    pexelsPhoto(city, phase, cat).then(r => { if (r) { PHOTO.m[k] = r; lsSet('fc.photos', JSON.stringify(PHOTO)); render(true); } }).catch(() => {});
+    return null;
+  }
+  if (photoOff || S.legacy) return null;
   const day = ymd(Date.now(), HOME_TZ);
   if (PHOTO.day !== day) { PHOTO.day = day; PHOTO.m = {}; }
   const k = city + '|' + phase + '|' + cat;
@@ -1065,7 +1122,7 @@ function remotePhoto(city, phase, cat, cb) {
   fetchT(apiUrl({ action: 'photo', city, phase, wx: cat, d: day }), 15000).then(r => r.json()).then(j => {
     if (j.ok && j.url) {
       PHOTO.m[k] = { url: j.url, wx: j.wx, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } };
-      lsSet('fc.photos', JSON.stringify(PHOTO)); cb();
+      lsSet('fc.photos', JSON.stringify(PHOTO)); render(true);
     } else if (j.flights || j.error === 'no UNSPLASH_KEY') photoOff = true; // 旧版脚本或还没设 Key：用内置照片
   }).catch(() => {});
   return null;
@@ -1128,7 +1185,7 @@ function demoFlights() {
    SETTINGS / CHROME
    ===================================================================== */
 function openSettings() {
-  $('s-api').value = CFG.api; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
+  $('s-api').value = CFG.api; $('s-pexels').value = CFG.pexels || ''; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
   $('s-airline').value = CFG.airline; $('s-cs').value = CFG.cs; $('s-pickup').value = CFG.pickup;
   $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
   $('testout').textContent = '';
@@ -1136,7 +1193,7 @@ function openSettings() {
 }
 function readSettings() {
   return {
-    api: $('s-api').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
+    api: $('s-api').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
     airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
     pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked,
     dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
