@@ -80,7 +80,7 @@
   }
 
   // 天气专用照片只在白天用；晚上用夜景照片 + 天气动画
-  const WX_KEYS = { dust: ['dust'], haze: ['dust', 'overcast'], fog: ['fog', 'overcast'], overcast: ['overcast'],
+  const WX_KEYS = { dust: ['dust'], haze: [], fog: ['fog', 'overcast'], overcast: ['overcast'],
     rain: ['rain', 'overcast'], storm: ['storm', 'rain', 'overcast'], snow: ['snow', 'overcast'] };
   const PHASE_KEYS = { night: ['night', 'dusk'], dawn: ['dawn', 'dusk', 'day'], dusk: ['dusk', 'dawn', 'day'],
     morning: ['day', 'dawn'], evening: ['day', 'dusk'], day: ['day'] };
