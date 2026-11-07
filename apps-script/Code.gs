@@ -5,6 +5,8 @@
  *   1. ?action=flights   读取 Google 日历里的排班，返回航班列表 + 每段航班的实际动态
  *   2. ?action=track     查询 ADS-B 实时位置（浏览器直连会被拦），缓存轨迹，判断起飞/落地
  *   3. 定时器 poll()     每 5 分钟自动查一次正在进行的航班，iPad 关着也能记下起飞/落地时间
+ *   4. ?action=photo     从 Unsplash 图片库找「城市 + 时段 + 天气」的背景照片，每天换一张
+ *                        （需要在 项目设置 → 脚本属性 里加 UNSPLASH_KEY）
  *
  * 安装 / 更新：
  *   1. 把本文件全部粘贴进 Apps Script，保存
@@ -22,7 +24,7 @@ const CALENDAR_IDS = ['primary'];
 const TOKEN = '';
 
 // 读取范围：过去几天 ~ 未来几天
-const DAYS_BACK = 4;
+const DAYS_BACK = 35;   // 月历要显示本月已经飞过的航班
 const DAYS_AHEAD = 60;
 
 // 航班号 → ATC 呼号前缀（EK → UAE）
@@ -48,6 +50,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN && p.token !== TOKEN) return out_({ ok: false, error: 'unauthorized' });
   try {
+    if (p.action === 'photo') return out_(photo_(p));
     if (p.action === 'track') {
       const leg = p.o && p.d && p.std ? { origin: p.o, dest: p.d, std: +p.std, sta: +p.sta || 0 } : null;
       return out_(track_(p.cs, leg));
@@ -330,4 +333,60 @@ function track_(cs, leg) {
 // 在编辑器里点「运行」测试，看「执行记录」里的输出
 function test() {
   Logger.log(JSON.stringify(flights_(), null, 2));
+}
+
+// ======== 背景照片（Unsplash 图片库） ========
+// 申请 Key：https://unsplash.com/developers → Your apps → New Application → 复制 Access Key
+// 填到：Apps Script 左侧 ⚙ 项目设置 → 脚本属性 → 添加脚本属性：UNSPLASH_KEY = 你的 Access Key
+const PHASE_WORD = { dawn: 'sunrise', morning: 'morning', day: '', evening: 'golden hour', dusk: 'sunset', night: 'night' };
+const WX_WORD = { rain: 'rain', storm: 'storm', snow: 'snow', fog: 'fog', dust: 'sandstorm', overcast: 'cloudy' };
+
+function hash_(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+function unsplashSearch_(q, key) {
+  const cache = CacheService.getScriptCache();
+  const ck = 'us_' + hash_(q);
+  const hit = cache.get(ck);
+  if (hit) return JSON.parse(hit);
+  const url = 'https://api.unsplash.com/search/photos?orientation=landscape&content_filter=high&per_page=30&query=' + encodeURIComponent(q);
+  const r = UrlFetchApp.fetch(url, { headers: { Authorization: 'Client-ID ' + key, 'Accept-Version': 'v1' }, muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('Unsplash ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 120));
+  const list = (JSON.parse(r.getContentText()).results || [])
+    .filter(function (x) { return x.width >= 2000 && x.width > x.height * 1.2; })
+    .map(function (x) {
+      return { id: x.id, raw: x.urls.raw, by: x.user && x.user.name, link: x.links.html, dl: x.links.download_location };
+    });
+  cache.put(ck, JSON.stringify(list), 21600);
+  return list;
+}
+
+function photo_(p) {
+  const key = PropertiesService.getScriptProperties().getProperty('UNSPLASH_KEY');
+  if (!key) return { ok: false, error: 'no UNSPLASH_KEY' };
+  const city = String(p.city || '').replace(/[^\w\s\-À-ž]/g, '').trim().slice(0, 60);
+  if (!city) return { ok: false, error: 'missing city' };
+  const pw = PHASE_WORD[p.phase] || '', ww = WX_WORD[p.wx] || '';
+  const tries = [];
+  const add = function (words, wxUsed) { const q = words.filter(Boolean).join(' '); if (q && !tries.some(function (t) { return t.q === q; })) tries.push({ q: q, wx: wxUsed }); };
+  if (ww) { add([city, ww, pw === 'night' ? 'night' : ''], true); add([city, ww], true); }
+  add([city, pw, 'skyline'], false); add([city, pw], false); add([city, 'skyline'], false); add([city, 'city'], false);
+  const day = Utilities.formatDate(new Date(), 'Asia/Dubai', 'yyyyMMdd');
+  for (let i = 0; i < tries.length; i++) {
+    let list;
+    try { list = unsplashSearch_(tries[i].q, key); } catch (e) { return { ok: false, error: String(e) }; }
+    if (list.length < 3) continue;
+    const ph = list[hash_(day + '|' + tries[i].q) % list.length];
+    // Unsplash 规定：用到一张照片时通知它一次（每天每张最多一次）
+    const cache = CacheService.getScriptCache();
+    if (!cache.get('dl_' + ph.id)) {
+      try { UrlFetchApp.fetch(ph.dl, { headers: { Authorization: 'Client-ID ' + key }, muteHttpExceptions: true }); } catch (e) {}
+      cache.put('dl_' + ph.id, '1', 21600);
+    }
+    return {
+      ok: true, query: tries[i].q, wx: tries[i].wx,
+      url: ph.raw + (ph.raw.indexOf('?') >= 0 ? '&' : '?') + 'w=1920&q=78&fm=jpg&fit=crop&auto=format',
+      by: ph.by, link: ph.link + '?utm_source=flight_clock&utm_medium=referral'
+    };
+  }
+  return { ok: false, error: 'no photos' };
 }

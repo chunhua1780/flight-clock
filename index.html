@@ -55,7 +55,39 @@ body[data-mode=layover] .sc-shade{background:linear-gradient(180deg,rgba(0,0,0,.
 body[data-mode=home] #v-home, body[data-mode=layover] #v-lay, body[data-mode=flight] #v-flt{display:flex}
 
 /* ---------- HOME ---------- */
-#v-home{flex-direction:column}
+#v-home{flex-direction:row;gap:clamp(14px,2.2vw,30px)}
+.home-main{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
+body.nocal .home-cal{display:none}
+body:not(.nocal) #v-home .bigclock .t{font-size:min(17.5vw,40vh)}
+/* ---------- 月历 ---------- */
+.home-cal{flex:0 0 min(41vw,560px);display:flex;flex-direction:column;min-height:0;border:1px solid rgba(255,255,255,.12);border-radius:20px;
+  background:rgba(8,8,10,.5);-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);padding:clamp(12px,1.8vmin,20px);text-shadow:none}
+.cal-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.cal-h .ttl{font-size:clamp(17px,2.6vmin,26px);font-weight:600;flex:1}
+.cal-h .nav{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;cursor:pointer;color:var(--text);font-size:18px;background:rgba(255,255,255,.04)}
+.cal-h .today{font-size:12px;padding:6px 10px;width:auto}
+.cal-wd,.cal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-wd div{font-size:clamp(10px,1.4vmin,13px);color:#a9a69e;text-align:center;padding-bottom:6px;letter-spacing:.1em}
+.cal-g{flex:1;grid-auto-rows:minmax(0,1fr);border-top:1px solid rgba(255,255,255,.08);border-left:1px solid rgba(255,255,255,.08);min-height:0}
+.cal-d{border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);padding:3px 3px 2px;min-width:0;overflow:hidden;position:relative;display:flex;flex-direction:column;gap:2px}
+.cal-d .n{font-size:clamp(11px,1.5vmin,14px);color:#d9d6ce;line-height:1.3;padding-left:2px}
+.cal-d.out .n{color:#5e5c58}
+.cal-d.we .n{color:#e8b9a0}
+.cal-d.td .n{background:var(--gold);color:#000;border-radius:99px;width:1.75em;text-align:center;padding:0;font-weight:700}
+.cal-d.away{background:linear-gradient(180deg,rgba(111,180,255,.07),rgba(111,180,255,.16))}
+.cal-d .aw{margin-top:auto;font-size:clamp(9px,1.2vmin,11px);color:#9fc8ff;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:2px}
+.chip{font-size:clamp(9px,1.25vmin,12px);line-height:1.35;border-radius:5px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;
+  background:rgba(210,173,98,.9);color:#1a1408}
+.chip b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.chip span{display:block;font-weight:500;opacity:.85;font-size:.92em}
+@media (orientation:portrait){.chip b,.chip span{display:inline}.chip span{margin-left:5px}}
+.chip.ret{background:rgba(69,212,131,.85);color:#06210f}
+.chip.dh{background:rgba(160,160,170,.8);color:#111}
+.chip.past{opacity:.45}
+.cal-f{display:flex;gap:16px;margin-top:10px;font-size:clamp(11px,1.5vmin,14px);color:#cfccc4;flex-wrap:wrap}
+.cal-f b{color:var(--gold);font-weight:600;font-size:1.15em}
+.cal-lg{display:flex;gap:12px;margin-top:6px;font-size:11px;color:#a9a69e;align-items:center;flex-wrap:wrap}
+.cal-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .datebox .d1{font-size:clamp(18px,3.6vmin,40px);font-weight:600}
 .datebox .d2{font-size:clamp(13px,2.1vmin,22px);color:var(--dim);margin-top:4px}
@@ -148,6 +180,8 @@ body[data-mode=flight] #tools{left:auto;right:var(--pad);transform:none}
 body[data-mode=layover] #tools{left:auto;right:var(--pad);transform:none}
 body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 @media (max-width:600px){#sync{display:none}}
+@media (max-width:700px){.home-cal{display:none!important} body #v-home .bigclock .t{font-size:min(30vw,30vh)}}
+@media (orientation:landscape) and (max-height:500px){.home-cal{display:none!important} body #v-home .bigclock .t{font-size:min(29vw,46vh)}}
 
 #settings{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px}
 #settings.open{display:flex}
@@ -165,6 +199,8 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 
 /* ---------- portrait / small ---------- */
 @media (orientation:portrait){
+  #v-home{flex-direction:column}
+  .home-cal{flex:0 0 38vh}
   .dual{grid-template-columns:1fr;grid-template-rows:1fr 1px 1fr}
   .dual .sep{margin:0 8vw}
   body[data-mode=layover] #sc-a{right:0;bottom:50%}
@@ -187,6 +223,7 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 <div id="app">
   <!-- 在家 -->
   <section class="view" id="v-home">
+   <div class="home-main">
     <div class="topbar">
       <div class="datebox"><div class="d1" id="h-d1"></div><div class="d2" id="h-d2"></div></div>
       <div id="h-wx"></div>
@@ -196,6 +233,8 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
       <div class="tz lbl" id="h-tz">DUBAI</div>
     </div>
     <div id="h-next"></div>
+   </div>
+   <aside class="home-cal" id="h-cal"></aside>
   </section>
 
   <!-- 驻外 -->
@@ -245,6 +284,8 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
     </div>
     <label class="chk"><input type="checkbox" id="s-drop8">五位数航班号去掉开头的 8（89876 → EK9876）</label>
     <label class="chk"><input type="checkbox" id="s-dim">夜间自动变暗</label>
+    <label class="chk"><input type="checkbox" id="s-cal">主界面右侧显示月历</label>
+    <label class="chk"><input type="checkbox" id="s-photos">背景用 Unsplash 图片库（每天换；需在 Apps Script 设 UNSPLASH_KEY）</label>
     <div class="btns">
       <button class="btn pri" id="s-save">保存</button>
       <button class="btn" id="s-test">测试连接</button>
@@ -273,7 +314,7 @@ window.onerror = function (m, src, line) {
 const DEFAULTS = {
   api: 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
   token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 85,
-  drop8: true, dim: true, dimFrom: 23, dimTo: 6
+  drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: true
 };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
@@ -526,7 +567,7 @@ function mergeKnown(fresh) {
   let old = [];
   try { old = JSON.parse(lsGet('fc.known2') || '[]'); } catch (e) {}
   const now = Date.now(), byId = {};
-  old.forEach(f => { if (f.std < now && now - f.sta < 12 * 864e5) byId[f.id] = f; });
+  old.forEach(f => { if (f.std < now && now - f.sta < 40 * 864e5) byId[f.id] = f; });
   fresh.forEach(f => byId[f.id] = f);
   const all = Object.values(byId).sort((a, b) => a.std - b.std);
   // 同一时段如有重叠（日历改过时间），以新数据为准
@@ -687,6 +728,65 @@ function renderHome(st) {
   $('h-wx').innerHTML = wxHtml(code === 'DWC' ? 'DXB' : code);
   $('h-tz').textContent = 'DUBAI · 迪拜时间';
   $('h-next').innerHTML = nextCard(st.next, st.upcoming);
+  document.body.classList.toggle('nocal', !CFG.cal);
+  if (CFG.cal) renderCal();
+}
+
+/* ---------- 月历 ---------- */
+S.calOff = 0;
+let calReset = null;
+function calNav(d) {
+  S.calOff = d === 0 ? 0 : S.calOff + d;
+  clearTimeout(calReset);
+  if (S.calOff) calReset = setTimeout(() => { S.calOff = 0; renderCal(); }, 120000); // 2 分钟后自动回到本月
+  renderCal();
+}
+function renderCal() {
+  const el = $('h-cal'); if (!el) return;
+  const now = Date.now();
+  const p = parts(now, HOME_TZ);
+  let y = +p.year, m = +p.month - 1 + S.calOff;
+  y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+  const wd0 = (new Date(Date.UTC(y, m, 1)).getUTCDay() + 6) % 7;      // 周一开头
+  const nDays = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const dk = (yy, mm, dd) => '' + yy + String(mm + 1).padStart(2, '0') + String(dd).padStart(2, '0');
+  const today = ymd(now, HOME_TZ);
+  const F_ = S.flights;
+  const items = {}, away = {};
+  F_.forEach(f => { const k = ymd(f.std, apTz(f.origin)); (items[k] = items[k] || []).push(f); });
+  // 驻外的日子：落地外站 → 下一段从那里起飞
+  F_.forEach((f, i) => {
+    if (isHome(f.dest)) return;
+    const n = F_[i + 1], end = n && n.origin === f.dest ? n.std : f.sta;
+    const tz = apTz(f.dest), endK = ymd(end, tz);
+    for (let t = f.sta, c = 0; c < 40; t += 864e5, c++) { const k = ymd(t, tz); if (k > endK) break; away[k] = f.dest; }
+  });
+  // 本月统计
+  const mk = dk(y, m, 1).slice(0, 6);
+  const legs = F_.filter(f => ymd(f.std, apTz(f.origin)).slice(0, 6) === mk);
+  const block = legs.reduce((a, f) => a + (stOf(f).on && stOf(f).off ? stOf(f).on - stOf(f).off + 23 * MIN : f.sta - f.std), 0);
+  const awayDays = Object.keys(away).filter(k => k.slice(0, 6) === mk).length;
+  const title = y + '年' + (m + 1) + '月';
+  let h = '<div class="cal-h"><div class="ttl">' + title + '</div>' +
+    (S.calOff ? '<div class="nav today" onclick="calNav(0)">本月</div>' : '') +
+    '<div class="nav" onclick="calNav(-1)">‹</div><div class="nav" onclick="calNav(1)">›</div></div>' +
+    '<div class="cal-wd">' + ['一', '二', '三', '四', '五', '六', '日'].map(x => '<div>' + x + '</div>').join('') + '</div><div class="cal-g">';
+  const cells = Math.ceil((wd0 + nDays) / 7) * 7;
+  for (let i = 0; i < cells; i++) {
+    const d = new Date(Date.UTC(y, m, 1 - wd0 + i));
+    const k = dk(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    const out = d.getUTCMonth() !== m, wdx = i % 7;
+    const cls = ['cal-d', out ? 'out' : '', wdx >= 5 ? 'we' : '', k === today ? 'td' : '', away[k] ? 'away' : ''].join(' ');
+    const list = (items[k] || []).map(f => {
+      const c = 'chip' + (f.dh ? ' dh' : isHome(f.dest) ? ' ret' : '') + (endOf(f) < now ? ' past' : '');
+      return '<div class="' + c + '" title="' + esc(f.no + ' ' + f.origin + '→' + f.dest) + '"><b>' + (isHome(f.dest) ? '⌂ ' : '→ ') + f.dest + '</b><span>' + hm(f.std, apTz(f.origin)) + '</span></div>';
+    }).join('');
+    const aw = away[k] && !(items[k] || []).length ? '<div class="aw">' + esc(away[k]) + ' 驻外</div>' : '';
+    h += '<div class="' + cls + '"><div class="n">' + d.getUTCDate() + '</div>' + list + aw + '</div>';
+  }
+  h += '</div><div class="cal-f"><span><b>' + legs.length + '</b> 段航班</span><span>飞行 <b>' + hmDur(block) + '</b></span><span>驻外 <b>' + awayDays + '</b> 天</span></div>' +
+    '<div class="cal-lg"><span><i style="background:rgba(210,173,98,.9)"></i>出发</span><span><i style="background:rgba(69,212,131,.85)"></i>回基地</span><span><i style="background:rgba(111,180,255,.35)"></i>驻外</span></div>';
+  el.innerHTML = h;
 }
 
 function renderLayover(st) {
@@ -912,6 +1012,26 @@ function render(force) {
 // 背景预览参数：?wx=dust|rain|storm|snow|fog|haze|overcast|clear  ?phase=dawn|day|dusk|night
 const WX_PREVIEW = { clear: { code: 0 }, cloudy: { code: 2 }, overcast: { code: 3 }, fog: { code: 45 }, rain: { code: 63 }, storm: { code: 95 }, snow: { code: 73 }, dust: { code: 0, dust: 400 }, haze: { code: 1, dust: 90 } }[Q.get('wx')];
 const PHASE_PREVIEW = Q.get('phase');
+// 图片库照片：同一天、同一城市/时段/天气用同一张（Apps Script 按日期挑）
+const PHOTO = (() => { try { return JSON.parse(lsGet('fc.photos') || '{}'); } catch (e) { return {}; } })();
+let photoOff = false;
+function remotePhoto(city, phase, cat, cb) {
+  if (!CFG.photos || photoOff || S.legacy) return null;
+  const day = ymd(Date.now(), HOME_TZ);
+  if (PHOTO.day !== day) { PHOTO.day = day; PHOTO.m = {}; }
+  const k = city + '|' + phase + '|' + cat;
+  if (k in PHOTO.m) return PHOTO.m[k];
+  PHOTO.m[k] = null;
+  fetchT(apiUrl({ action: 'photo', city, phase, wx: cat, d: day }), 15000).then(r => r.json()).then(j => {
+    if (j.ok && j.url) {
+      PHOTO.m[k] = { url: j.url, wx: j.wx, credit: { by: j.by, license: 'Unsplash', url: j.link } };
+      lsSet('fc.photos', JSON.stringify(PHOTO)); cb();
+    } else if (j.flights || j.error === 'no UNSPLASH_KEY') photoOff = true; // 旧版脚本或还没设 Key：用内置照片
+  }).catch(() => {});
+  return null;
+}
+if (typeof Scene !== 'undefined') Scene.setRemote(remotePhoto);
+
 function renderScenes(st) {
   if (typeof Scene === 'undefined') return;
   const now = Date.now(), credits = [];
@@ -970,7 +1090,7 @@ function demoFlights() {
 function openSettings() {
   $('s-api').value = CFG.api; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
   $('s-airline').value = CFG.airline; $('s-cs').value = CFG.cs; $('s-pickup').value = CFG.pickup;
-  $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
+  $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
   $('testout').textContent = '';
   $('settings').classList.add('open');
 }
@@ -978,7 +1098,7 @@ function readSettings() {
   return {
     api: $('s-api').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
     airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
-    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked,
+    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked,
     dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
   };
 }

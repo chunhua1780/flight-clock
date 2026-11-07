@@ -211,8 +211,14 @@
     const cat = weatherCat(w);
     const night = phase === 'night';
     let p = pick(code, phase, cat);
-    let url = null, pos = '50% 50%', key = null;
-    if (p) { url = 'bg/' + p.f; pos = p.pos || pos; key = p.key; }
+    let url = null, pos = '50% 50%', key = null, remote = null;
+    // 图片库（每天换）优先；加载失败就用内置照片
+    if (remoteFn && ap && ap.city) {
+      remote = remoteFn(ap.city, phase, cat, () => update(el, code, ap, w, Date.now(), phaseOverride));
+      if (remote && remote.failed) remote = null;
+    }
+    if (remote) { url = remote.url; key = remote.wx ? cat : (phase === 'night' ? 'night' : phase === 'dawn' || phase === 'dusk' ? phase : 'day'); p = null; }
+    else if (p) { url = 'bg/' + p.f; pos = p.pos || pos; key = p.key; }
     else if (ap && ap.city) {
       const mem = wikiMem[ap.city];
       if (mem === undefined) wikiImage(ap.city, () => update(el, code, ap, w, Date.now()));
@@ -251,7 +257,10 @@
         // 先加载完再换，避免闪一下黑
         const im = new Image();
         im.onload = () => { img.style.backgroundImage = bg; img.classList.add('on'); };
-        im.onerror = () => { img.style.backgroundImage = SKY[phase]; img.classList.add('on'); };
+        im.onerror = () => {
+          if (remote) { remote.failed = true; el.dataset.sig = ''; update(el, code, ap, w, Date.now(), phaseOverride); return; }
+          img.style.backgroundImage = SKY[phase]; img.classList.add('on');
+        };
         im.src = url;
       } else { img.style.backgroundImage = bg; img.classList.add('on'); }
       img.style.backgroundPosition = pos;
@@ -262,8 +271,9 @@
     }
     setFx(el, cat === 'rain' ? 'rain' : cat === 'storm' ? 'storm' : cat === 'snow' ? 'snow' : cat === 'dust' ? 'dust' : null, night);
     let credit = null;
-    if (p) credit = CREDITS[p.f] || null;
-    else if (url) credit = 'Wikipedia';
+    if (remote) credit = remote.credit;
+    else if (p) credit = CREDITS[p.f] || null;
+    else if (url) credit = { by: 'Wikipedia', license: 'CC' };
     return { credit, cat, phase };
   }
   function clear(el) {
@@ -273,5 +283,6 @@
   // 照片署名
   fetch('bg/credits.json').then(r => r.json()).then(j => { CREDITS = j; }).catch(() => {});
 
-  window.Scene = { update, clear, weatherCat, phaseOf, sunAlt, CAT_ZH, LIB };
+  let remoteFn = null;
+  window.Scene = { setRemote: fn => { remoteFn = fn; }, update, clear, weatherCat, phaseOf, sunAlt, CAT_ZH, LIB };
 })();
