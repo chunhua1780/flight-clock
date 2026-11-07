@@ -376,11 +376,13 @@ function tzOffset(tz, t) {
   return Math.round((asUtc - Math.floor(t / 1000) * 1000) / MIN);
 }
 function dayWord(t, tz) {
+  // 「今天/明天」一律以迪拜（家里）的日期为准，避免外站过了零点就显示「今天」
   const now = Date.now();
-  const d = ymd(t, tz);
-  if (d === ymd(now, tz)) return '今天';
-  if (d === ymd(now + 864e5, tz)) return '明天';
-  if (d === ymd(now - 864e5, tz)) return '昨天';
+  const d = ymd(t, tz), td = ymd(now, HOME_TZ);
+  const shift = n => { const x = new Date(Date.UTC(+td.slice(0, 4), +td.slice(4, 6) - 1, +td.slice(6) + n)); return '' + x.getUTCFullYear() + String(x.getUTCMonth() + 1).padStart(2, '0') + String(x.getUTCDate()).padStart(2, '0'); };
+  if (d === td) return '今天';
+  if (d === shift(1)) return '明天';
+  if (d === shift(-1)) return '昨天';
   return dateShort(t, tz);
 }
 function offWord(tz, t) {
@@ -518,8 +520,9 @@ function parseEvent(r) {
       callsign: csm && legs.length === 1 ? csm[1] : ''
     }));
   }
-  // 备注里没有分段：按标题当成单段航班，开始时间当起飞
+  // 备注里没有分段：按标题当成单段航班，开始时间当起飞（标题里必须有航班号，人名之类的日程不算）
   const p = parseTitle(r.title);
+  if (!p.digits) return [];
   const origin = String(r.origin || p.origin || '').toUpperCase(), dest = String(r.dest || p.dest || '').toUpperCase();
   if (!origin || !dest || origin === dest) return [];
   let sta = r.end ? new Date(r.end).getTime() : 0, staEst = false;
@@ -532,13 +535,16 @@ const parseFlight = r => parseEvent(r)[0] || null;
 // 非航班任务：模拟机 / 地面 / 备份 / 休假 / 休息
 function dutyKind(title) {
   const t = String(title || '');
+  const trip = t.toUpperCase().match(/^\s*(?:[A-Z]{2}\s?)?\d{1,5}[A-Z]?\s*[-–]\s*([A-Z]{3})\s*$/);   // 416-SYD：航班任务
+  if (trip) return { k: 'trip', l: trip[1], dest: trip[1] };
+  if (/\bvisa\b/i.test(t)) return { k: 'grd', l: 'VISA', s: 'VISA' };
   if (/\b(SIM|FFS|LOFT|LPC|OPC)\b|simulator/i.test(t)) return { k: 'sim', l: '模拟机 SIM' };
-  if (/\b(SBY|STBY|ASBY|HSBY|RSV)\b|standby|reserve/i.test(t)) return { k: 'sby', l: '备份 SBY' };
+  if (/\b(SBY|STBY|ASBY|HSBY|RSV)\b|stand\s?by|reserve/i.test(t)) return { k: 'sby', l: '备份 SBY' };
   if (/\b(AL|LV)\b|leave|vacation/i.test(t)) return { k: 'leave', l: '休假 LEAVE' };
   if (/\b(OFF|DO|RDO)\b|day off/i.test(t)) return { k: 'off', l: 'DAY OFF 休息' };
   if (/\bREST\b|rest day/i.test(t)) return { k: 'rest', l: 'REST DAY' };
   if (/\b(GRD|GND|TRG|CRM|SEP|DGR)\b|ground|training|course|classroom|medical/i.test(t)) return { k: 'grd', l: '地面 ' + t.slice(0, 14) };
-  return { k: 'grd', l: t.slice(0, 18) };
+  return { k: 'duty', l: t.slice(0, 18), s: 'DTY' };
 }
 function normDuties(j) {
   if (!j || !Array.isArray(j.flights)) return [];
@@ -788,7 +794,14 @@ function renderCal() {
   const addDays = (k, n) => { const d = new Date(Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6) + n)); return '' + d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0'); };
   const today = ymd(now, HOME_TZ);
   // 数据覆盖范围之外的日子不乱标「休息」
-  const known0 = addDays(today, S.apiVer >= 3 ? -34 : -3), known1 = addDays(today, 58);
+  const known0 = addDays(today, S.apiVer >= 3 ? -34 : -3);
+  // 排班按月发布：只把「最后一个任务所在月份」的月底之前算作已知，之后还没排班的日子不标休息
+  let lastT = 0;
+  S.flights.forEach(f => { lastT = Math.max(lastT, f.sta); });
+  S.duties.forEach(d => { lastT = Math.max(lastT, d.end); });
+  const lastK = lastT ? ymd(lastT, HOME_TZ) : today;
+  const monthEnd = lastK.slice(0, 6) + String(new Date(Date.UTC(+lastK.slice(0, 4), +lastK.slice(4, 6), 0)).getUTCDate()).padStart(2, '0');
+  const known1 = monthEnd < addDays(today, 58) ? monthEnd : addDays(today, 58);
   const F_ = S.flights, info = {};
   const put = (k, pri, type, txt) => { const o = info[k] = info[k] || { pri: 99, type: '', parts: [] }; o.parts.push(txt); if (pri < o.pri) { o.pri = pri; o.type = type; } };
   const homeDep = {};
@@ -805,11 +818,29 @@ function renderCal() {
     } else put(k, 1, 't-flt', cell(f.dest, hm(dep, oTz)));
   });
   const PRI = { sim: 2, grd: 3, sby: 4, leave: 5, rest: 6, off: 7 };
-  const SHORT = { sim: 'SIM', grd: 'GRD', sby: 'SBY', leave: 'AL', rest: '', off: '' };
+  const SHORT = { sim: 'SIM', grd: 'GRD', sby: 'SBY', leave: 'VAC', rest: '', off: '', duty: 'DTY' };
+  const flightDays = {};
+  Object.keys(info).forEach(k => flightDays[k] = 1);
   S.duties.forEach(d => {
-    const txt = SHORT[d.k] != null ? (SHORT[d.k] ? cell(SHORT[d.k], d.allDay || d.k === 'leave' ? '' : hm(d.start, HOME_TZ)) : '') : cell('DTY');
-    if (d.allDay) { for (let t = d.start, c = 0; t < d.end && c < 40; t += 864e5, c++) put(ymd(t + HOUR, HOME_TZ), PRI[d.k] || 3, 't-' + d.k, txt); }
-    else put(ymd(d.start, HOME_TZ), PRI[d.k] || 3, 't-' + d.k, txt);
+    const code = d.s || SHORT[d.k] || '';
+    const long = d.allDay || d.end - d.start >= 20 * HOUR;          // 「00:01–24:00」这种整天的任务
+    const days = [];
+    for (let t = d.start + MIN, c = 0; c < 40; t += 864e5, c++) { const k = ymd(t, HOME_TZ); if (t >= d.end) break; days.push(k); }
+    if (!days.length) days.push(ymd(d.start, HOME_TZ));
+    if (d.k === 'trip') {
+      // 「416-SYD」这类：第一天出发、中间驻外、最后一天回基地（时间要等新版 Apps Script 才有）
+      if (homeDep) homeDep[days[0]] = 1;
+      days.forEach((k, i) => {
+        if (flightDays[k]) return;
+        if (i === 0) put(k, 1, 't-flt', cell(d.dest));
+        else if (i === days.length - 1) put(k, 1, 't-ret', cell(homeCodes()[0]));
+        else put(k, 8, 't-lay', '<span>' + d.dest + '</span>');
+      });
+      return;
+    }
+    const type = d.k === 'leave' ? 't-off' : 't-' + d.k;
+    const txt = code ? cell(code, long || d.k === 'leave' ? '' : hm(d.start, HOME_TZ)) : '';
+    days.forEach(k => put(k, PRI[d.k] || 3, type, txt));
   });
   // 驻外
   F_.forEach((f, i) => {

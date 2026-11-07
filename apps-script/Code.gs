@@ -35,7 +35,8 @@ const AIRPORTS_URL = 'https://chunhua1780.github.io/flight-cloch/airports.json';
 
 // 只返回「像航班」的日程（标题里有两个三字码，如 89876-CAN-DWC / EK302 DXB-PVG），
 // 避免把私人日程暴露到公开网址上。
-const FLIGHT_TITLE = /\b[A-Z]{3}\s*(?:-|–|—|\/|>|→|\s)\s*[A-Z]{3}\b/;
+// 例如：89876-CAN-DWC、416-SYD、EK302 DXB-PVG、DH EK385 DXB-HKG（必须有航班号，避免把人名之类的日程当成航班）
+const FLIGHT_TITLE = /^\s*(?:(?:DH|DHD|PAX|POS)\s+)?(?:[A-Z]{2}\s?)?\d{1,5}[A-Z]?\s*[-–—\s]\s*[A-Z]{3}\b/;
 
 // ADS-B 数据源（按顺序尝试）
 const ADSB_SOURCES = [
@@ -79,7 +80,7 @@ function setup() {
 // ======== 日历 ========
 // 非航班的排班任务（模拟机、地面、备份、休息、休假……）：标题里有这些代码，或者来自 CrewPulse 的日程
 const DUTY_CODE = /\b(SIM|FFS|LOFT|LPC|OPC|SBY|STBY|ASBY|HSBY|RSV|GRD|GND|TRG|CRM|SEP|DGR|OFF|DO|RDO|AL|LV|REST)\b/;
-const DUTY_WORD = /simulator|standby|reserve|ground|training|course|classroom|leave|vacation|day off|rest day|medical/i;
+const DUTY_WORD = /simulator|stand\s?by|reserve|ground|training|course|classroom|leave|vacation|day off|rest day|medical|visa/i;
 
 function events_(from, to) {
   const list = [], seen = {};
