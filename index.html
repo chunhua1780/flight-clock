@@ -58,32 +58,41 @@ body[data-mode=home] #v-home, body[data-mode=layover] #v-lay, body[data-mode=fli
 #v-home{flex-direction:row;gap:clamp(14px,2.2vw,30px)}
 .home-main{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
 body.nocal .home-cal{display:none}
-body:not(.nocal) #v-home .bigclock .t{font-size:min(26vw,46vh)}
-/* ---------- 右侧细条月历（约 1 厘米宽） ---------- */
-#v-home{gap:10px}
-.home-cal{flex:0 0 62px;align-self:stretch;display:flex;flex-direction:column;min-height:0;border-radius:12px;padding:5px 3px;
-  background:rgba(10,10,12,.42);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.1);text-shadow:none;margin-right:-6px}
-.cal-m{font-size:11px;font-weight:700;color:#f3d99c;text-align:center;padding:1px 0 4px;cursor:pointer;letter-spacing:.02em}
-.cal-list{flex:1;display:grid;gap:1.5px;min-height:0}
-.r{display:flex;align-items:center;border-radius:4px;min-height:0;overflow:hidden;position:relative;background:rgba(255,255,255,.035)}
-.r .dn{position:absolute;left:2px;top:50%;transform:translateY(-50%);font-size:8.5px;font-weight:600;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums;width:11px;text-align:right}
-.r .ct{flex:1;min-width:0;margin-left:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;white-space:nowrap;overflow:hidden}
-.r .ct b{font-size:10px;font-weight:800;letter-spacing:.02em}
-.r .ct span{font-size:9px;font-weight:600;font-variant-numeric:tabular-nums;opacity:.9}
-.r.t-off{background:rgba(52,199,89,.55)}
-.r.t-rest{background:rgba(255,204,0,.55)}
-.r.t-flt{background:rgba(210,173,98,.85);color:#1d1504}
-.r.t-flt .dn{color:rgba(0,0,0,.55)}
-.r.t-ret{background:rgba(255,255,255,.9);color:#111}
-.r.t-ret .dn{color:rgba(0,0,0,.5)}
-.r.t-lay{background:rgba(111,180,255,.35);color:#e1eeff}
-.r.t-sim{background:rgba(175,82,222,.75);color:#fff}
-.r.t-grd{background:rgba(130,150,180,.6);color:#fff}
-.r.t-sby{background:rgba(255,149,0,.7);color:#1d1004}
-.r.t-leave{background:rgba(48,176,199,.6);color:#fff}
-.r.t-unk{background:rgba(255,255,255,.035)}
+body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
+/* ---------- 月历细条：横屏在右侧，竖屏在底部；淡淡的透明色，不抢照片 ---------- */
+#v-home{gap:8px}
+.home-cal{flex:0 0 44px;align-self:stretch;display:flex;flex-direction:column;min-height:0;min-width:0;border-radius:10px;padding:4px 2px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);text-shadow:0 1px 3px rgba(0,0,0,.6);margin-right:-8px}
+.cal-m{font-size:10px;font-weight:700;color:rgba(255,255,255,.85);text-align:center;padding:1px 0 3px;cursor:pointer}
+.cal-list{flex:1;display:grid;gap:1px;min-height:0;min-width:0;grid-template-rows:repeat(var(--n),minmax(0,1fr))}
+.r{display:flex;align-items:center;border-radius:3px;min-height:0;min-width:0;overflow:hidden;position:relative;background:rgba(255,255,255,.03);color:#fff}
+.r .dn{position:absolute;left:1px;top:50%;transform:translateY(-50%);font-size:7.5px;font-weight:600;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums;width:9px;text-align:right}
+.r .ct{flex:1;min-width:0;margin-left:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.02;white-space:nowrap;overflow:hidden}
+.r .ct b{font-size:9px;font-weight:800;letter-spacing:.01em}
+.r .ct span{font-size:8px;font-weight:600;font-variant-numeric:tabular-nums;opacity:.92}
+.r.t-off{background:rgba(70,220,120,.22)}
+.r.t-rest{background:rgba(255,214,60,.24)}
+.r.t-flt{background:rgba(232,190,110,.34)}
+.r.t-ret{background:rgba(255,255,255,.26)}
+.r.t-lay{background:rgba(120,180,255,.18)}
+.r.t-sim{background:rgba(190,110,240,.32)}
+.r.t-grd{background:rgba(150,170,200,.28)}
+.r.t-sby{background:rgba(255,160,40,.30)}
+.r.t-leave{background:rgba(60,200,220,.26)}
+.r.t-unk{background:rgba(255,255,255,.03)}
 .r.past{opacity:.45}
-.r.td{box-shadow:0 0 0 2px var(--gold);opacity:1;z-index:1}
+.r.td{box-shadow:inset 0 0 0 1.5px rgba(242,214,150,.95);opacity:1}
+@media (orientation:portrait){
+  #v-home{flex-direction:column}
+  .home-cal{flex:0 0 auto;height:clamp(40px,5.2vh,58px);flex-direction:row;align-items:stretch;padding:2px 3px;margin:0 0 -6px}
+  .cal-m{writing-mode:vertical-rl;padding:0 2px 0 0;font-size:9px}
+  .cal-list{grid-template-rows:none;grid-template-columns:repeat(var(--n),minmax(0,1fr))}
+  .r{flex-direction:column;justify-content:center}
+  .r .dn{position:static;transform:none;width:auto;text-align:center;font-size:7.5px;line-height:1.1}
+  .r .ct{margin:0;flex:0 1 auto}
+  .r .ct b{font-size:8px}.r .ct span{font-size:7px}
+}
+@media (orientation:portrait) and (max-width:600px){ .r .ct{display:none} .r .dn{font-size:8px} }
 .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .datebox .d1{font-size:clamp(18px,3.6vmin,40px);font-weight:600}
 .datebox .d2{font-size:clamp(13px,2.1vmin,22px);color:var(--dim);margin-top:4px}
@@ -195,7 +204,7 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 
 /* ---------- portrait / small ---------- */
 @media (orientation:portrait){
-  body:not(.nocal) #v-home .bigclock .t{font-size:min(24vw,30vh)}
+  body:not(.nocal) #v-home .bigclock .t{font-size:min(29vw,30vh)}
   .dual{grid-template-columns:1fr;grid-template-rows:1fr 1px 1fr}
   .dual .sep{margin:0 8vw}
   body[data-mode=layover] #sc-a{right:0;bottom:50%}
@@ -814,7 +823,7 @@ function renderCal() {
     rows += '<div class="' + cls + '"><div class="dn">' + d + '</div><div class="ct">' + o.parts[0] + '</div></div>';
   }
   el.innerHTML = '<div class="cal-m" onclick="calNav(S.calOff ? 0 : 1)">' + (m + 1) + '月' + (S.calOff ? ' ↩' : '') + '</div>' +
-    '<div class="cal-list" style="grid-template-rows:repeat(' + nDays + ',minmax(0,1fr))">' + rows + '</div>';
+    '<div class="cal-list" style="--n:' + nDays + '">' + rows + '</div>';
 }
 
 function renderLayover(st) {
