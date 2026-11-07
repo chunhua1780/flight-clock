@@ -437,7 +437,8 @@ function mergeKnown(fresh) {
 
 function fetchT(url, ms, opt) {
   const c = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const t = c && setTimeout(() => c.abort(), ms || 15000);
+  if (typeof ms !== 'number') { opt = ms; ms = 15000; }
+  const t = c && setTimeout(() => c.abort(), ms);
   return fetch(url, Object.assign({}, opt || {}, c ? { signal: c.signal } : {})).finally(() => t && clearTimeout(t));
 }
 function apiUrl(params) {
@@ -451,7 +452,7 @@ async function loadFlights() {
   await apReady;
   if (DEMO) { S.flights = demoFlights(); S.sync = { ok: true, t: Date.now(), demo: true }; return; }
   try {
-    const r = await fetchT(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' });
+    const r = await fetchT(apiUrl({ action: 'flights', _: Date.now() }), 15000, { cache: 'no-store' });
     const j = await r.json();
     if (j.ok === false) throw new Error(j.error || 'error');
     const f = normFlights(j);
@@ -624,7 +625,7 @@ async function pollTrack(f) {
   if (S.legacy || !f.callsign) { T.unsupported = true; return; }
   if (T.busy) return; T.busy = true;
   try {
-    const j = await (await fetchT(apiUrl({ action: 'track', cs: f.callsign, _: Date.now() }), { cache: 'no-store' })).json();
+    const j = await (await fetchT(apiUrl({ action: 'track', cs: f.callsign, _: Date.now() }), 15000, { cache: 'no-store' })).json();
     if (!('found' in j)) { T.unsupported = true; return; }
     if (j.found && j.pos) { T.pos = j.pos; T.at = Date.now(); T.src = j.source; }
     const pts = (j.trail || []).filter(p => p[3] >= f.std - HOUR && p[3] <= f.sta + 2 * HOUR);
@@ -838,7 +839,7 @@ $('s-test').onclick = async () => {
   const old = CFG; CFG = Object.assign({}, DEFAULTS, readSettings());
   try {
     await apReady;
-    const j = await (await fetchT(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' })).json();
+    const j = await (await fetchT(apiUrl({ action: 'flights', _: Date.now() }), 15000, { cache: 'no-store' })).json();
     const f = normFlights(j);
     if (!f) throw new Error('返回内容不是航班数据：' + JSON.stringify(j).slice(0, 200));
     out.textContent = (Array.isArray(j.flights) ? '✅ 新版接口（支持多航班 + 实时轨迹）' : '⚠️ 旧版接口（只有下一班，没有实时轨迹）') +
