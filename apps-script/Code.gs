@@ -350,6 +350,8 @@ function test() {
 //   Pexels：  https://www.pexels.com/api/ → 申请 API Key
 //   Unsplash：https://unsplash.com/developers → Your apps → New Application → Access Key
 // 填到：Apps Script 左侧 ⚙ 项目设置 → 脚本属性 → 添加脚本属性：PEXELS_KEY（或 UNSPLASH_KEY）= 你的 Key
+// 也可以直接把 Pexels Key 写在这里（这样就不用去「脚本属性」里设置了）
+const PEXELS_KEY_INLINE = '';
 const PHASE_WORD = { dawn: 'sunrise', morning: 'morning', day: '', evening: 'golden hour', dusk: 'sunset', night: 'night' };
 const WX_WORD = { rain: 'rain', storm: 'storm', snow: 'snow', fog: 'fog', dust: 'sandstorm', overcast: 'cloudy' };
 
@@ -391,7 +393,7 @@ function pexelsSearch_(q, key) {
 
 function photo_(p) {
   const props = PropertiesService.getScriptProperties();
-  const pexels = props.getProperty('PEXELS_KEY'), unsplash = props.getProperty('UNSPLASH_KEY');
+  const pexels = props.getProperty('PEXELS_KEY') || PEXELS_KEY_INLINE, unsplash = props.getProperty('UNSPLASH_KEY');
   if (!pexels && !unsplash) return { ok: false, error: 'no UNSPLASH_KEY' };
   const source = pexels ? 'Pexels' : 'Unsplash';
   const key = pexels || unsplash;
