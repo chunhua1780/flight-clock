@@ -75,13 +75,23 @@ function flights_() {
         start: start,
         end: ev.getEndTime().toISOString(),
         location: ev.getLocation() || '',
-        description: (ev.getDescription() || '').slice(0, 300),
+        description: legsOnly_(ev.getDescription()),
       });
     });
   });
 
   list.sort(function (a, b) { return a.start < b.start ? -1 : 1; });
   return { ok: true, version: 2, generated: now.toISOString(), flights: list };
+}
+
+// 备注里只保留航班号、「机场 - 日期 时间」和呼号这几种行，
+// 机组姓名、员工号等不会被发出去。
+function legsOnly_(desc) {
+  return String(desc || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(function (l) {
+    return /^(?:(?:DH|DHD|PAX|POS)\s+)?(?:[A-Z]{2}\s?)?\d{1,5}[A-Z]?$/i.test(l) ||
+      /^[A-Z]{3}\s*[-–]\s*\d{1,2}\s+[A-Z]{3}/i.test(l) ||
+      /^(?:CS|CALLSIGN)\b/i.test(l);
+  }).join('\n').slice(0, 3000);
 }
 
 // ======== 实时位置 + 轨迹缓存 ========

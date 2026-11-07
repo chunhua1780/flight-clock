@@ -209,7 +209,7 @@ body[data-mode=flight] #tools{left:auto;right:var(--pad);transform:none}
       <div><label>呼号前缀</label><input type="text" id="s-cs" spellcheck="false"></div>
     </div>
     <div class="row">
-      <div><label>接车提前（分钟）</label><input type="number" id="s-pickup" min="0" max="600"></div>
+      <div><label>报到提前（分钟，日历没写时用）</label><input type="number" id="s-pickup" min="0" max="600"></div>
       <div><label>夜间变暗 从</label><input type="number" id="s-dimfrom" min="0" max="23"></div>
       <div><label>到（点）</label><input type="number" id="s-dimto" min="0" max="23"></div>
     </div>
@@ -239,13 +239,14 @@ window.onerror = function (m, src, line) {
    CONFIG
    ===================================================================== */
 const DEFAULTS = {
-  api: 'https://script.google.com/macros/s/AKfycbxSmqqVM38ZuCrrzwcm1E7179zwvAi5qjhEzaq4mXhwCOeczDP8CB2Nx7hw7zAFcqWU/exec',
-  token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 135,
+  api: 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
+  token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 85,
   drop8: true, dim: true, dimFrom: 23, dimTo: 6
 };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 let CFG = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(lsGet('fc.cfg') || '{}'); } catch (e) { return {}; } })());
+if (/AKfycbxSmqqVM38/.test(CFG.api)) CFG.api = DEFAULTS.api; // 旧接口自动换成新接口
 const Q = new URLSearchParams(location.search);
 if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
 if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
@@ -383,23 +384,70 @@ function parseTitle(t) {
   const dh = /(^|[^A-Z])(DH|DHD|PAX|POS|DEADHEAD)([^A-Z]|$)/.test(U);
   return { origin, dest, digits, dh };
 }
-function parseFlight(r) {
-  const std = new Date(r.start).getTime();
-  if (!std) return null;
+// 当地时间（某机场时区）→ UTC 毫秒
+const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+function localToUtc(y, mo, d, h, mi, tz) {
+  const guess = Date.UTC(y, mo, d, h, mi);
+  let t = guess - tzOffset(tz, guess) * MIN;
+  t = guess - tzOffset(tz, t) * MIN; // 夏令时边界再校正一次
+  return t;
+}
+// 从日程备注里读出每一段航班（CrewPulse 格式）：
+//   9876
+//    DWC - 08 Nov 2026 09:00
+//    CAN - 08 Nov 2026 20:00
+function parseLegs(desc) {
+  const legs = [];
+  let no = null, pend = null;
+  String(desc || '').split(/\r?\n/).forEach(line => {
+    const L = line.trim().toUpperCase();
+    if (!L) return;
+    const fn = L.match(/^(?:(DH|DHD|PAX|POS)\s+)?(?:[A-Z]{2}\s?)?(\d{1,5})[A-Z]?$/);
+    if (fn) { no = { digits: fn[2].replace(/^0+/, ''), dh: !!fn[1] }; pend = null; return; }
+    const m = L.match(/^([A-Z]{3})\s*[-–]\s*(\d{1,2})\s+([A-Z]{3})[A-Z]*\s+(\d{4})\s+(\d{1,2}):(\d{2})/);
+    if (!m || !AP[m[1]] || MON[m[3]] == null) return;
+    const t = localToUtc(+m[4], MON[m[3]], +m[2], +m[5], +m[6], AP[m[1]].tz);
+    if (!pend) { pend = { code: m[1], t }; return; }
+    if (no) legs.push({ digits: no.digits, dh: no.dh, origin: pend.code, dest: m[1], std: pend.t, sta: t });
+    pend = null; no = null;
+  });
+  return legs;
+}
+function mkFlight(o) {
+  const digits = o.digits || '';
+  return Object.assign(o, {
+    id: o.origin + o.dest + o.std,
+    no: digits ? CFG.airline + digits : (o.title || '').slice(0, 10),
+    callsign: o.callsign || (digits ? CFG.cs + digits : '')
+  });
+}
+function parseEvent(r) {
+  const start = new Date(r.start).getTime();
+  if (!start) return [];
+  const desc = String(r.description || '');
+  const csm = desc.toUpperCase().match(/(?:^|[^A-Z])(?:CS|CALLSIGN)[\s:=]*([A-Z]{3}[0-9][0-9A-Z]{0,3})(?![0-9A-Z])/);
+  const legs = parseLegs(desc);
+  if (legs.length) {
+    // 日程开始时间 = 第一段的报到时间
+    const lead = legs[0].std - start;
+    const reportLead = lead > 15 * MIN && lead < 5 * HOUR ? lead : CFG.pickup * MIN;
+    return legs.map((g, i) => mkFlight({
+      title: r.title || '', origin: g.origin, dest: g.dest, std: g.std, sta: g.sta, staEst: false, dh: g.dh, digits: g.digits,
+      report: g.std - reportLead, reportEst: i > 0 || reportLead !== lead, trip: r.title || '',
+      callsign: csm && legs.length === 1 ? csm[1] : ''
+    }));
+  }
+  // 备注里没有分段：按标题当成单段航班，开始时间当起飞
   const p = parseTitle(r.title);
   const origin = String(r.origin || p.origin || '').toUpperCase(), dest = String(r.dest || p.dest || '').toUpperCase();
-  if (!origin || !dest || origin === dest) return null;
+  if (!origin || !dest || origin === dest) return [];
   let sta = r.end ? new Date(r.end).getTime() : 0, staEst = false;
-  const h = (sta - std) / HOUR;
-  if (!sta || !(h >= 0.3 && h <= 19)) { sta = std + estDurMs(origin, dest); staEst = true; }
-  const csm = String(r.description || '').toUpperCase().match(/(?:^|[^A-Z])(?:CS|CALLSIGN)[\s:=]*([A-Z]{3}[0-9][0-9A-Z]{0,3})(?![0-9A-Z])/);
-  const digits = p.digits;
-  return {
-    id: origin + dest + std, title: r.title || '', origin, dest, std, sta, staEst, dh: p.dh, digits,
-    no: digits ? CFG.airline + digits : (r.title || '').slice(0, 10),
-    callsign: csm ? csm[1] : (digits ? CFG.cs + digits : '')
-  };
+  const h = (sta - start) / HOUR;
+  if (!sta || !(h >= 0.3 && h <= 19)) { sta = start + estDurMs(origin, dest); staEst = true; }
+  return [mkFlight({ title: r.title || '', origin, dest, std: start, sta, staEst, dh: p.dh, digits: p.digits,
+    report: start - CFG.pickup * MIN, reportEst: true, callsign: csm ? csm[1] : '' })];
 }
+const parseFlight = r => parseEvent(r)[0] || null;
 function normFlights(j) {
   if (!j || typeof j !== 'object') return null;
   let raw;
@@ -407,7 +455,9 @@ function normFlights(j) {
   else if (j.hasFlight === true) raw = [{ title: j.title || ((j.flightNo || '') + ' ' + j.origin + '-' + j.dest), start: j.std, end: j.sta || null, origin: j.origin, dest: j.dest }];
   else if (j.hasFlight === false) raw = [];
   else return null;
-  return raw.map(parseFlight).filter(Boolean).sort((a, b) => a.std - b.std);
+  const out = [], seen = {};
+  raw.forEach(r => parseEvent(r).forEach(f => { if (!seen[f.id]) { seen[f.id] = 1; out.push(f); } }));
+  return out.sort((a, b) => a.std - b.std);
 }
 
 /* =====================================================================
@@ -418,7 +468,7 @@ const S = { flights: [], legacy: false, sync: null, wx: {}, track: {}, view: nul
 function mergeKnown(fresh) {
   // 保留已经飞过的航班（旧版接口只返回下一班，这样也能知道"上一班落在哪"）
   let old = [];
-  try { old = JSON.parse(lsGet('fc.known') || '[]'); } catch (e) {}
+  try { old = JSON.parse(lsGet('fc.known2') || '[]'); } catch (e) {}
   const now = Date.now(), byId = {};
   old.forEach(f => { if (f.std < now && now - f.sta < 12 * 864e5) byId[f.id] = f; });
   fresh.forEach(f => byId[f.id] = f);
@@ -431,7 +481,7 @@ function mergeKnown(fresh) {
       if (fresh.includes(f)) out[out.length - 1] = f;
     } else out.push(f);
   });
-  lsSet('fc.known', JSON.stringify(out));
+  lsSet('fc.known2', JSON.stringify(out));
   return out;
 }
 
@@ -462,7 +512,7 @@ async function loadFlights() {
     S.sync = { ok: true, t: Date.now() };
   } catch (e) {
     S.sync = { ok: false, t: Date.now(), err: e.name === 'AbortError' ? '连接超时（国内可能需要 VPN）' : e.message };
-    if (!S.flights.length) { try { S.flights = JSON.parse(lsGet('fc.known') || '[]'); } catch (x) {} }
+    if (!S.flights.length) { try { S.flights = JSON.parse(lsGet('fc.known2') || '[]'); } catch (x) {} }
   }
 }
 
@@ -530,7 +580,7 @@ const clk = (tz, f) => '<span data-tz="' + tz + '" data-f="' + (f || 'hm') + '">
 function nextCard(f, upcoming) {
   if (!f) return '<div class="nc"><div class="empty">暂无航班安排 · 日历里还没有下一班</div></div>';
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
-  const pickup = f.std - CFG.pickup * MIN;
+  const pickup = f.report || (f.std - CFG.pickup * MIN);
   const toPick = pickup - Date.now();
   const dubaiNote = isHome(f.origin) ? '' : ' · 迪拜 ' + hm(f.std, HOME_TZ);
   let more = '';
@@ -543,11 +593,11 @@ function nextCard(f, upcoming) {
       '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
       '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + '</div></div></div>' +
     '<div class="kvs">' +
-      '<div class="kv"><span class="lbl">接车 Pickup</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayWord(pickup, oTz) + ' · 当地</span></div>' +
+      '<div class="kv"><span class="lbl">报到 Report</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayWord(pickup, oTz) + ' · 当地' + (f.reportEst ? ' · 约' : '') + '</span></div>' +
       '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayWord(f.std, oTz) + dubaiNote + '</span></div>' +
       '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayWord(f.sta, dTz) + ' · ' + esc(apCity(f.dest)) + (f.staEst ? ' · 约' : '') + '</span></div>' +
     '</div>' +
-    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距接车' : '距起飞') + '</span>' +
+    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距报到' : '距起飞') + '</span>' +
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span>' +
       '<span class="s">飞行 ' + hmDur(f.sta - f.std) + '</span></div>' +
     '</div>' + more + '</div>';
@@ -596,7 +646,7 @@ function loadLeaflet() {
   if (leafletState) return;
   leafletState = 1;
   const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'vendor/leaflet/leaflet.css';
-  document.head.appendChild(css);
+  document.head.insertBefore(css, document.head.firstChild); // 放最前面，让下面自己的样式优先
   const js = document.createElement('script'); js.src = 'vendor/leaflet/leaflet.js';
   js.onload = () => { leafletState = 2; render(true); };
   js.onerror = () => { leafletState = 3; };
@@ -843,8 +893,8 @@ $('s-test').onclick = async () => {
     const f = normFlights(j);
     if (!f) throw new Error('返回内容不是航班数据：' + JSON.stringify(j).slice(0, 200));
     out.textContent = (Array.isArray(j.flights) ? '✅ 新版接口（支持多航班 + 实时轨迹）' : '⚠️ 旧版接口（只有下一班，没有实时轨迹）') +
-      '\n识别到 ' + f.length + ' 个航班：\n' + f.slice(0, 8).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  (' + x.callsign + ')').join('\n') +
-      (Array.isArray(j.flights) && j.flights.length > f.length ? '\n\n有 ' + (j.flights.length - f.length) + ' 条日程没认出来：' + j.flights.filter(r => !parseFlight(r)).slice(0, 3).map(r => '“' + r.title + '”').join(' ') : '');
+      '\n识别到 ' + f.length + ' 段航班（时间均为当地）：\n' + f.slice(0, 10).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  到 ' + hm(x.sta, apTz(x.dest))).join('\n') +
+      (() => { const bad = Array.isArray(j.flights) ? j.flights.filter(r => !parseFlight(r)) : []; return bad.length ? '\n\n有 ' + bad.length + ' 条日程没认出来：' + bad.slice(0, 3).map(r => '“' + r.title + '”').join(' ') : ''; })();
   } catch (e) { out.textContent = '❌ ' + e.message; }
   CFG = old;
 };
@@ -875,7 +925,7 @@ addEventListener('resize', () => { if (map && L_route && document.body.dataset.m
    ===================================================================== */
 (async function start() {
   // 先用缓存马上画出来，不等网络
-  try { S.flights = JSON.parse(lsGet('fc.known') || '[]'); } catch (e) {}
+  try { S.flights = JSON.parse(lsGet('fc.known2') || '[]'); } catch (e) {}
   render(true);
   setInterval(tick, 1000);
   await loadFlights();
