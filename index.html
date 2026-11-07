@@ -117,8 +117,10 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .kv{display:flex;flex-direction:column;gap:3px;min-width:0}
 .kv .v{font-size:clamp(22px,4.2vmin,44px);font-weight:500}
 .kv .s{font-size:clamp(11px,1.6vmin,16px);color:var(--dim);white-space:nowrap}
-.kvs{display:flex;gap:clamp(16px,3.4vw,48px);flex-wrap:wrap}
-.cdbox{margin-left:auto;text-align:right}
+.nc-top{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.kvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,2vw,28px);margin-top:clamp(8px,1.6vh,16px);padding-top:clamp(8px,1.6vh,14px);border-top:1px solid rgba(255,255,255,.08)}
+.kvs .kv .s{white-space:normal;line-height:1.35}
+.cdbox{margin-left:auto;text-align:right;flex:none}
 .cdbox .v{color:var(--gold)}
 .cdbox.soon .v{color:var(--red)}
 .nc-more{display:flex;gap:22px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:clamp(11px,1.6vmin,15px);color:var(--dim);flex-wrap:wrap}
@@ -209,7 +211,6 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
   .bigclock .t{font-size:min(30vw,30vh)}
   .fpanel{top:auto;left:0;right:0;bottom:0;width:auto;max-height:52vh;border-radius:20px 20px 0 0;overflow:auto;
     padding-bottom:max(16px,env(safe-area-inset-bottom))}
-  .cdbox{margin-left:0;text-align:left}
 }
 @media (max-width:600px){
   .nc-row{gap:12px} .kvs{gap:16px}
@@ -738,18 +739,18 @@ function nextCard(f, upcoming) {
     more = '<div class="nc-more"><span class="lbl" style="font-size:11px">之后</span>' + upcoming.map(u =>
       '<span>' + dateShort(u.std, apTz(u.origin)) + ' <b>' + esc(u.no) + '</b> ' + u.origin + '→' + u.dest + ' ' + hm(u.std, apTz(u.origin)) + '</span>').join('') + '</div>';
   }
-  return '<div class="nc"><div class="nc-row">' +
+  // 两行布局：上面「航班 + 倒计时」，下面「接车 / 起飞 / 到达」三栏，任何屏幕比例都不会挤乱
+  return '<div class="nc"><div class="nc-top">' +
     '<div class="nc-id"><div class="nc-no">' + esc(f.no) + (f.dh ? '<span class="nc-tag">DH</span>' : '') + '</div>' +
       '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
-      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + '</div></div></div>' +
+      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + ' · 飞行 ' + hmDur(f.sta - f.std) + '</div></div></div>' +
+    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距接车' : '距起飞') + '</span>' +
+      '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
+    '</div>' +
     '<div class="kvs">' +
       '<div class="kv"><span class="lbl">接车 Pickup</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + brDxb(pickup, oTz) + '</span></div>' +
       '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + brDxb(f.std, oTz) + '</span></div>' +
       '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + ' 当地' + (f.staEst ? ' · 约' : '') + brDxb(f.sta, dTz) + '</span></div>' +
-    '</div>' +
-    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距接车' : '距起飞') + '</span>' +
-      '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span>' +
-      '<span class="s">飞行 ' + hmDur(f.sta - f.std) + '</span></div>' +
     '</div>' + more + '</div>';
 }
 
@@ -1015,7 +1016,8 @@ function renderFlight(st, light) {
 
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
   const fs = stOf(f);
-  const elapsed = fs.off ? (fs.on ? fs.on : now) - fs.off : 0, remain = Math.max(0, pos.eta - now);
+  const offT = fs.off || (pos.frac > 0 ? f.std + 15 * MIN : 0);   // 没有实际起飞数据时，按计划估算
+  const elapsed = offT ? (fs.on ? fs.on : now) - offT : 0, remain = Math.max(0, pos.eta - now);
   const depCell = fs.off
     ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际起飞 ' + f.origin + '</span><span class="v num">' + hm(fs.off, oTz) + '</span><span class="s">计划 ' + hm(f.std, oTz) + ' · ' + diffTxt(fs.off - 15 * MIN, f.std) + '</span></div>'
     : '<div class="kv"><span class="lbl">计划起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
@@ -1030,7 +1032,7 @@ function renderFlight(st, light) {
     '<div class="fp-route"><div><div class="c">' + f.origin + '</div><div class="n">' + esc(apCity(f.origin)) + '</div></div>' +
       '<div class="mid">✈</div><div style="text-align:right"><div class="c">' + f.dest + '</div><div class="n" style="margin-left:auto">' + esc(apCity(f.dest)) + '</div></div></div>' +
     '<div><div class="bar"><i style="width:' + (pos.frac * 100).toFixed(1) + '%"></i><b style="left:' + (pos.frac * 100).toFixed(1) + '%"></b></div>' +
-      '<div class="barlbl num"><span>' + (fs.off ? '已飞 ' + hmDur(Math.max(0, elapsed)) : '未起飞') + '</span><span>' + Math.round(pos.frac * 100) + '%</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
+      '<div class="barlbl num"><span>' + (offT ? '已飞 ' + hmDur(Math.max(0, elapsed)) : '未起飞') + '</span><span>' + Math.round(pos.frac * 100) + '%</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
     '<div class="g2">' +
       depCell + arrCell +
       '<div class="kv"><span class="lbl">迪拜时间</span><span class="v num">' + clk(HOME_TZ) + '</span><span class="s">' + dateShort(now, HOME_TZ) + '</span></div>' +
