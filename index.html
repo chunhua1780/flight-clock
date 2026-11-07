@@ -463,7 +463,31 @@ function normFlights(j) {
 /* =====================================================================
    STATE
    ===================================================================== */
-const S = { flights: [], legacy: false, sync: null, wx: {}, track: {}, view: null };
+const S = { flights: [], legacy: false, sync: null, wx: {}, track: {}, view: null, status: {} };
+try { S.status = JSON.parse(lsGet('fc.status') || '{}'); } catch (e) {}
+// 实际动态（Apps Script 根据 ADS-B 判断）：{taxi, off, on, reg}
+const stOf = f => S.status[f.id] || {};
+function setStatus(id, st) {
+  if (!st) return;
+  const old = S.status[id] || {};
+  S.status[id] = { taxi: st.taxi || old.taxi || null, off: st.off || old.off || null, on: st.on || old.on || null, reg: st.reg || old.reg || null, seen: st.seen || old.seen || null };
+  const keep = {}, now = Date.now();
+  for (const k in S.status) { const v = S.status[k]; if (now - (v.on || v.off || v.taxi || now) < 10 * 864e5) keep[k] = v; }
+  S.status = keep; lsSet('fc.status', JSON.stringify(keep));
+}
+// 这段航班实际结束（落地）的时间：有实际落地用实际，已起飞按实际起飞推算，否则按计划
+function endOf(f) {
+  const st = stOf(f);
+  if (st.on) return st.on;
+  if (st.off) return Math.max(f.sta - 8 * MIN, st.off + (f.sta - f.std) - 23 * MIN);
+  return f.sta - 8 * MIN;
+}
+function diffTxt(actual, plan) {
+  const d = Math.round((actual - plan) / MIN);
+  if (Math.abs(d) <= 2) return '准点';
+  const a = Math.abs(d), t = a >= 60 ? Math.floor(a / 60) + '小时' + (a % 60 ? a % 60 + '分' : '') : a + '分';
+  return (d > 0 ? '晚 ' : '早 ') + t;
+}
 
 function mergeKnown(fresh) {
   // 保留已经飞过的航班（旧版接口只返回下一班，这样也能知道"上一班落在哪"）
@@ -509,6 +533,7 @@ async function loadFlights() {
     if (!f) throw new Error('数据格式不对');
     S.legacy = !Array.isArray(j.flights);
     S.flights = mergeKnown(f);
+    if (j.status) for (const k in j.status) setStatus(k, j.status[k]);
     S.sync = { ok: true, t: Date.now() };
   } catch (e) {
     S.sync = { ok: false, t: Date.now(), err: e.name === 'AbortError' ? '连接超时（国内可能需要 VPN）' : e.message };
@@ -518,10 +543,10 @@ async function loadFlights() {
 
 function compute(now) {
   const F = S.flights;
-  const cur = F.find(f => now >= f.std - 15 * MIN && now <= f.sta + 30 * MIN);
+  const cur = F.find(f => now >= f.std - 15 * MIN && now <= endOf(f) + 38 * MIN);
   const after = t => F.filter(f => f.std > t);
   if (cur) return { mode: 'flight', cur, upcoming: after(cur.std).slice(0, 3) };
-  const prev = F.filter(f => f.sta + 30 * MIN < now).pop();
+  const prev = F.filter(f => endOf(f) + 38 * MIN < now).pop();
   const up = after(now + 15 * MIN);
   const next = up[0];
   let loc = prev ? prev.dest : (next ? next.origin : homeCodes()[0]);
@@ -631,8 +656,12 @@ function renderLayover(st) {
   $('l-here').innerHTML = cityBlock(here, apCity(here), true);
   $('l-home').innerHTML = cityBlock('DXB', 'Dubai', false);
   let h = '';
-  if (st.prev) h += '已到达 ' + esc(apCity(here)) + ' <span class="num" data-el="' + st.prev.sta + '">' + durTxt(now - st.prev.sta) + '</span>';
-  if (st.next) h += (h ? ' · 驻外共 ' + durTxt(st.next.std - st.prev.sta) : '距回程起飞 <span class="num" data-cd="' + st.next.std + '">' + cdTxt(st.next.std - now) + '</span>');
+  if (st.prev) {
+    const ps = stOf(st.prev), arr = ps.on || st.prev.sta;
+    h += (ps.on ? '<span style="color:var(--green)">' + hm(ps.on, apTz(here)) + ' 落地</span> · ' : '') +
+      '已到达 ' + esc(apCity(here)) + ' <span class="num" data-el="' + arr + '">' + durTxt(now - arr) + '</span>';
+  }
+  if (st.next) h += (h ? ' · 驻外共 ' + durTxt(st.next.std - (stOf(st.prev).on || st.prev.sta)) : '距回程起飞 <span class="num" data-cd="' + st.next.std + '">' + cdTxt(st.next.std - now) + '</span>');
   $('l-head').innerHTML = h;
   $('l-next').innerHTML = nextCard(st.next, st.upcoming);
 }
@@ -675,9 +704,10 @@ async function pollTrack(f) {
   if (S.legacy || !f.callsign) { T.unsupported = true; return; }
   if (T.busy) return; T.busy = true;
   try {
-    const j = await (await fetchT(apiUrl({ action: 'track', cs: f.callsign, _: Date.now() }), 15000, { cache: 'no-store' })).json();
+    const j = await (await fetchT(apiUrl({ action: 'track', cs: f.callsign, o: f.origin, d: f.dest, std: f.std, sta: f.sta, _: Date.now() }), 15000, { cache: 'no-store' })).json();
     if (!('found' in j)) { T.unsupported = true; return; }
     if (j.found && j.pos) { T.pos = j.pos; T.at = Date.now(); T.src = j.source; }
+    if (j.status) setStatus(f.id, j.status);
     const pts = (j.trail || []).filter(p => p[3] >= f.std - HOUR && p[3] <= f.sta + 2 * HOUR);
     T.pts = mergeTrail(T.pts, pts);
     saveTrail(f.id, T.pts);
@@ -689,16 +719,24 @@ function flightPos(f, now) {
   const A = AP[f.origin], B = AP[f.dest];
   const D = dist(A, B);
   const T = S.track[f.id] || {};
-  const off = 15 * MIN, onn = 8 * MIN;
-  const takeoff = f.std + off, land = f.sta - onn;
+  const st = stOf(f);
+  const onn = 8 * MIN;
+  // 有跟踪数据（15 分钟内查过）且还没起飞 → 飞机停在出发地等；没有跟踪数据 → 按计划估算
+  const tracking = st.seen && now - st.seen < 15 * MIN;
+  const takeoff = st.off || (tracking ? Math.max(f.std + 15 * MIN, st.taxi ? st.taxi + 12 * MIN : 0, Math.min(now + MIN, f.sta - 60 * MIN)) : f.std + 15 * MIN);
+  const land = st.on || (st.off ? st.off + (f.sta - f.std) - 23 * MIN : f.sta - onn);
+  if (st.on && now >= st.on) {
+    const q = { lat: B.lat, lon: B.lon };
+    return Object.assign(q, { live: false, frac: 1, remKm: 0, hdg: bearing(A, B), eta: st.on, phase: 'landed' });
+  }
   const est = Math.min(1, Math.max(0, (now - takeoff) / (land - takeoff)));
   const live = T.pos && now - T.at < 4 * MIN && (T.pos.seen == null || T.pos.seen < 300);
   if (live) {
     const p = { lat: T.pos.lat, lon: T.pos.lon };
     const dA = dist(A, p), dB = dist(p, B);
     if (T.pos.ground) {
-      const landed = dB < 40;
-      return Object.assign(p, { live: true, ground: true, frac: landed ? 1 : 0, remKm: landed ? 0 : D, hdg: T.pos.track || bearing(A, B), phase: landed ? 'landed' : 'taxi', eta: landed ? now : f.sta });
+      const landed = dB < 40 || !!st.on;
+      return Object.assign(p, { live: true, ground: true, frac: landed ? 1 : 0, remKm: landed ? 0 : D, hdg: T.pos.track || bearing(A, B), phase: landed ? 'landed' : (T.pos.gs >= 5 ? 'taxi' : now > f.std + 5 * MIN ? 'waiting' : 'boarding'), eta: landed ? (st.on || now) : f.sta, reg: T.pos.reg, type: T.pos.type, src: T.src });
     }
     const frac = dA / (dA + dB);
     const gs = T.pos.gs;
@@ -710,11 +748,11 @@ function flightPos(f, now) {
   }
   const p = gcPoint(A, B, est);
   const p2 = gcPoint(A, B, Math.min(1, est + 0.01));
-  let phase = now < takeoff ? 'boarding' : now > land ? 'landed' : est < 0.06 ? 'climb' : est > 0.92 ? 'descent' : 'cruise';
-  return Object.assign(p, { live: false, frac: est, remKm: (1 - est) * D, hdg: bearing(p, p2), eta: f.sta, phase });
+  let phase = now < takeoff ? (st.taxi ? 'taxi' : tracking && now > f.std + 5 * MIN ? 'waiting' : 'boarding') : now > land ? 'landed' : est < 0.06 ? 'climb' : est > 0.92 ? 'descent' : 'cruise';
+  return Object.assign(p, { live: false, frac: est, remKm: (1 - est) * D, hdg: bearing(p, p2), eta: st.off ? land + onn : f.sta, phase });
 }
 
-const PHASE = { boarding: '登机 / 滑行', taxi: '地面滑行', climb: '起飞爬升', cruise: '巡航中', descent: '下降进近', landed: '已落地' };
+const PHASE = { boarding: '登机 / 准备推出', waiting: '尚未起飞', taxi: '滑行中', climb: '起飞爬升', cruise: '巡航中', descent: '下降进近', landed: '已落地' };
 
 function renderFlight(st, light) {
   const f = st.cur, now = Date.now();
@@ -759,7 +797,15 @@ function renderFlight(st, light) {
   }
 
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
-  const elapsed = now - f.std, remain = Math.max(0, pos.eta - now);
+  const fs = stOf(f);
+  const elapsed = fs.off ? (fs.on ? fs.on : now) - fs.off : 0, remain = Math.max(0, pos.eta - now);
+  const depCell = fs.off
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际起飞 ' + f.origin + '</span><span class="v num">' + hm(fs.off, oTz) + '</span><span class="s">计划 ' + hm(f.std, oTz) + ' · ' + diffTxt(fs.off - 15 * MIN, f.std) + '</span></div>'
+    : '<div class="kv"><span class="lbl">计划起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
+      (pos.phase === 'waiting' ? '<span style="color:var(--red)">尚未起飞 · 已过 ' + hmDur(now - f.std) + '</span>' : '当地 · ' + dayWord(f.std, oTz)) + '</span></div>';
+  const arrCell = fs.on
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际落地 ' + f.dest + '</span><span class="v num">' + hm(fs.on, dTz) + '</span><span class="s">计划 ' + hm(f.sta, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
+    : '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hm(pos.eta, dTz) + '</span><span class="s">当地 · ' + (fs.off ? diffTxt(pos.eta, f.sta) : dayWord(pos.eta, dTz)) + '</span></div>';
   const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
   const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
   const html =
@@ -767,10 +813,9 @@ function renderFlight(st, light) {
     '<div class="fp-route"><div><div class="c">' + f.origin + '</div><div class="n">' + esc(apCity(f.origin)) + '</div></div>' +
       '<div class="mid">✈</div><div style="text-align:right"><div class="c">' + f.dest + '</div><div class="n" style="margin-left:auto">' + esc(apCity(f.dest)) + '</div></div></div>' +
     '<div><div class="bar"><i style="width:' + (pos.frac * 100).toFixed(1) + '%"></i><b style="left:' + (pos.frac * 100).toFixed(1) + '%"></b></div>' +
-      '<div class="barlbl num"><span>已飞 ' + hmDur(Math.max(0, elapsed)) + '</span><span>' + Math.round(pos.frac * 100) + '%</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
+      '<div class="barlbl num"><span>' + (fs.off ? '已飞 ' + hmDur(Math.max(0, elapsed)) : '未起飞') + '</span><span>' + Math.round(pos.frac * 100) + '%</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
     '<div class="g2">' +
-      '<div class="kv"><span class="lbl">起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">当地 · ' + dayWord(f.std, oTz) + '</span></div>' +
-      '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hm(pos.eta, dTz) + '</span><span class="s">当地 · ' + dayWord(pos.eta, dTz) + '</span></div>' +
+      depCell + arrCell +
       '<div class="kv"><span class="lbl">迪拜时间</span><span class="v num">' + clk(HOME_TZ) + '</span><span class="s">' + dateShort(now, HOME_TZ) + '</span></div>' +
       '<div class="kv"><span class="lbl">' + esc(apCity(f.dest)) + ' 时间</span><span class="v num">' + clk(dTz) + '</span><span class="s">' + dateShort(now, dTz) + '</span></div>' +
     '</div>' +
@@ -782,6 +827,7 @@ function renderFlight(st, light) {
       '<div class="kv"><span class="lbl">' + f.dest + ' 天气</span>' + wxHtml(f.dest, 'sm') + '</div>' +
     '</div>' +
     '<div class="fp-foot"><div><div class="lbl">状态</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
+      (pos.phase === 'waiting' ? '<span style="color:var(--red)"> · 已过计划 ' + Math.round((now - f.std) / MIN) + ' 分</span>' : '') +
       (pos.live && pos.reg ? ' · ' + esc(pos.reg) + (pos.type ? ' ' + esc(pos.type) : '') : '') + '</div></div>' +
       '<div class="lbl" style="text-align:right">' + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
   $('f-panel').innerHTML = html;
