@@ -5,8 +5,8 @@
  *   1. ?action=flights   读取 Google 日历里的排班，返回航班列表 + 每段航班的实际动态
  *   2. ?action=track     查询 ADS-B 实时位置（浏览器直连会被拦），缓存轨迹，判断起飞/落地
  *   3. 定时器 poll()     每 5 分钟自动查一次正在进行的航班，iPad 关着也能记下起飞/落地时间
- *   4. ?action=photo     从 Unsplash 图片库找「城市 + 时段 + 天气」的背景照片，每天换一张
- *                        （需要在 项目设置 → 脚本属性 里加 UNSPLASH_KEY）
+ *   4. ?action=photo     从图片库（Pexels 或 Unsplash）找「城市 + 时段 + 天气」的背景照片，每天换一张
+ *                        （需要在 项目设置 → 脚本属性 里加 PEXELS_KEY 或 UNSPLASH_KEY）
  *
  * 安装 / 更新：
  *   1. 把本文件全部粘贴进 Apps Script，保存
@@ -335,9 +335,11 @@ function test() {
   Logger.log(JSON.stringify(flights_(), null, 2));
 }
 
-// ======== 背景照片（Unsplash 图片库） ========
-// 申请 Key：https://unsplash.com/developers → Your apps → New Application → 复制 Access Key
-// 填到：Apps Script 左侧 ⚙ 项目设置 → 脚本属性 → 添加脚本属性：UNSPLASH_KEY = 你的 Access Key
+// ======== 背景照片（Pexels / Unsplash 图片库） ========
+// 二选一（都填了优先用 Pexels）：
+//   Pexels：  https://www.pexels.com/api/ → 申请 API Key
+//   Unsplash：https://unsplash.com/developers → Your apps → New Application → Access Key
+// 填到：Apps Script 左侧 ⚙ 项目设置 → 脚本属性 → 添加脚本属性：PEXELS_KEY（或 UNSPLASH_KEY）= 你的 Key
 const PHASE_WORD = { dawn: 'sunrise', morning: 'morning', day: '', evening: 'golden hour', dusk: 'sunset', night: 'night' };
 const WX_WORD = { rain: 'rain', storm: 'storm', snow: 'snow', fog: 'fog', dust: 'sandstorm', overcast: 'cloudy' };
 
@@ -360,9 +362,29 @@ function unsplashSearch_(q, key) {
   return list;
 }
 
+function pexelsSearch_(q, key) {
+  const cache = CacheService.getScriptCache();
+  const ck = 'px_' + hash_(q);
+  const hit = cache.get(ck);
+  if (hit) return JSON.parse(hit);
+  const url = 'https://api.pexels.com/v1/search?orientation=landscape&size=large&per_page=40&query=' + encodeURIComponent(q);
+  const r = UrlFetchApp.fetch(url, { headers: { Authorization: key }, muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('Pexels ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 120));
+  const list = (JSON.parse(r.getContentText()).photos || [])
+    .filter(function (x) { return x.width >= 2000 && x.width > x.height * 1.2; })
+    .map(function (x) {
+      return { id: x.id, raw: x.src.original.split('?')[0] + '?auto=compress&cs=tinysrgb', by: x.photographer, link: x.url };
+    });
+  cache.put(ck, JSON.stringify(list), 21600);
+  return list;
+}
+
 function photo_(p) {
-  const key = PropertiesService.getScriptProperties().getProperty('UNSPLASH_KEY');
-  if (!key) return { ok: false, error: 'no UNSPLASH_KEY' };
+  const props = PropertiesService.getScriptProperties();
+  const pexels = props.getProperty('PEXELS_KEY'), unsplash = props.getProperty('UNSPLASH_KEY');
+  if (!pexels && !unsplash) return { ok: false, error: 'no UNSPLASH_KEY' };
+  const source = pexels ? 'Pexels' : 'Unsplash';
+  const key = pexels || unsplash;
   const city = String(p.city || '').replace(/[^\w\s\-À-ž]/g, '').trim().slice(0, 60);
   if (!city) return { ok: false, error: 'missing city' };
   const pw = PHASE_WORD[p.phase] || '', ww = WX_WORD[p.wx] || '';
@@ -373,19 +395,19 @@ function photo_(p) {
   const day = Utilities.formatDate(new Date(), 'Asia/Dubai', 'yyyyMMdd');
   for (let i = 0; i < tries.length; i++) {
     let list;
-    try { list = unsplashSearch_(tries[i].q, key); } catch (e) { return { ok: false, error: String(e) }; }
+    try { list = pexels ? pexelsSearch_(tries[i].q, key) : unsplashSearch_(tries[i].q, key); } catch (e) { return { ok: false, error: String(e) }; }
     if (list.length < 3) continue;
     const ph = list[hash_(day + '|' + tries[i].q) % list.length];
     // Unsplash 规定：用到一张照片时通知它一次（每天每张最多一次）
     const cache = CacheService.getScriptCache();
-    if (!cache.get('dl_' + ph.id)) {
+    if (!pexels && !cache.get('dl_' + ph.id)) {
       try { UrlFetchApp.fetch(ph.dl, { headers: { Authorization: 'Client-ID ' + key }, muteHttpExceptions: true }); } catch (e) {}
       cache.put('dl_' + ph.id, '1', 21600);
     }
     return {
-      ok: true, query: tries[i].q, wx: tries[i].wx,
-      url: ph.raw + (ph.raw.indexOf('?') >= 0 ? '&' : '?') + 'w=1920&q=78&fm=jpg&fit=crop&auto=format',
-      by: ph.by, link: ph.link + '?utm_source=flight_clock&utm_medium=referral'
+      ok: true, query: tries[i].q, wx: tries[i].wx, source: source,
+      url: pexels ? ph.raw + '&w=1920' : ph.raw + (ph.raw.indexOf('?') >= 0 ? '&' : '?') + 'w=1920&q=78&fm=jpg&fit=crop&auto=format',
+      by: ph.by, link: pexels ? ph.link : ph.link + '?utm_source=flight_clock&utm_medium=referral'
     };
   }
   return { ok: false, error: 'no photos' };

@@ -285,7 +285,7 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
     <label class="chk"><input type="checkbox" id="s-drop8">五位数航班号去掉开头的 8（89876 → EK9876）</label>
     <label class="chk"><input type="checkbox" id="s-dim">夜间自动变暗</label>
     <label class="chk"><input type="checkbox" id="s-cal">主界面右侧显示月历</label>
-    <label class="chk"><input type="checkbox" id="s-photos">背景用 Unsplash 图片库（每天换；需在 Apps Script 设 UNSPLASH_KEY）</label>
+    <label class="chk"><input type="checkbox" id="s-photos">背景用图片库，每天换（需在 Apps Script 设 PEXELS_KEY 或 UNSPLASH_KEY）</label>
     <div class="btns">
       <button class="btn pri" id="s-save">保存</button>
       <button class="btn" id="s-test">测试连接</button>
@@ -1024,7 +1024,7 @@ function remotePhoto(city, phase, cat, cb) {
   PHOTO.m[k] = null;
   fetchT(apiUrl({ action: 'photo', city, phase, wx: cat, d: day }), 15000).then(r => r.json()).then(j => {
     if (j.ok && j.url) {
-      PHOTO.m[k] = { url: j.url, wx: j.wx, credit: { by: j.by, license: 'Unsplash', url: j.link } };
+      PHOTO.m[k] = { url: j.url, wx: j.wx, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } };
       lsSet('fc.photos', JSON.stringify(PHOTO)); cb();
     } else if (j.flights || j.error === 'no UNSPLASH_KEY') photoOff = true; // 旧版脚本或还没设 Key：用内置照片
   }).catch(() => {});

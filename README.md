@@ -65,10 +65,14 @@ Apps Script 每 5 分钟用 ADS-B 信号检查一次正在进行的航班（iPad
 ## 主界面月历
 主界面右侧显示整月航班（类似 Google 日历的月视图）：金色 = 出发，绿色 = 回基地，蓝色底 = 驻外（标出城市），底部统计本月航段数、飞行时间、驻外天数。点 ‹ › 翻月，2 分钟后自动回到本月。手机竖屏太窄时自动隐藏。设置里可以关掉。
 
-## 图片库背景（Unsplash，每天换）
-接上 Unsplash 图片库后，背景按「城市 + 时段 + 天气」搜索（例如 *Dubai sunset*、*Guangzhou rain*、*Dubai sandstorm*），**每天换一张**，清晨、白天、傍晚、夜晚也各不相同。连不上图片库时（例如在国内）自动用下面的内置照片。
+## 图片库背景（Pexels 或 Unsplash，每天换）
+接上图片库后，背景按「城市 + 时段 + 天气」搜索（例如 *Dubai sunset*、*Guangzhou rain*、*Dubai sandstorm*），**每天换一张**，清晨、白天、傍晚、夜晚也各不相同。连不上图片库时（例如在国内）自动用下面的内置照片。
 
-设置方法（一次，免费）：
+设置方法（一次，免费）——**Pexels 和 Unsplash 二选一**，两个都设了优先用 Pexels：
+
+**Pexels**：已经有 Pexels API Key 的话（`clock-2` 里用过），直接在 Apps Script → ⚙ 项目设置 → 脚本属性 → 添加：属性 `PEXELS_KEY`，值 = 你的 Key。没有的话到 <https://www.pexels.com/api/> 免费申请。
+
+**Unsplash**：
 1. 打开 <https://unsplash.com/developers> → 注册/登录 → **Your apps** → **New Application** → 勾选同意条款 → 随便起个名字（如 Flight Clock）→ 创建
 2. 在应用页面往下找到 **Keys** → 复制 **Access Key**
 3. 打开你的 Apps Script → 左侧 **⚙ 项目设置** → 最下面 **脚本属性** → **添加脚本属性**：属性 `UNSPLASH_KEY`，值 = 刚才复制的 Access Key → 保存
