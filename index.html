@@ -58,36 +58,36 @@ body[data-mode=home] #v-home, body[data-mode=layover] #v-lay, body[data-mode=fli
 #v-home{flex-direction:row;gap:clamp(14px,2.2vw,30px)}
 .home-main{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
 body.nocal .home-cal{display:none}
-body:not(.nocal) #v-home .bigclock .t{font-size:min(17.5vw,40vh)}
-/* ---------- 月历 ---------- */
-.home-cal{flex:0 0 min(41vw,560px);display:flex;flex-direction:column;min-height:0;border:1px solid rgba(255,255,255,.12);border-radius:20px;
-  background:rgba(8,8,10,.5);-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);padding:clamp(12px,1.8vmin,20px);text-shadow:none}
-.cal-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.cal-h .ttl{font-size:clamp(17px,2.6vmin,26px);font-weight:600;flex:1}
-.cal-h .nav{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;cursor:pointer;color:var(--text);font-size:18px;background:rgba(255,255,255,.04)}
-.cal-h .today{font-size:12px;padding:6px 10px;width:auto}
+body:not(.nocal) #v-home .bigclock .t{font-size:min(20vw,42vh)}
+/* ---------- 月历（小巧版） ---------- */
+.home-cal{flex:0 0 clamp(300px,31vw,390px);align-self:center;display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.13);border-radius:18px;
+  background:rgba(10,10,12,.46);-webkit-backdrop-filter:blur(18px) saturate(1.25);backdrop-filter:blur(18px) saturate(1.25);padding:14px 14px 12px;text-shadow:none;
+  box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.cal-h{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.cal-h .ttl{font-size:17px;font-weight:600;flex:1;letter-spacing:.02em}
+.cal-h .ttl small{font-size:12px;color:#a9a69e;font-weight:500;margin-left:6px}
+.cal-h .nav{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;cursor:pointer;color:#e9e6de;font-size:16px;background:rgba(255,255,255,.06)}
+.cal-h .today{font-size:11px;padding:0 9px;width:auto}
 .cal-wd,.cal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
-.cal-wd div{font-size:clamp(10px,1.4vmin,13px);color:#a9a69e;text-align:center;padding-bottom:6px;letter-spacing:.1em}
-.cal-g{flex:1;grid-auto-rows:minmax(0,1fr);border-top:1px solid rgba(255,255,255,.08);border-left:1px solid rgba(255,255,255,.08);min-height:0}
-.cal-d{border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);padding:3px 3px 2px;min-width:0;overflow:hidden;position:relative;display:flex;flex-direction:column;gap:2px}
-.cal-d .n{font-size:clamp(11px,1.5vmin,14px);color:#d9d6ce;line-height:1.3;padding-left:2px}
-.cal-d.out .n{color:#5e5c58}
+.cal-wd div{font-size:10.5px;color:#8f8c85;text-align:center;padding-bottom:4px;letter-spacing:.08em}
+.cal-g{grid-auto-rows:clamp(40px,6.6vh,52px);gap:2px}
+.cal-d{border-radius:8px;padding:3px 2px 3px;min-width:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:2px}
+.cal-d .n{font-size:12px;color:#e2dfd7;line-height:18px;width:20px;height:18px;text-align:center;border-radius:9px}
+.cal-d.out{opacity:.28}
 .cal-d.we .n{color:#e8b9a0}
-.cal-d.td .n{background:var(--gold);color:#000;border-radius:99px;width:1.75em;text-align:center;padding:0;font-weight:700}
-.cal-d.away{background:linear-gradient(180deg,rgba(111,180,255,.07),rgba(111,180,255,.16))}
-.cal-d .aw{margin-top:auto;font-size:clamp(9px,1.2vmin,11px);color:#9fc8ff;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:2px}
-.chip{font-size:clamp(9px,1.25vmin,12px);line-height:1.35;border-radius:5px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;
-  background:rgba(210,173,98,.9);color:#1a1408}
-.chip b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis}
-.chip span{display:block;font-weight:500;opacity:.85;font-size:.92em}
-@media (orientation:portrait){.chip b,.chip span{display:inline}.chip span{margin-left:5px}}
-.chip.ret{background:rgba(69,212,131,.85);color:#06210f}
-.chip.dh{background:rgba(160,160,170,.8);color:#111}
-.chip.past{opacity:.45}
-.cal-f{display:flex;gap:16px;margin-top:10px;font-size:clamp(11px,1.5vmin,14px);color:#cfccc4;flex-wrap:wrap}
-.cal-f b{color:var(--gold);font-weight:600;font-size:1.15em}
-.cal-lg{display:flex;gap:12px;margin-top:6px;font-size:11px;color:#a9a69e;align-items:center;flex-wrap:wrap}
-.cal-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.cal-d.td .n{background:var(--gold);color:#120d04;font-weight:700}
+.cal-d.away{background:rgba(111,180,255,.13)}
+.cal-d .aw{margin-top:auto;font-size:9px;color:#a9cfff;letter-spacing:.08em;line-height:1}
+.chip{font-size:11px;line-height:15px;border-radius:5px;padding:0 4px;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums;
+  background:rgba(210,173,98,.2);color:#f3d99c;border:1px solid rgba(210,173,98,.5);max-width:100%;overflow:hidden}
+.chip i{font-style:normal}
+@media (orientation:landscape){.chip i{display:none}.chip{font-size:11.5px;padding:0 3px}}
+.chip.land{background:rgba(69,212,131,.18);color:#9ff0bf;border-color:rgba(69,212,131,.5)}
+.chip.past{opacity:.5}
+.cal-f{display:flex;justify-content:space-between;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:#bdbab2}
+.cal-f b{color:#f3d99c;font-weight:600}
+.cal-lg{display:flex;gap:12px;margin-top:6px;font-size:10.5px;color:#8f8c85;align-items:center;flex-wrap:wrap}
+.cal-lg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
 .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 .datebox .d1{font-size:clamp(18px,3.6vmin,40px);font-weight:600}
 .datebox .d2{font-size:clamp(13px,2.1vmin,22px);color:var(--dim);margin-top:4px}
@@ -200,7 +200,8 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 /* ---------- portrait / small ---------- */
 @media (orientation:portrait){
   #v-home{flex-direction:column}
-  .home-cal{flex:0 0 38vh}
+  .home-cal{flex:0 0 auto;align-self:center;width:min(440px,100%)}
+  .cal-g{grid-auto-rows:clamp(40px,4.4vh,54px)}
   .dual{grid-template-columns:1fr;grid-template-rows:1fr 1px 1fr}
   .dual .sep{margin:0 8vw}
   body[data-mode=layover] #sc-a{right:0;bottom:50%}
@@ -753,7 +754,17 @@ function renderCal() {
   const today = ymd(now, HOME_TZ);
   const F_ = S.flights;
   const items = {}, away = {};
-  F_.forEach(f => { const k = ymd(f.std, apTz(f.origin)); (items[k] = items[k] || []).push(f); });
+  // 起飞：出发当天显示起飞时间（当地）；回基地：落地那天显示落地迪拜的时间
+  F_.forEach(f => {
+    const st = stOf(f);
+    if (isHome(f.dest) && !isHome(f.origin)) {
+      const t = st.on || f.sta, k = ymd(t, HOME_TZ);
+      (items[k] = items[k] || []).push({ t, cls: 'land', txt: '<i>⌂ </i>' + hm(t, HOME_TZ), tip: f.no + ' 落地迪拜 ' + hm(t, HOME_TZ), f });
+    } else {
+      const t = st.off || f.std, tz = apTz(f.origin), k = ymd(t, tz);
+      (items[k] = items[k] || []).push({ t, cls: '', txt: '<i>✈ </i>' + hm(t, tz), tip: f.no + ' ' + f.origin + '→' + f.dest + ' 起飞 ' + hm(t, tz), f });
+    }
+  });
   // 驻外的日子：落地外站 → 下一段从那里起飞
   F_.forEach((f, i) => {
     if (isHome(f.dest)) return;
@@ -766,7 +777,7 @@ function renderCal() {
   const legs = F_.filter(f => ymd(f.std, apTz(f.origin)).slice(0, 6) === mk);
   const block = legs.reduce((a, f) => a + (stOf(f).on && stOf(f).off ? stOf(f).on - stOf(f).off + 23 * MIN : f.sta - f.std), 0);
   const awayDays = Object.keys(away).filter(k => k.slice(0, 6) === mk).length;
-  const title = y + '年' + (m + 1) + '月';
+  const title = (m + 1) + '月<small>' + y + '</small>';
   let h = '<div class="cal-h"><div class="ttl">' + title + '</div>' +
     (S.calOff ? '<div class="nav today" onclick="calNav(0)">本月</div>' : '') +
     '<div class="nav" onclick="calNav(-1)">‹</div><div class="nav" onclick="calNav(1)">›</div></div>' +
@@ -777,15 +788,13 @@ function renderCal() {
     const k = dk(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
     const out = d.getUTCMonth() !== m, wdx = i % 7;
     const cls = ['cal-d', out ? 'out' : '', wdx >= 5 ? 'we' : '', k === today ? 'td' : '', away[k] ? 'away' : ''].join(' ');
-    const list = (items[k] || []).map(f => {
-      const c = 'chip' + (f.dh ? ' dh' : isHome(f.dest) ? ' ret' : '') + (endOf(f) < now ? ' past' : '');
-      return '<div class="' + c + '" title="' + esc(f.no + ' ' + f.origin + '→' + f.dest) + '"><b>' + (isHome(f.dest) ? '⌂ ' : '→ ') + f.dest + '</b><span>' + hm(f.std, apTz(f.origin)) + '</span></div>';
-    }).join('');
-    const aw = away[k] && !(items[k] || []).length ? '<div class="aw">' + esc(away[k]) + ' 驻外</div>' : '';
+    const list = (items[k] || []).sort((a, b) => a.t - b.t).slice(0, 2).map(it =>
+      '<div class="chip ' + it.cls + (endOf(it.f) < now ? ' past' : '') + '" title="' + esc(it.tip) + '">' + it.txt + '</div>').join('');
+    const aw = away[k] && !(items[k] || []).length ? '<div class="aw">' + esc(away[k]) + '</div>' : '';
     h += '<div class="' + cls + '"><div class="n">' + d.getUTCDate() + '</div>' + list + aw + '</div>';
   }
   h += '</div><div class="cal-f"><span><b>' + legs.length + '</b> 段航班</span><span>飞行 <b>' + hmDur(block) + '</b></span><span>驻外 <b>' + awayDays + '</b> 天</span></div>' +
-    '<div class="cal-lg"><span><i style="background:rgba(210,173,98,.9)"></i>出发</span><span><i style="background:rgba(69,212,131,.85)"></i>回基地</span><span><i style="background:rgba(111,180,255,.35)"></i>驻外</span></div>';
+    '<div class="cal-lg"><span><i style="background:rgba(210,173,98,.8)"></i>起飞（当地时间）</span><span><i style="background:rgba(69,212,131,.8)"></i>落地迪拜</span><span><i style="background:rgba(111,180,255,.45)"></i>驻外</span></div>';
   el.innerHTML = h;
 }
 
