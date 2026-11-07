@@ -11,7 +11,6 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{
   --bg:#000; --panel:rgba(14,14,16,.82); --line:rgba(255,255,255,.09);
@@ -226,7 +225,14 @@ body[data-mode=flight] #tools{left:auto;right:var(--pad);transform:none}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<div id="err" style="display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:3000;background:#2a0f0f;color:#ffb4ae;border:1px solid #6b2a26;border-radius:12px;padding:10px 14px;font:13px/1.4 -apple-system,sans-serif;white-space:pre-wrap"></div>
+<script>
+window.onerror = function (m, src, line) {
+  var e = document.getElementById('err');
+  e.style.display = 'block';
+  e.textContent = '页面出错：' + m + (line ? '（第 ' + line + ' 行）' : '') + '\n请截图发给 Claude';
+};
+</script>
 <script>
 'use strict';
 /* =====================================================================
@@ -257,7 +263,7 @@ const AP = {
   DXB: { lat: 25.253, lon: 55.364, tz: 'Asia/Dubai', city: 'Dubai' },
   DWC: { lat: 24.897, lon: 55.161, tz: 'Asia/Dubai', city: 'Dubai DWC' },
 };
-const apReady = fetch('airports.json').then(r => r.json()).then(j => {
+const apReady = fetchT('airports.json', 20000).then(r => r.json()).then(j => {
   for (const k in j.ap) if (!AP[k]) { const v = j.ap[k]; AP[k] = { lat: v[0], lon: v[1], tz: j.tz[v[2]], city: v[3] }; }
 }).catch(() => {});
 const apCity = c => (AP[c] && AP[c].city) || c;
@@ -429,6 +435,11 @@ function mergeKnown(fresh) {
   return out;
 }
 
+function fetchT(url, ms, opt) {
+  const c = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const t = c && setTimeout(() => c.abort(), ms || 15000);
+  return fetch(url, Object.assign({}, opt || {}, c ? { signal: c.signal } : {})).finally(() => t && clearTimeout(t));
+}
 function apiUrl(params) {
   const u = new URL(CFG.api);
   for (const k in params) u.searchParams.set(k, params[k]);
@@ -440,7 +451,7 @@ async function loadFlights() {
   await apReady;
   if (DEMO) { S.flights = demoFlights(); S.sync = { ok: true, t: Date.now(), demo: true }; return; }
   try {
-    const r = await fetch(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' });
+    const r = await fetchT(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' });
     const j = await r.json();
     if (j.ok === false) throw new Error(j.error || 'error');
     const f = normFlights(j);
@@ -449,7 +460,7 @@ async function loadFlights() {
     S.flights = mergeKnown(f);
     S.sync = { ok: true, t: Date.now() };
   } catch (e) {
-    S.sync = { ok: false, t: Date.now(), err: e.message };
+    S.sync = { ok: false, t: Date.now(), err: e.name === 'AbortError' ? '连接超时（国内可能需要 VPN）' : e.message };
     if (!S.flights.length) { try { S.flights = JSON.parse(lsGet('fc.known') || '[]'); } catch (x) {} }
   }
 }
@@ -489,7 +500,7 @@ async function getWx(code) {
   try {
     const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + a.lat + '&longitude=' + a.lon +
       '&current=temperature_2m,weather_code,is_day,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1&wind_speed_unit=kn';
-    const j = await (await fetch(u)).json();
+    const j = await (await fetchT(u, 12000)).json();
     S.wx[code] = {
       t: Date.now(), temp: Math.round(j.current.temperature_2m), code: j.current.weather_code, day: j.current.is_day,
       wind: Math.round(j.current.wind_speed_10m), rh: j.current.relative_humidity_2m,
@@ -579,8 +590,20 @@ function renderLayover(st) {
 let map = null, mapFlightId = null, L_route, L_done, L_trail, L_plane, L_aps = [];
 const PLANE_SVG = '<svg viewBox="0 0 64 64" width="38" height="38"><path fill="#d2ad62" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
 
+let leafletState = 0; // 0 未加载 1 加载中 2 好了 3 失败
+function loadLeaflet() {
+  if (leafletState) return;
+  leafletState = 1;
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'vendor/leaflet/leaflet.css';
+  document.head.appendChild(css);
+  const js = document.createElement('script'); js.src = 'vendor/leaflet/leaflet.js';
+  js.onload = () => { leafletState = 2; render(true); };
+  js.onerror = () => { leafletState = 3; };
+  document.head.appendChild(js);
+}
 function ensureMap() {
-  if (map || typeof L === 'undefined') return;
+  if (map) return;
+  if (typeof L === 'undefined') { loadLeaflet(); return; }
   map = L.map('map', { zoomControl: false, attributionControl: true, worldCopyJump: false, minZoom: 2, zoomSnap: 0.25 });
   const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
   L.tileLayer(esri + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 12, attribution: 'Tiles © Esri' }).addTo(map);
@@ -601,7 +624,7 @@ async function pollTrack(f) {
   if (S.legacy || !f.callsign) { T.unsupported = true; return; }
   if (T.busy) return; T.busy = true;
   try {
-    const j = await (await fetch(apiUrl({ action: 'track', cs: f.callsign, _: Date.now() }), { cache: 'no-store' })).json();
+    const j = await (await fetchT(apiUrl({ action: 'track', cs: f.callsign, _: Date.now() }), { cache: 'no-store' })).json();
     if (!('found' in j)) { T.unsupported = true; return; }
     if (j.found && j.pos) { T.pos = j.pos; T.at = Date.now(); T.src = j.source; }
     const pts = (j.trail || []).filter(p => p[3] >= f.std - HOUR && p[3] <= f.sta + 2 * HOUR);
@@ -815,7 +838,7 @@ $('s-test').onclick = async () => {
   const old = CFG; CFG = Object.assign({}, DEFAULTS, readSettings());
   try {
     await apReady;
-    const j = await (await fetch(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' })).json();
+    const j = await (await fetchT(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' })).json();
     const f = normFlights(j);
     if (!f) throw new Error('返回内容不是航班数据：' + JSON.stringify(j).slice(0, 200));
     out.textContent = (Array.isArray(j.flights) ? '✅ 新版接口（支持多航班 + 实时轨迹）' : '⚠️ 旧版接口（只有下一班，没有实时轨迹）') +
@@ -850,9 +873,12 @@ addEventListener('resize', () => { if (map && L_route && document.body.dataset.m
    START
    ===================================================================== */
 (async function start() {
-  await loadFlights();
+  // 先用缓存马上画出来，不等网络
+  try { S.flights = JSON.parse(lsGet('fc.known') || '[]'); } catch (e) {}
   render(true);
   setInterval(tick, 1000);
+  await loadFlights();
+  render(true);
   setInterval(() => loadFlights().then(() => render(true)), 5 * MIN);
   const trackLoop = () => { const st = compute(Date.now()); if (st.mode === 'flight') pollTrack(st.cur); };
   trackLoop(); setInterval(trackLoop, 30000);
