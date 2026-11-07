@@ -74,7 +74,10 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .r.t-rest .ct span{opacity:.55;font-weight:500;font-size:7.5px;letter-spacing:.04em}
 .r.t-lay .ct span{opacity:.6;font-weight:500}
 .r.past{opacity:.4}
-.r.td{box-shadow:inset 0 0 0 1px rgba(255,255,255,.85);opacity:1}
+.r.td{box-shadow:inset 0 0 0 1.5px #f5c451,0 0 10px rgba(245,196,81,.55);opacity:1}
+.r.td .dn{background:#f5c451;color:#1a1204;border-radius:50%;width:13px;height:13px;line-height:13px;left:0;font-weight:800;font-size:8px;text-align:center;text-shadow:none}
+.r.m1{border-top:1px solid rgba(255,255,255,.55)}
+@media (orientation:portrait){ .r.m1{border-top:none;border-left:1px solid rgba(255,255,255,.55)} .r.td .dn{margin:0 auto} }
 @media (orientation:portrait){
   #v-home{flex-direction:column}
   .home-cal{flex:0 0 auto;height:clamp(40px,5.2vh,58px);flex-direction:row;align-items:stretch;padding:2px 3px;margin:0 0 -6px}
@@ -704,12 +707,19 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clk = (tz, f) => '<span data-tz="' + tz + '" data-f="' + (f || 'hm') + '">' + (f === 's' ? ss(Date.now(), tz) : hm(Date.now(), tz)) + '</span>';
 
+// 「明天 11/8周日」或「11/9周一」
+function dayLbl(t, tz) { const w = dayWord(t, tz), d = dateShort(t, tz); return (w === '今天' || w === '明天' || w === '昨天') ? w + ' ' + d : d; }
+// 换算成迪拜时间（不在迪拜时区时才显示）；日期不同就带上日期
+function dxbConv(t, tz) {
+  if (tzOffset(tz, t) === tzOffset(HOME_TZ, t)) return '';
+  return '迪拜 ' + hm(t, HOME_TZ) + (ymd(t, HOME_TZ) !== ymd(t, tz) ? ' (' + dateShort(t, HOME_TZ) + ')' : '');
+}
+const brDxb = (t, tz) => dxbConv(t, tz) ? '<br>' + dxbConv(t, tz) : '';
 function nextCard(f, upcoming) {
   if (!f) return '<div class="nc"><div class="empty">暂无航班安排 · 日历里还没有下一班</div></div>';
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
   const pickup = f.std - CFG.pickup * MIN; // 接车 = 起飞前 2 小时 15 分（设置里可改）
   const toPick = pickup - Date.now();
-  const dubaiNote = isHome(f.origin) ? '' : ' · 迪拜 ' + hm(f.std, HOME_TZ);
   let more = '';
   if (upcoming && upcoming.length) {
     more = '<div class="nc-more"><span class="lbl" style="font-size:11px">之后</span>' + upcoming.map(u =>
@@ -720,9 +730,9 @@ function nextCard(f, upcoming) {
       '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
       '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + '</div></div></div>' +
     '<div class="kvs">' +
-      '<div class="kv"><span class="lbl">接车 Pickup</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayWord(pickup, oTz) + ' · 当地</span></div>' +
-      '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayWord(f.std, oTz) + dubaiNote + '</span></div>' +
-      '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayWord(f.sta, dTz) + ' · ' + esc(apCity(f.dest)) + (f.staEst ? ' · 约' : '') + '</span></div>' +
+      '<div class="kv"><span class="lbl">接车 Pickup</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + brDxb(pickup, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + brDxb(f.std, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + ' 当地' + (f.staEst ? ' · 约' : '') + brDxb(f.sta, dTz) + '</span></div>' +
     '</div>' +
     '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距接车' : '距起飞') + '</span>' +
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span>' +
@@ -767,10 +777,7 @@ function renderCal() {
   const el = $('h-cal'); if (!el) return;
   const now = Date.now();
   const p = parts(now, HOME_TZ);
-  let y = +p.year, m = +p.month - 1 + S.calOff;
-  y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
-  const nDays = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-  const dk = d => '' + y + String(m + 1).padStart(2, '0') + String(d).padStart(2, '0');
+  const nDays = 31, BACK = 3;   // 今天往前 3 天 + 往后，共 31 天
   const addDays = (k, n) => { const d = new Date(Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6) + n)); return '' + d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0'); };
   const today = ymd(now, HOME_TZ);
   // 数据覆盖范围之外的日子不乱标「休息」
@@ -804,8 +811,10 @@ function renderCal() {
     for (let t = f.sta, c = 0; c < 40; t += 864e5, c++) { const k = ymd(t, tz); if (k > endK) break; if (!info[k]) put(k, 8, 't-lay', '<span>' + f.dest + '</span>'); }
   });
   let rows = '';
-  for (let d = 1; d <= nDays; d++) {
-    const k = dk(d);
+  const first = addDays(today, -BACK), months = [];
+  for (let i = 0; i < nDays; i++) {
+    const k = addDays(first, i), d = +k.slice(6), mo = +k.slice(4, 6);
+    if (!months.includes(mo)) months.push(mo);
     let o = info[k];
     if (!o) {
       if (k < known0 || k > known1) o = { type: 't-unk', parts: [''] };
@@ -813,10 +822,10 @@ function renderCal() {
       else if (S.apiVer < 4) o = { type: 't-unk', parts: [''] };   // 旧版脚本不传模拟机/地面任务，不乱标休息
       else o = { type: 't-off', parts: [''] };
     }
-    const cls = ['r', o.type, k === today ? 'td' : '', k < today ? 'past' : ''].join(' ');
+    const cls = ['r', o.type, k === today ? 'td' : '', k < today ? 'past' : '', d === 1 && i > 0 ? 'm1' : ''].join(' ');
     rows += '<div class="' + cls + '"><div class="dn">' + d + '</div><div class="ct">' + o.parts[0] + '</div></div>';
   }
-  el.innerHTML = '<div class="cal-m" onclick="calNav(S.calOff ? 0 : 1)">' + (m + 1) + '月' + (S.calOff ? ' ↩' : '') + '</div>' +
+  el.innerHTML = '<div class="cal-m">' + months.join('·') + '月</div>' +
     '<div class="cal-list" style="--n:' + nDays + '">' + rows + '</div>';
 }
 
@@ -974,8 +983,8 @@ function renderFlight(st, light) {
     : '<div class="kv"><span class="lbl">计划起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
       (pos.phase === 'waiting' ? '<span style="color:var(--red)">尚未起飞 · 已过 ' + hmDur(now - f.std) + '</span>' : '当地 · ' + dayWord(f.std, oTz)) + '</span></div>';
   const arrCell = fs.on
-    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际落地 ' + f.dest + '</span><span class="v num">' + hm(fs.on, dTz) + '</span><span class="s">计划 ' + hm(f.sta, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
-    : '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hm(pos.eta, dTz) + '</span><span class="s">当地 · ' + (fs.off ? diffTxt(pos.eta, f.sta) : dayWord(pos.eta, dTz)) + '</span></div>';
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际落地 ' + f.dest + '</span><span class="v num">' + hm(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + brDxb(fs.on, dTz) + '</span></div>'
+    : '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hm(pos.eta, dTz) + '</span><span class="s">' + dayLbl(pos.eta, dTz) + ' 当地' + (fs.off ? ' · ' + diffTxt(pos.eta, f.sta) : '') + brDxb(pos.eta, dTz) + '</span></div>';
   const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
   const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
   const html =
