@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>Flight Clock</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --bg:#000; --panel:rgba(14,14,16,.82); --line:rgba(255,255,255,.09);
+  --text:#f3f1ec; --dim:#8b8a86; --dim2:#5c5b58;
+  --gold:#d2ad62; --gold2:#8f7640; --green:#45d483; --red:#ff5a4f; --blue:#6fb4ff;
+  --pad:max(16px, env(safe-area-inset-left));
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.lbl{font-size:clamp(11px,1.5vmin,15px);letter-spacing:.14em;color:var(--dim);text-transform:uppercase;font-weight:600}
+.gold{color:var(--gold)}
+#app{position:fixed;inset:0;transition:transform 2s ease, opacity 1s}
+body.dim #app{opacity:.5}
+.view{position:absolute;inset:0;display:none;padding:max(14px,env(safe-area-inset-top)) var(--pad) max(14px,env(safe-area-inset-bottom))}
+body[data-mode=home] #v-home, body[data-mode=layover] #v-lay, body[data-mode=flight] #v-flt{display:flex}
+
+/* ---------- HOME ---------- */
+#v-home{flex-direction:column}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.datebox .d1{font-size:clamp(18px,3.6vmin,40px);font-weight:600}
+.datebox .d2{font-size:clamp(13px,2.1vmin,22px);color:var(--dim);margin-top:4px}
+.bigclock{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0}
+.bigclock .t{font-size:min(29vw,46vh);font-weight:200;line-height:.9;letter-spacing:-.02em}
+.bigclock .t .s{font-size:.22em;color:var(--dim);font-weight:300;margin-left:.15em;letter-spacing:0;vertical-align:.25em}
+.bigclock .tz{margin-top:1.6vh}
+
+/* weather */
+.wx{display:flex;align-items:center;gap:.5em;text-align:right;justify-content:flex-end}
+.wx .i{font-size:clamp(28px,6vmin,64px);line-height:1}
+.wx .t{font-size:clamp(26px,5.4vmin,58px);font-weight:300}
+.wx .d{font-size:clamp(12px,1.8vmin,18px);color:var(--dim);white-space:nowrap}
+.fpanel .wx{justify-content:flex-start;text-align:left;flex-wrap:wrap;gap:.35em}
+.wx.sm .i{font-size:clamp(20px,3.6vmin,36px)} .wx.sm .t{font-size:clamp(20px,3.6vmin,36px)}
+
+/* ---------- NEXT FLIGHT CARD ---------- */
+.nc{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));border-radius:18px;padding:clamp(12px,2.2vmin,22px) clamp(14px,2.6vmin,28px)}
+.nc-row{display:flex;align-items:center;gap:clamp(14px,3vw,42px);flex-wrap:wrap}
+.nc-id{display:flex;align-items:baseline;gap:clamp(10px,2vw,22px);flex:1 1 auto;min-width:0}
+.nc-no{font-size:clamp(26px,5.2vmin,56px);font-weight:700;color:var(--gold);letter-spacing:.02em}
+.nc-route{font-size:clamp(22px,4.2vmin,46px);font-weight:300;white-space:nowrap}
+.nc-route .ar{color:var(--dim2);margin:0 .25em}
+.nc-cities{font-size:clamp(12px,1.7vmin,17px);color:var(--dim);margin-top:2px}
+.nc-tag{font-size:11px;border:1px solid var(--gold2);color:var(--gold);border-radius:6px;padding:2px 6px;margin-left:8px;vertical-align:middle;letter-spacing:.1em}
+.kv{display:flex;flex-direction:column;gap:3px;min-width:0}
+.kv .v{font-size:clamp(22px,4.2vmin,44px);font-weight:500}
+.kv .s{font-size:clamp(11px,1.6vmin,16px);color:var(--dim);white-space:nowrap}
+.kvs{display:flex;gap:clamp(16px,3.4vw,48px);flex-wrap:wrap}
+.cdbox{margin-left:auto;text-align:right}
+.cdbox .v{color:var(--gold)}
+.cdbox.soon .v{color:var(--red)}
+.nc-more{display:flex;gap:22px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:clamp(11px,1.6vmin,15px);color:var(--dim);flex-wrap:wrap}
+.nc-more b{color:var(--text);font-weight:600}
+.empty{color:var(--dim);font-size:clamp(16px,2.6vmin,26px);text-align:center;padding:10px}
+
+/* ---------- LAYOVER ---------- */
+#v-lay{flex-direction:column;gap:clamp(10px,2vh,22px)}
+.layhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.layhead .lt{font-size:clamp(14px,2.2vmin,22px)}
+.pill{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--gold2);color:var(--gold);border-radius:99px;padding:5px 14px;font-weight:600;letter-spacing:.12em;font-size:clamp(11px,1.6vmin,15px)}
+.pill.live{border-color:rgba(69,212,131,.5);color:var(--green)}
+.pill.est{border-color:rgba(111,180,255,.45);color:var(--blue)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
+.dual{flex:1;display:grid;grid-template-columns:1fr 1px 1fr;align-items:center;min-height:0}
+.dual .sep{align-self:stretch;background:var(--line);margin:4vh 0}
+.city{display:flex;flex-direction:column;align-items:center;text-align:center;gap:1.2vh;padding:0 2vw;min-width:0}
+.city .name{font-size:clamp(16px,3vmin,32px);font-weight:600;letter-spacing:.06em}
+.city .name small{color:var(--dim);font-weight:400;margin-left:.4em}
+.city .t{font-size:min(15vw,30vh);font-weight:200;line-height:.95}
+.city .dt{font-size:clamp(13px,2.1vmin,21px);color:var(--dim)}
+.city .off{font-size:clamp(11px,1.6vmin,15px);color:var(--dim2)}
+.city.here .name{color:var(--gold)}
+.city .wx{justify-content:center;text-align:left;margin-top:1vh}
+
+/* ---------- FLIGHT ---------- */
+#v-flt{padding:0}
+#map{position:absolute;inset:0;background:#0b0c0e}
+.leaflet-container{background:#0b0c0e;font-family:inherit}
+.leaflet-control-attribution{background:rgba(0,0,0,.5)!important;color:#666!important;font-size:9px!important}
+.leaflet-control-attribution a{color:#777!important}
+.ap-lbl{background:none;border:none;box-shadow:none;color:var(--text);font-weight:700;font-size:13px;letter-spacing:.08em;text-shadow:0 0 4px #000,0 0 8px #000}
+.ap-lbl:before{display:none}
+.plane{filter:drop-shadow(0 0 6px rgba(210,173,98,.8))}
+.fpanel{position:absolute;z-index:500;top:max(14px,env(safe-area-inset-top));left:var(--pad);bottom:max(14px,env(safe-area-inset-bottom));width:min(390px,38vw);
+  background:var(--panel);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;padding:clamp(14px,2.4vmin,24px);
+  display:flex;flex-direction:column;gap:clamp(10px,1.8vh,18px);overflow:hidden}
+.fp-no{font-size:clamp(28px,5vmin,48px);font-weight:700;color:var(--gold);line-height:1}
+.fp-route{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.fp-route .c{font-size:clamp(26px,4.6vmin,44px);font-weight:300;line-height:1}
+.fp-route .n{font-size:12px;color:var(--dim);margin-top:4px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-route .mid{flex:1;text-align:center;color:var(--dim2);font-size:22px;padding-bottom:12px}
+.bar{position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:8px 0 4px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+.bar b{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+.barlbl{display:flex;justify-content:space-between;font-size:clamp(11px,1.6vmin,14px);color:var(--dim)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:clamp(10px,1.8vh,16px) 14px}
+.g2 .kv .v{font-size:clamp(20px,3.4vmin,32px)}
+.fp-sep{height:1px;background:var(--line)}
+.fp-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.fp-phase{font-size:clamp(13px,2vmin,18px);color:var(--text)}
+
+/* ---------- chrome ---------- */
+#tools{position:fixed;z-index:1000;left:50%;transform:translateX(-50%);top:max(12px,env(safe-area-inset-top));display:flex;gap:10px;align-items:center;transition:opacity .6s}
+body.idle #tools{opacity:0;pointer-events:none}
+.ib{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:rgba(20,20,22,.8);color:var(--text);font-size:18px;display:grid;place-items:center;cursor:pointer}
+#sync{font-size:11px;color:var(--dim2);letter-spacing:.06em;margin-right:6px;text-align:right}
+#sync.bad{color:var(--red)}
+body[data-mode=flight] #tools{left:auto;right:var(--pad);transform:none}
+
+#settings{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px}
+#settings.open{display:flex}
+.smodal{width:min(560px,100%);max-height:100%;overflow:auto;background:#111113;border:1px solid var(--line);border-radius:18px;padding:22px;-webkit-user-select:text;user-select:text}
+.smodal h2{margin:0 0 4px;font-size:20px} .smodal p{color:var(--dim);font-size:13px;margin:0 0 16px;line-height:1.5}
+.smodal label{display:block;font-size:12px;color:var(--dim);margin:12px 0 5px;letter-spacing:.06em}
+.smodal input[type=text],.smodal input[type=number],.smodal input[type=url]{width:100%;background:#000;color:var(--text);border:1px solid #2a2a2d;border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit}
+.smodal .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.smodal .chk{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--text)}
+.smodal .btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn{border:1px solid #2a2a2d;background:#1b1b1e;color:var(--text);border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit}
+.btn.pri{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+#testout{margin-top:14px;font-size:12px;color:var(--dim);white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;max-height:180px;overflow:auto}
+.smodal .demo a{color:var(--gold);margin-right:14px;font-size:13px}
+
+/* ---------- portrait / small ---------- */
+@media (orientation:portrait){
+  .dual{grid-template-columns:1fr;grid-template-rows:1fr 1px 1fr}
+  .dual .sep{margin:0 8vw}
+  .city .t{font-size:min(24vw,15vh)}
+  .bigclock .t{font-size:min(30vw,30vh)}
+  .fpanel{top:auto;left:0;right:0;bottom:0;width:auto;max-height:52vh;border-radius:20px 20px 0 0;overflow:auto;
+    padding-bottom:max(16px,env(safe-area-inset-bottom))}
+  .cdbox{margin-left:0;text-align:left}
+}
+@media (max-width:600px){
+  .nc-row{gap:12px} .kvs{gap:16px}
+  .nc-id{flex-basis:100%}
+}
+</style>
+</head>
+<body data-mode="home">
+
+<div id="app">
+  <!-- 在家 -->
+  <section class="view" id="v-home">
+    <div class="topbar">
+      <div class="datebox"><div class="d1" id="h-d1"></div><div class="d2" id="h-d2"></div></div>
+      <div id="h-wx"></div>
+    </div>
+    <div class="bigclock">
+      <div class="t num"><span data-tz="Asia/Dubai" data-f="hm" id="h-time">--:--</span><span class="s" data-tz="Asia/Dubai" data-f="s"></span></div>
+      <div class="tz lbl" id="h-tz">DUBAI</div>
+    </div>
+    <div id="h-next"></div>
+  </section>
+
+  <!-- 驻外 -->
+  <section class="view" id="v-lay">
+    <div class="layhead">
+      <span class="pill"><span class="dot"></span>LAYOVER · 驻外</span>
+      <span class="lt" id="l-head"></span>
+    </div>
+    <div class="dual">
+      <div class="city here" id="l-here"></div>
+      <div class="sep"></div>
+      <div class="city" id="l-home"></div>
+    </div>
+    <div id="l-next"></div>
+  </section>
+
+  <!-- 飞行中 -->
+  <section class="view" id="v-flt">
+    <div id="map"></div>
+    <div class="fpanel" id="f-panel"></div>
+  </section>
+</div>
+
+<div id="tools">
+  <div id="sync"></div>
+  <div class="ib" id="b-fs" title="全屏">⛶</div>
+  <div class="ib" id="b-set" title="设置">⚙︎</div>
+</div>
+
+<div id="settings">
+  <div class="smodal">
+    <h2>设置</h2>
+    <p>航班从 Google 日历读取，经过你部署的 Apps Script 网址。设置只保存在这台设备上。</p>
+    <label>Apps Script 网址（/exec 结尾）</label>
+    <input type="url" id="s-api" spellcheck="false" autocomplete="off">
+    <label>Token（Apps Script 里设了 TOKEN 才需要）</label>
+    <input type="text" id="s-token" spellcheck="false" autocomplete="off">
+    <div class="row">
+      <div><label>基地机场</label><input type="text" id="s-home" spellcheck="false"></div>
+      <div><label>航司代码</label><input type="text" id="s-airline" spellcheck="false"></div>
+      <div><label>呼号前缀</label><input type="text" id="s-cs" spellcheck="false"></div>
+    </div>
+    <div class="row">
+      <div><label>接车提前（分钟）</label><input type="number" id="s-pickup" min="0" max="600"></div>
+      <div><label>夜间变暗 从</label><input type="number" id="s-dimfrom" min="0" max="23"></div>
+      <div><label>到（点）</label><input type="number" id="s-dimto" min="0" max="23"></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="s-drop8">五位数航班号去掉开头的 8（89876 → EK9876）</label>
+    <label class="chk"><input type="checkbox" id="s-dim">夜间自动变暗</label>
+    <div class="btns">
+      <button class="btn pri" id="s-save">保存</button>
+      <button class="btn" id="s-test">测试连接</button>
+      <button class="btn" id="s-close">关闭</button>
+    </div>
+    <div id="testout"></div>
+    <p class="demo" style="margin-top:14px">演示：<a href="?demo=home">在家</a><a href="?demo=layover">驻外</a><a href="?demo=flight">飞行中</a><a href="./">退出演示</a></p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   CONFIG
+   ===================================================================== */
+const DEFAULTS = {
+  api: 'https://script.google.com/macros/s/AKfycbxSmqqVM38ZuCrrzwcm1E7179zwvAi5qjhEzaq4mXhwCOeczDP8CB2Nx7hw7zAFcqWU/exec',
+  token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 135,
+  drop8: true, dim: true, dimFrom: 23, dimTo: 6
+};
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+let CFG = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(lsGet('fc.cfg') || '{}'); } catch (e) { return {}; } })());
+const Q = new URLSearchParams(location.search);
+if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
+if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
+const DEMO = Q.get('demo');
+const HOME_TZ = 'Asia/Dubai';
+const homeCodes = () => CFG.home.toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+const isHome = c => homeCodes().includes(c);
+
+const MIN = 60e3, HOUR = 36e5;
+
+/* =====================================================================
+   AIRPORTS
+   ===================================================================== */
+const AP = {
+  DXB: { lat: 25.253, lon: 55.364, tz: 'Asia/Dubai', city: 'Dubai' },
+  DWC: { lat: 24.897, lon: 55.161, tz: 'Asia/Dubai', city: 'Dubai DWC' },
+};
+const apReady = fetch('airports.json').then(r => r.json()).then(j => {
+  for (const k in j.ap) if (!AP[k]) { const v = j.ap[k]; AP[k] = { lat: v[0], lon: v[1], tz: j.tz[v[2]], city: v[3] }; }
+}).catch(() => {});
+const apCity = c => (AP[c] && AP[c].city) || c;
+const apTz = c => (AP[c] && AP[c].tz) || HOME_TZ;
+
+/* =====================================================================
+   TIME HELPERS
+   ===================================================================== */
+const _fmt = {};
+function F(tz, opt, loc) {
+  const k = tz + JSON.stringify(opt) + (loc || '');
+  return _fmt[k] || (_fmt[k] = new Intl.DateTimeFormat(loc || 'en-GB', Object.assign({ timeZone: tz }, opt)));
+}
+function parts(t, tz) {
+  const o = {};
+  F(tz, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(t)).forEach(p => o[p.type] = p.value);
+  return o;
+}
+const hm = (t, tz) => { const p = parts(t, tz); return p.hour + ':' + p.minute; };
+const ss = (t, tz) => parts(t, tz).second;
+const dateZh = (t, tz) => F(tz, { month: 'long', day: 'numeric', weekday: 'long' }, 'zh-CN').format(new Date(t));
+const dateShort = (t, tz) => F(tz, { month: 'numeric', day: 'numeric', weekday: 'short' }, 'zh-CN').format(new Date(t));
+const ymd = (t, tz) => { const p = parts(t, tz); return p.year + p.month + p.day; };
+function tzOffset(tz, t) {
+  const p = parts(t, tz);
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
+  return Math.round((asUtc - Math.floor(t / 1000) * 1000) / MIN);
+}
+function dayWord(t, tz) {
+  const now = Date.now();
+  const d = ymd(t, tz);
+  if (d === ymd(now, tz)) return '今天';
+  if (d === ymd(now + 864e5, tz)) return '明天';
+  if (d === ymd(now - 864e5, tz)) return '昨天';
+  return dateShort(t, tz);
+}
+function offWord(tz, t) {
+  const d = tzOffset(tz, t) - tzOffset(HOME_TZ, t);
+  if (!d) return '与迪拜同一时区';
+  const h = Math.abs(d) / 60, s = Number.isInteger(h) ? h : h.toFixed(1);
+  return (d > 0 ? '比迪拜快 ' : '比迪拜慢 ') + s + ' 小时';
+}
+function durTxt(ms) {
+  ms = Math.max(0, ms);
+  const m = Math.floor(ms / MIN), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60;
+  if (d) return d + '天 ' + h + '小时';
+  if (h) return h + '小时 ' + String(mm).padStart(2, '0') + '分';
+  return mm + '分钟';
+}
+function cdTxt(ms) {
+  if (ms <= 0) return '现在';
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  const p2 = n => String(n).padStart(2, '0');
+  if (d) return d + '天 ' + p2(h) + ':' + p2(m);
+  return p2(h) + ':' + p2(m) + ':' + p2(x);
+}
+const hmDur = ms => { const m = Math.max(0, Math.round(ms / MIN)); return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+
+/* =====================================================================
+   GEO
+   ===================================================================== */
+const R = 6371, rad = x => x * Math.PI / 180, deg = x => x * 180 / Math.PI;
+function dist(a, b) {
+  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function gcPoint(a, b, f) {
+  const p1 = rad(a.lat), l1 = rad(a.lon), p2 = rad(b.lat), l2 = rad(b.lon);
+  const d = dist(a, b) / R;
+  if (d < 1e-9) return { lat: a.lat, lon: a.lon };
+  const A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+  const x = A * Math.cos(p1) * Math.cos(l1) + B * Math.cos(p2) * Math.cos(l2);
+  const y = A * Math.cos(p1) * Math.sin(l1) + B * Math.cos(p2) * Math.sin(l2);
+  const z = A * Math.sin(p1) + B * Math.sin(p2);
+  return { lat: deg(Math.atan2(z, Math.hypot(x, y))), lon: deg(Math.atan2(y, x)) };
+}
+function bearing(a, b) {
+  const y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
+  const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lon - a.lon));
+  return (deg(Math.atan2(y, x)) + 360) % 360;
+}
+function unwrap(lon, ref) { while (lon - ref > 180) lon -= 360; while (lon - ref < -180) lon += 360; return lon; }
+function gcLine(a, b, n) {
+  const pts = []; let prev = a.lon;
+  for (let i = 0; i <= n; i++) { const p = gcPoint(a, b, i / n); p.lon = unwrap(p.lon, prev); prev = p.lon; pts.push([p.lat, p.lon]); }
+  return pts;
+}
+function estDurMs(o, d) {
+  if (!AP[o] || !AP[d]) return 7 * HOUR;
+  return (dist(AP[o], AP[d]) / 830 + 0.5) * HOUR;
+}
+
+/* =====================================================================
+   FLIGHT PARSING
+   ===================================================================== */
+function parseTitle(t) {
+  const U = String(t || '').toUpperCase();
+  let origin = '', dest = '';
+  const re = /([A-Z]{3})\s*(?:-|–|—|\/|>|→|TO)\s*([A-Z]{3})(?![A-Z])/g;
+  let m;
+  while ((m = re.exec(U))) {
+    if (AP[m[1]] && AP[m[2]]) { origin = m[1]; dest = m[2]; break; }
+    re.lastIndex = m.index + 1;
+  }
+  if (!origin) {
+    const toks = U.split(/[^A-Z0-9]+/).filter(x => /^[A-Z]{3}$/.test(x) && AP[x]);
+    if (toks.length >= 2) { origin = toks[toks.length - 2]; dest = toks[toks.length - 1]; }
+  }
+  let digits = '';
+  const fm = U.match(/(?:^|[^A-Z0-9])(?:[A-Z]{2}\s?)?(\d{1,5})(?=[^0-9]|$)/);
+  if (fm) {
+    digits = fm[1].replace(/^0+/, '');
+    if (CFG.drop8 && digits.length === 5 && digits[0] === '8') digits = digits.slice(1);
+  }
+  const dh = /(^|[^A-Z])(DH|DHD|PAX|POS|DEADHEAD)([^A-Z]|$)/.test(U);
+  return { origin, dest, digits, dh };
+}
+function parseFlight(r) {
+  const std = new Date(r.start).getTime();
+  if (!std) return null;
+  const p = parseTitle(r.title);
+  const origin = String(r.origin || p.origin || '').toUpperCase(), dest = String(r.dest || p.dest || '').toUpperCase();
+  if (!origin || !dest || origin === dest) return null;
+  let sta = r.end ? new Date(r.end).getTime() : 0, staEst = false;
+  const h = (sta - std) / HOUR;
+  if (!sta || !(h >= 0.3 && h <= 19)) { sta = std + estDurMs(origin, dest); staEst = true; }
+  const csm = String(r.description || '').toUpperCase().match(/(?:^|[^A-Z])(?:CS|CALLSIGN)[\s:=]*([A-Z]{3}[0-9][0-9A-Z]{0,3})(?![0-9A-Z])/);
+  const digits = p.digits;
+  return {
+    id: origin + dest + std, title: r.title || '', origin, dest, std, sta, staEst, dh: p.dh, digits,
+    no: digits ? CFG.airline + digits : (r.title || '').slice(0, 10),
+    callsign: csm ? csm[1] : (digits ? CFG.cs + digits : '')
+  };
+}
+function normFlights(j) {
+  if (!j || typeof j !== 'object') return null;
+  let raw;
+  if (Array.isArray(j.flights)) raw = j.flights;
+  else if (j.hasFlight === true) raw = [{ title: j.title || ((j.flightNo || '') + ' ' + j.origin + '-' + j.dest), start: j.std, end: j.sta || null, origin: j.origin, dest: j.dest }];
+  else if (j.hasFlight === false) raw = [];
+  else return null;
+  return raw.map(parseFlight).filter(Boolean).sort((a, b) => a.std - b.std);
+}
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const S = { flights: [], legacy: false, sync: null, wx: {}, track: {}, view: null };
+
+function mergeKnown(fresh) {
+  // 保留已经飞过的航班（旧版接口只返回下一班，这样也能知道"上一班落在哪"）
+  let old = [];
+  try { old = JSON.parse(lsGet('fc.known') || '[]'); } catch (e) {}
+  const now = Date.now(), byId = {};
+  old.forEach(f => { if (f.std < now && now - f.sta < 12 * 864e5) byId[f.id] = f; });
+  fresh.forEach(f => byId[f.id] = f);
+  const all = Object.values(byId).sort((a, b) => a.std - b.std);
+  // 同一时段如有重叠（日历改过时间），以新数据为准
+  const out = [];
+  all.forEach(f => {
+    const last = out[out.length - 1];
+    if (last && f.std < last.sta && last.origin === f.origin && last.dest === f.dest) {
+      if (fresh.includes(f)) out[out.length - 1] = f;
+    } else out.push(f);
+  });
+  lsSet('fc.known', JSON.stringify(out));
+  return out;
+}
+
+function apiUrl(params) {
+  const u = new URL(CFG.api);
+  for (const k in params) u.searchParams.set(k, params[k]);
+  if (CFG.token) u.searchParams.set('token', CFG.token);
+  return u.toString();
+}
+
+async function loadFlights() {
+  await apReady;
+  if (DEMO) { S.flights = demoFlights(); S.sync = { ok: true, t: Date.now(), demo: true }; return; }
+  try {
+    const r = await fetch(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' });
+    const j = await r.json();
+    if (j.ok === false) throw new Error(j.error || 'error');
+    const f = normFlights(j);
+    if (!f) throw new Error('数据格式不对');
+    S.legacy = !Array.isArray(j.flights);
+    S.flights = mergeKnown(f);
+    S.sync = { ok: true, t: Date.now() };
+  } catch (e) {
+    S.sync = { ok: false, t: Date.now(), err: e.message };
+    if (!S.flights.length) { try { S.flights = JSON.parse(lsGet('fc.known') || '[]'); } catch (x) {} }
+  }
+}
+
+function compute(now) {
+  const F = S.flights;
+  const cur = F.find(f => now >= f.std - 15 * MIN && now <= f.sta + 30 * MIN);
+  const after = t => F.filter(f => f.std > t);
+  if (cur) return { mode: 'flight', cur, upcoming: after(cur.std).slice(0, 3) };
+  const prev = F.filter(f => f.sta + 30 * MIN < now).pop();
+  const up = after(now + 15 * MIN);
+  const next = up[0];
+  let loc = prev ? prev.dest : (next ? next.origin : homeCodes()[0]);
+  if (!prev && next && isHome(next.origin)) loc = next.origin;
+  return { mode: isHome(loc) ? 'home' : 'layover', loc, prev, next, upcoming: up.slice(1, 4) };
+}
+
+/* =====================================================================
+   WEATHER (open-meteo)
+   ===================================================================== */
+const WX = [
+  [[0], '☀️', '🌙', '晴'], [[1], '🌤️', '🌙', '晴间多云'], [[2], '⛅', '☁️', '多云'], [[3], '☁️', '☁️', '阴'],
+  [[45, 48], '🌫️', '🌫️', '雾'], [[51, 53, 55, 56, 57], '🌦️', '🌧️', '毛毛雨'], [[61, 63, 65], '🌧️', '🌧️', '雨'],
+  [[66, 67], '🌧️', '🌧️', '冻雨'], [[71, 73, 75, 77], '🌨️', '🌨️', '雪'], [[80, 81, 82], '🌦️', '🌧️', '阵雨'],
+  [[85, 86], '🌨️', '🌨️', '阵雪'], [[95, 96, 99], '⛈️', '⛈️', '雷暴']
+];
+function wxInfo(code, day) {
+  const r = WX.find(w => w[0].includes(code));
+  return r ? { i: day ? r[1] : r[2], d: r[3] } : { i: '🌡️', d: '' };
+}
+async function getWx(code) {
+  const a = AP[code]; if (!a) return null;
+  const c = S.wx[code];
+  if (c && Date.now() - c.t < 15 * MIN) return c;
+  if (c && c.loading) return c;
+  S.wx[code] = Object.assign(c || {}, { loading: true });
+  try {
+    const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + a.lat + '&longitude=' + a.lon +
+      '&current=temperature_2m,weather_code,is_day,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1&wind_speed_unit=kn';
+    const j = await (await fetch(u)).json();
+    S.wx[code] = {
+      t: Date.now(), temp: Math.round(j.current.temperature_2m), code: j.current.weather_code, day: j.current.is_day,
+      wind: Math.round(j.current.wind_speed_10m), rh: j.current.relative_humidity_2m,
+      hi: Math.round(j.daily.temperature_2m_max[0]), lo: Math.round(j.daily.temperature_2m_min[0])
+    };
+    render(true);
+  } catch (e) { S.wx[code] = Object.assign(c || {}, { loading: false, t: Date.now() - 12 * MIN }); }
+  return S.wx[code];
+}
+function wxHtml(code, cls) {
+  const w = S.wx[code];
+  getWx(code);
+  if (!w || w.temp == null) return '<div class="wx ' + (cls || '') + '"><span class="d">天气加载中…</span></div>';
+  const x = wxInfo(w.code, w.day);
+  return '<div class="wx ' + (cls || '') + '"><span class="i">' + x.i + '</span><span class="t num">' + w.temp + '°</span>' +
+    '<span class="d">' + x.d + '<br>' + w.lo + '° / ' + w.hi + '° · 风 ' + w.wind + 'kt</span></div>';
+}
+
+/* =====================================================================
+   RENDER — helpers
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clk = (tz, f) => '<span data-tz="' + tz + '" data-f="' + (f || 'hm') + '">' + (f === 's' ? ss(Date.now(), tz) : hm(Date.now(), tz)) + '</span>';
+
+function nextCard(f, upcoming) {
+  if (!f) return '<div class="nc"><div class="empty">暂无航班安排 · 日历里还没有下一班</div></div>';
+  const oTz = apTz(f.origin), dTz = apTz(f.dest);
+  const pickup = f.std - CFG.pickup * MIN;
+  const toPick = pickup - Date.now();
+  const dubaiNote = isHome(f.origin) ? '' : ' · 迪拜 ' + hm(f.std, HOME_TZ);
+  let more = '';
+  if (upcoming && upcoming.length) {
+    more = '<div class="nc-more"><span class="lbl" style="font-size:11px">之后</span>' + upcoming.map(u =>
+      '<span>' + dateShort(u.std, apTz(u.origin)) + ' <b>' + esc(u.no) + '</b> ' + u.origin + '→' + u.dest + ' ' + hm(u.std, apTz(u.origin)) + '</span>').join('') + '</div>';
+  }
+  return '<div class="nc"><div class="nc-row">' +
+    '<div class="nc-id"><div class="nc-no">' + esc(f.no) + (f.dh ? '<span class="nc-tag">DH</span>' : '') + '</div>' +
+      '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
+      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + '</div></div></div>' +
+    '<div class="kvs">' +
+      '<div class="kv"><span class="lbl">接车 Pickup</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayWord(pickup, oTz) + ' · 当地</span></div>' +
+      '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayWord(f.std, oTz) + dubaiNote + '</span></div>' +
+      '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayWord(f.sta, dTz) + ' · ' + esc(apCity(f.dest)) + (f.staEst ? ' · 约' : '') + '</span></div>' +
+    '</div>' +
+    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距接车' : '距起飞') + '</span>' +
+      '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span>' +
+      '<span class="s">飞行 ' + hmDur(f.sta - f.std) + '</span></div>' +
+    '</div>' + more + '</div>';
+}
+
+function cityBlock(code, label, isHere) {
+  const tz = apTz(code);
+  return '<div class="name">' + esc(label) + '<small>' + code + '</small></div>' +
+    '<div class="t num">' + clk(tz) + '</div>' +
+    '<div class="dt">' + dateZh(Date.now(), tz) + '</div>' +
+    '<div class="off">' + (isHere ? offWord(tz, Date.now()) : '基地 · 家') + '</div>' +
+    wxHtml(code, 'sm');
+}
+
+/* =====================================================================
+   RENDER — views
+   ===================================================================== */
+function renderHome(st) {
+  const now = Date.now();
+  const code = st.loc && isHome(st.loc) ? st.loc : homeCodes()[0];
+  $('h-d1').textContent = dateZh(now, HOME_TZ);
+  $('h-d2').textContent = 'DUBAI · ' + F(HOME_TZ, { year: 'numeric', month: 'short', day: '2-digit' }).format(new Date(now)).toUpperCase();
+  $('h-wx').innerHTML = wxHtml(code === 'DWC' ? 'DXB' : code);
+  $('h-tz').textContent = 'DUBAI · 迪拜时间';
+  $('h-next').innerHTML = nextCard(st.next, st.upcoming);
+}
+
+function renderLayover(st) {
+  const now = Date.now();
+  const here = st.loc;
+  $('l-here').innerHTML = cityBlock(here, apCity(here), true);
+  $('l-home').innerHTML = cityBlock('DXB', 'Dubai', false);
+  let h = '';
+  if (st.prev) h += '已到达 ' + esc(apCity(here)) + ' <span class="num" data-el="' + st.prev.sta + '">' + durTxt(now - st.prev.sta) + '</span>';
+  if (st.next) h += (h ? ' · 驻外共 ' + durTxt(st.next.std - st.prev.sta) : '距回程起飞 <span class="num" data-cd="' + st.next.std + '">' + cdTxt(st.next.std - now) + '</span>');
+  $('l-head').innerHTML = h;
+  $('l-next').innerHTML = nextCard(st.next, st.upcoming);
+}
+
+/* ---------- flight ---------- */
+let map = null, mapFlightId = null, L_route, L_done, L_trail, L_plane, L_aps = [];
+const PLANE_SVG = '<svg viewBox="0 0 64 64" width="38" height="38"><path fill="#d2ad62" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
+
+function ensureMap() {
+  if (map || typeof L === 'undefined') return;
+  map = L.map('map', { zoomControl: false, attributionControl: true, worldCopyJump: false, minZoom: 2, zoomSnap: 0.25 });
+  const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+  L.tileLayer(esri + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 12, attribution: 'Tiles © Esri' }).addTo(map);
+  L.tileLayer(esri + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 12, opacity: .7 }).addTo(map);
+  map.attributionControl.setPrefix(false);
+}
+
+function loadTrail(id) { try { return JSON.parse(lsGet('fc.trail.' + id) || '[]'); } catch (e) { return []; } }
+function saveTrail(id, pts) { lsSet('fc.trail.' + id, JSON.stringify(pts.slice(-1500))); }
+function mergeTrail(a, b) {
+  const m = {}; a.concat(b).forEach(p => m[p[3]] = p);
+  return Object.values(m).sort((x, y) => x[3] - y[3]);
+}
+
+async function pollTrack(f) {
+  const T = S.track[f.id] || (S.track[f.id] = { pts: loadTrail(f.id) });
+  if (DEMO) return;
+  if (S.legacy || !f.callsign) { T.unsupported = true; return; }
+  if (T.busy) return; T.busy = true;
+  try {
+    const j = await (await fetch(apiUrl({ action: 'track', cs: f.callsign, _: Date.now() }), { cache: 'no-store' })).json();
+    if (!('found' in j)) { T.unsupported = true; return; }
+    if (j.found && j.pos) { T.pos = j.pos; T.at = Date.now(); T.src = j.source; }
+    const pts = (j.trail || []).filter(p => p[3] >= f.std - HOUR && p[3] <= f.sta + 2 * HOUR);
+    T.pts = mergeTrail(T.pts, pts);
+    saveTrail(f.id, T.pts);
+    renderFlight(compute(Date.now()), true);
+  } catch (e) { /* 网络问题，下次再试 */ } finally { T.busy = false; }
+}
+
+function flightPos(f, now) {
+  const A = AP[f.origin], B = AP[f.dest];
+  const D = dist(A, B);
+  const T = S.track[f.id] || {};
+  const off = 15 * MIN, onn = 8 * MIN;
+  const takeoff = f.std + off, land = f.sta - onn;
+  const est = Math.min(1, Math.max(0, (now - takeoff) / (land - takeoff)));
+  const live = T.pos && now - T.at < 4 * MIN && (T.pos.seen == null || T.pos.seen < 300);
+  if (live) {
+    const p = { lat: T.pos.lat, lon: T.pos.lon };
+    const dA = dist(A, p), dB = dist(p, B);
+    if (T.pos.ground) {
+      const landed = dB < 40;
+      return Object.assign(p, { live: true, ground: true, frac: landed ? 1 : 0, remKm: landed ? 0 : D, hdg: T.pos.track || bearing(A, B), phase: landed ? 'landed' : 'taxi', eta: landed ? now : f.sta });
+    }
+    const frac = dA / (dA + dB);
+    const gs = T.pos.gs;
+    const eta = gs > 150 ? now + dB / (gs * 1.852) * HOUR + onn : f.sta;
+    let phase = 'cruise';
+    if (T.pos.alt != null && T.pos.alt < 18000 && T.pos.vs != null) phase = T.pos.vs > 300 ? 'climb' : T.pos.vs < -300 ? 'descent' : phase;
+    if (T.pos.alt != null && T.pos.alt < 18000 && frac > 0.6 && phase === 'cruise') phase = 'descent';
+    return Object.assign(p, { live: true, frac, remKm: dB, hdg: T.pos.track != null ? T.pos.track : bearing(p, B), alt: T.pos.alt, gs, eta, phase, src: T.src, reg: T.pos.reg, type: T.pos.type });
+  }
+  const p = gcPoint(A, B, est);
+  const p2 = gcPoint(A, B, Math.min(1, est + 0.01));
+  let phase = now < takeoff ? 'boarding' : now > land ? 'landed' : est < 0.06 ? 'climb' : est > 0.92 ? 'descent' : 'cruise';
+  return Object.assign(p, { live: false, frac: est, remKm: (1 - est) * D, hdg: bearing(p, p2), eta: f.sta, phase });
+}
+
+const PHASE = { boarding: '登机 / 滑行', taxi: '地面滑行', climb: '起飞爬升', cruise: '巡航中', descent: '下降进近', landed: '已落地' };
+
+function renderFlight(st, light) {
+  const f = st.cur, now = Date.now();
+  const A = AP[f.origin], B = AP[f.dest];
+  if (!A || !B) { $('f-panel').innerHTML = '<div class="empty">未知机场 ' + f.origin + ' / ' + f.dest + '</div>'; return; }
+  ensureMap();
+  const pos = flightPos(f, now);
+  const T = S.track[f.id] || { pts: [] };
+
+  if (map) {
+    if (mapFlightId !== f.id) {
+      [L_route, L_done, L_trail, L_plane].concat(L_aps).forEach(l => l && map.removeLayer(l));
+      const line = gcLine(A, B, 160);
+      L_route = L.polyline(line, { color: '#d2ad62', weight: 2, opacity: .45, dashArray: '6 8' }).addTo(map);
+      L_done = L.polyline([], { color: '#d2ad62', weight: 3, opacity: .95 }).addTo(map);
+      L_trail = L.polyline([], { color: '#45d483', weight: 3, opacity: .9 }).addTo(map);
+      L_aps = [[A, f.origin, line[0]], [B, f.dest, line[line.length - 1]]].map(([ap, code, ll]) =>
+        L.circleMarker(ll, { radius: 5, color: '#d2ad62', weight: 2, fillColor: '#000', fillOpacity: 1 })
+          .bindTooltip(code, { permanent: true, direction: 'right', className: 'ap-lbl', offset: [8, 0] }).addTo(map));
+      L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div class="plane" id="plane">' + PLANE_SVG + '</div>', iconSize: [38, 38], iconAnchor: [19, 19] }), interactive: false }).addTo(map);
+      mapFlightId = f.id;
+      fitMap(line);
+    }
+    const line = L_route.getLatLngs();
+    const ref = line[Math.min(line.length - 1, Math.round(pos.frac * (line.length - 1)))].lng;
+    const plon = unwrap(pos.lon, ref);
+    L_plane.setLatLng([pos.lat, plon]);
+    const pe = document.getElementById('plane'); if (pe) pe.style.transform = 'rotate(' + Math.round(pos.hdg || 0) + 'deg)';
+    // 已飞航段：有实时轨迹就画轨迹，否则画估算的大圆航段
+    if (T.pts && T.pts.length > 1) {
+      let prev = line[0].lng;
+      const tr = T.pts.map(p => { const lo = unwrap(p[1], prev); prev = lo; return [p[0], lo]; });
+      L_trail.setLatLngs(tr);
+      // 轨迹开始前的部分（屏幕没开时）用大圆航段补上
+      const p0 = { lat: T.pts[0][0], lon: T.pts[0][1] };
+      L_done.setLatLngs(dist(A, p0) > 50 ? gcLine(A, p0, 80) : []);
+    } else {
+      L_trail.setLatLngs([]);
+      const n = Math.max(1, Math.round(pos.frac * 160));
+      L_done.setLatLngs(pos.frac > 0 ? gcLine(A, { lat: pos.lat, lon: pos.lon }, n) : []);
+    }
+  }
+
+  const oTz = apTz(f.origin), dTz = apTz(f.dest);
+  const elapsed = now - f.std, remain = Math.max(0, pos.eta - now);
+  const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
+  const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
+  const html =
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="fp-no">' + esc(f.no) + '</div>' + src + '</div>' +
+    '<div class="fp-route"><div><div class="c">' + f.origin + '</div><div class="n">' + esc(apCity(f.origin)) + '</div></div>' +
+      '<div class="mid">✈</div><div style="text-align:right"><div class="c">' + f.dest + '</div><div class="n" style="margin-left:auto">' + esc(apCity(f.dest)) + '</div></div></div>' +
+    '<div><div class="bar"><i style="width:' + (pos.frac * 100).toFixed(1) + '%"></i><b style="left:' + (pos.frac * 100).toFixed(1) + '%"></b></div>' +
+      '<div class="barlbl num"><span>已飞 ' + hmDur(Math.max(0, elapsed)) + '</span><span>' + Math.round(pos.frac * 100) + '%</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
+    '<div class="g2">' +
+      '<div class="kv"><span class="lbl">起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">当地 · ' + dayWord(f.std, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hm(pos.eta, dTz) + '</span><span class="s">当地 · ' + dayWord(pos.eta, dTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">迪拜时间</span><span class="v num">' + clk(HOME_TZ) + '</span><span class="s">' + dateShort(now, HOME_TZ) + '</span></div>' +
+      '<div class="kv"><span class="lbl">' + esc(apCity(f.dest)) + ' 时间</span><span class="v num">' + clk(dTz) + '</span><span class="s">' + dateShort(now, dTz) + '</span></div>' +
+    '</div>' +
+    '<div class="fp-sep"></div>' +
+    '<div class="g2">' +
+      '<div class="kv"><span class="lbl">高度</span><span class="v num">' + altTxt + '</span></div>' +
+      '<div class="kv"><span class="lbl">地速</span><span class="v num">' + (pos.live && pos.gs ? pos.gs + ' kt' : '—') + '</span></div>' +
+      '<div class="kv"><span class="lbl">剩余距离</span><span class="v num">' + Math.round(pos.remKm / 1.852).toLocaleString() + ' nm</span></div>' +
+      '<div class="kv"><span class="lbl">' + f.dest + ' 天气</span>' + wxHtml(f.dest, 'sm') + '</div>' +
+    '</div>' +
+    '<div class="fp-foot"><div><div class="lbl">状态</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
+      (pos.live && pos.reg ? ' · ' + esc(pos.reg) + (pos.type ? ' ' + esc(pos.type) : '') : '') + '</div></div>' +
+      '<div class="lbl" style="text-align:right">' + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
+  $('f-panel').innerHTML = html;
+}
+
+function fitMap(line) {
+  if (!map) return;
+  map.invalidateSize();
+  const portrait = innerHeight > innerWidth;
+  const panelW = Math.min(390, innerWidth * .38) + 40;
+  map.fitBounds(L.latLngBounds(line), portrait
+    ? { paddingTopLeft: [30, 50], paddingBottomRight: [30, innerHeight * .52 + 20], maxZoom: 7 }
+    : { paddingTopLeft: [panelW, 50], paddingBottomRight: [70, 50], maxZoom: 7 });
+}
+
+/* =====================================================================
+   MAIN RENDER / TICK
+   ===================================================================== */
+let lastRender = 0;
+function render(force) {
+  const now = Date.now();
+  const st = compute(now);
+  const key = st.mode + '|' + (st.cur ? st.cur.id : '') + '|' + (st.next ? st.next.id : '') + '|' + st.loc;
+  const changed = key !== S.view;
+  if (!force && !changed && now - lastRender < 20000) return;
+  if (changed) document.body.dataset.mode = st.mode;
+  S.view = key; lastRender = now;
+  if (st.mode === 'home') renderHome(st);
+  else if (st.mode === 'layover') renderLayover(st);
+  else {
+    if (changed) setTimeout(() => { if (map) { map.invalidateSize(); if (L_route) fitMap(L_route.getLatLngs()); } }, 60);
+    renderFlight(st);
+  }
+  // 夜间变暗：按"我现在所在地"的当地时间
+  const tz = st.mode === 'layover' ? apTz(st.loc) : HOME_TZ;
+  const h = +parts(now, tz).hour;
+  const dim = CFG.dim && st.mode !== 'flight' && (CFG.dimFrom > CFG.dimTo ? (h >= CFG.dimFrom || h < CFG.dimTo) : (h >= CFG.dimFrom && h < CFG.dimTo));
+  document.body.classList.toggle('dim', !!dim);
+  renderSync();
+}
+
+function renderSync() {
+  const s = S.sync, el = $('sync');
+  if (!s) { el.textContent = '同步中…'; return; }
+  if (s.demo) { el.textContent = 'DEMO 演示模式'; el.className = ''; return; }
+  const n = S.flights.filter(f => f.std > Date.now()).length;
+  el.className = s.ok ? '' : 'bad';
+  el.innerHTML = s.ok
+    ? '日历已同步 ' + hm(s.t, HOME_TZ) + ' · ' + n + ' 个航班' + (S.legacy ? '<br>旧版接口' : '')
+    : '同步失败（' + esc(s.err || '') + '）· 显示缓存';
+}
+
+function tick() {
+  const now = Date.now();
+  document.querySelectorAll('[data-tz]').forEach(el => {
+    const v = el.dataset.f === 's' ? ss(now, el.dataset.tz) : hm(now, el.dataset.tz);
+    if (el.textContent !== v) el.textContent = v;
+  });
+  document.querySelectorAll('[data-cd]').forEach(el => { el.textContent = cdTxt(+el.dataset.cd - now); });
+  document.querySelectorAll('[data-el]').forEach(el => { el.textContent = durTxt(now - +el.dataset.el); });
+  render(false);
+}
+
+/* =====================================================================
+   DEMO
+   ===================================================================== */
+function demoFlights() {
+  const now = Date.now();
+  const mk = (o, d, n, s, h) => ({ title: n + '-' + o + '-' + d, start: new Date(s).toISOString(), end: new Date(s + h * HOUR).toISOString() });
+  let raw;
+  if (DEMO === 'flight') raw = [mk('DWC', 'CAN', '89876', now - 3.2 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 30 * HOUR, 8.6)];
+  else if (DEMO === 'layover') raw = [mk('DWC', 'CAN', '89876', now - 20 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 9.4 * HOUR, 8.6), mk('DWC', 'HKG', '89820', now + 4 * 864e5, 7.2)];
+  else raw = [mk('DWC', 'CAN', '89876', now + 26.3 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 60 * HOUR, 8.6), mk('DWC', 'LHR', '89801', now + 6 * 864e5, 7.9)];
+  return normFlights({ flights: raw });
+}
+
+/* =====================================================================
+   SETTINGS / CHROME
+   ===================================================================== */
+function openSettings() {
+  $('s-api').value = CFG.api; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
+  $('s-airline').value = CFG.airline; $('s-cs').value = CFG.cs; $('s-pickup').value = CFG.pickup;
+  $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
+  $('testout').textContent = '';
+  $('settings').classList.add('open');
+}
+function readSettings() {
+  return {
+    api: $('s-api').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
+    airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
+    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked,
+    dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
+  };
+}
+$('b-set').onclick = openSettings;
+$('s-close').onclick = () => $('settings').classList.remove('open');
+$('s-save').onclick = async () => {
+  CFG = Object.assign({}, DEFAULTS, readSettings());
+  lsSet('fc.cfg', JSON.stringify(CFG));
+  $('settings').classList.remove('open');
+  S.view = null; await loadFlights(); render(true);
+};
+$('s-test').onclick = async () => {
+  const out = $('testout'); out.textContent = '连接中…';
+  const old = CFG; CFG = Object.assign({}, DEFAULTS, readSettings());
+  try {
+    await apReady;
+    const j = await (await fetch(apiUrl({ action: 'flights', _: Date.now() }), { cache: 'no-store' })).json();
+    const f = normFlights(j);
+    if (!f) throw new Error('返回内容不是航班数据：' + JSON.stringify(j).slice(0, 200));
+    out.textContent = (Array.isArray(j.flights) ? '✅ 新版接口（支持多航班 + 实时轨迹）' : '⚠️ 旧版接口（只有下一班，没有实时轨迹）') +
+      '\n识别到 ' + f.length + ' 个航班：\n' + f.slice(0, 8).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  (' + x.callsign + ')').join('\n') +
+      (Array.isArray(j.flights) && j.flights.length > f.length ? '\n\n有 ' + (j.flights.length - f.length) + ' 条日程没认出来：' + j.flights.filter(r => !parseFlight(r)).slice(0, 3).map(r => '“' + r.title + '”').join(' ') : '');
+  } catch (e) { out.textContent = '❌ ' + e.message; }
+  CFG = old;
+};
+$('b-fs').onclick = () => {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  else (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el);
+};
+
+// 工具栏自动隐藏
+let idleT;
+function poke() { document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 6000); }
+['pointerdown', 'pointermove', 'keydown'].forEach(e => addEventListener(e, poke, { passive: true }));
+poke();
+
+// 屏幕常亮
+let wakeLock = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => wakeLock = null); } } catch (e) {} }
+addEventListener('pointerdown', keepAwake, { passive: true });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); loadFlights().then(() => render(true)); } });
+
+// 防烧屏：每 2 分钟轻微移动
+setInterval(() => { $('app').style.transform = 'translate(' + (Math.round(Math.random() * 6) - 3) + 'px,' + (Math.round(Math.random() * 6) - 3) + 'px)'; }, 120000);
+addEventListener('resize', () => { if (map && L_route && document.body.dataset.mode === 'flight') fitMap(L_route.getLatLngs()); });
+
+/* =====================================================================
+   START
+   ===================================================================== */
+(async function start() {
+  await loadFlights();
+  render(true);
+  setInterval(tick, 1000);
+  setInterval(() => loadFlights().then(() => render(true)), 5 * MIN);
+  const trackLoop = () => { const st = compute(Date.now()); if (st.mode === 'flight') pollTrack(st.cur); };
+  trackLoop(); setInterval(trackLoop, 30000);
+  setInterval(() => { if (document.body.dataset.mode === 'flight') render(true); }, 10000);
+})();
+</script>
+</body>
+</html>
