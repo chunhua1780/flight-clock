@@ -260,9 +260,19 @@
       el.dataset.sig = sig;
       const img = el.querySelector('.sc-img');
       if (url) {
-        // 先加载完再换，避免闪一下黑
+        // 先加载完再换，新照片淡入盖在旧照片上，然后删掉旧的
         const im = new Image();
-        im.onload = () => { if (el.dataset.sig !== sig) return; img.style.backgroundImage = bg; img.classList.add('on'); }; // 过期的就不用了
+        im.onload = () => {
+          if (el.dataset.sig !== sig) return;                     // 过期的就不用了
+          const cur = el.querySelector('.sc-img');
+          if (!cur.style.backgroundImage || cur.style.backgroundImage === 'none') { cur.style.backgroundImage = bg; cur.classList.add('on'); return; }
+          const nu = cur.cloneNode(false);
+          nu.classList.remove('on'); nu.style.backgroundImage = bg; nu.style.backgroundPosition = pos; nu.style.filter = filter.trim();
+          const last = [...el.querySelectorAll('.sc-img')].pop();
+          last.parentNode.insertBefore(nu, last.nextSibling);
+          requestAnimationFrame(() => requestAnimationFrame(() => nu.classList.add('on')));
+          setTimeout(() => el.querySelectorAll('.sc-img').forEach(x => { if (x !== nu) x.remove(); }), 2200);
+        };
         im.onerror = () => {
           if (el.dataset.sig !== sig) return;
           if (remote) { remote.failed = true; el.dataset.sig = ''; update(el, code, ap, w, Date.now(), phaseOverride); return; }

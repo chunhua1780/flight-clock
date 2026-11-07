@@ -1193,33 +1193,39 @@ const FLAVORS = {
   Guangzhou: ['', 'Canton Tower', 'Pearl River', 'Tianhe', 'skyline'],
   _: ['', 'downtown', 'architecture', 'street', 'landmark']
 };
-const photoSlot = () => ymd(Date.now(), HOME_TZ) + '-' + Math.floor(+parts(Date.now(), HOME_TZ).hour / 2);
+// 每 10 分钟换一张；搜索词同时带「时段 + 天气」，例如 Dubai Marina sunset rain
+const photoSlot = () => { const p = parts(Date.now(), HOME_TZ); return ymd(Date.now(), HOME_TZ) + '-' + Math.floor((+p.hour * 60 + +p.minute) / 10); };
+const PH_WORDS = { dawn: ['sunrise', 'dawn'], morning: ['morning'], day: [''], evening: ['golden hour', 'evening'], dusk: ['sunset', 'dusk'], night: ['night', 'night lights'] };
+const WX_WORDS = { rain: ['rain', 'rainy'], storm: ['thunderstorm', 'storm'], snow: ['snow'], fog: ['fog', 'mist'], dust: ['sandstorm', 'dust storm'], overcast: ['cloudy', 'overcast'] };
+function photoQueries(city, phase, cat, slot) {
+  const n = strHash(slot + '|' + city + '|' + phase + '|' + cat);
+  const fl = FLAVORS[city] || FLAVORS._, pws = PH_WORDS[phase] || [''], wws = WX_WORDS[cat] || [''];
+  const flavor = fl[n % fl.length], pw = pws[(n >>> 4) % pws.length], ww = wws[(n >>> 8) % wws.length];
+  const out = [];
+  const add = (...w) => { const q = w.filter(Boolean).join(' '); if (q && !out.some(o => o.q === q)) out.push({ q, ph: !pw || q.indexOf(pw) >= 0, wx: !!ww && q.indexOf(ww) >= 0 }); };
+  add(city, flavor, pw, ww); add(city, pw, ww); if (ww) add(city, ww); add(city, flavor, pw); add(city, pw);
+  return out.slice(0, 5);
+}
 function remotePhoto(city, phase, cat, cb) {
   if (!CFG.photos) return null;
-  const slot = photoSlot(), fl = FLAVORS[city] || FLAVORS._;
-  const flavor = fl[strHash(slot + '|' + city) % fl.length];
-  if (CFG.pexels) {
-    if (PHOTO.day !== slot) { PHOTO.day = slot; PHOTO.m = {}; }
-    const k = 'px|' + city + '|' + phase + '|' + cat;
-    if (k in PHOTO.m) return PHOTO.m[k];
-    PHOTO.m[k] = null;
-    pexelsPhoto(city, phase, cat).then(r => { if (r) { PHOTO.m[k] = r; lsSet('fc.photos', JSON.stringify(PHOTO)); render(true); } }).catch(() => {});
-    return null;
-  }
-  if (photoOff || S.legacy) return null;
+  const slot = photoSlot();
   if (PHOTO.day !== slot) { PHOTO.day = slot; PHOTO.m = {}; }
   const k = city + '|' + phase + '|' + cat;
   if (k in PHOTO.m) return PHOTO.m[k];
   PHOTO.m[k] = null;
-  const ask = q => fetchT(apiUrl({ action: 'photo', city: q, phase, wx: cat, d: slot }), 15000).then(r => r.json());
-  ask((city + ' ' + flavor).trim()).then(j => (j.ok || !flavor) ? j : ask(city)).then(j => {
-    if (j.ok && j.url) {
-      // 搜索词里没有时段词（比如晚上却找到白天的照片）时 ph=false，页面会按实际时段调暗
-      const pw = PX_PHASE[phase] || '';
-      PHOTO.m[k] = { url: j.url, wx: j.wx, ph: !pw || (j.query || '').toLowerCase().indexOf(pw) >= 0, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } };
-      lsSet('fc.photos', JSON.stringify(PHOTO)); render(true);
-    } else if (j.flights || j.error === 'no UNSPLASH_KEY') photoOff = true; // 旧版脚本或还没设 Key：用内置照片
-  }).catch(() => {});
+  const done = r => { if (r) { PHOTO.m[k] = r; lsSet('fc.photos', JSON.stringify(PHOTO)); render(true); } };
+  if (CFG.pexels) { pexelsPhoto(city, phase, cat).then(done).catch(() => {}); return null; }
+  if (photoOff || S.legacy) return null;
+  const qs = photoQueries(city, phase, cat, slot);
+  // 依次试，直到找到照片（Apps Script 会再在后面加 skyline 等词试一遍）
+  (async () => {
+    for (const c of qs) {
+      let j;
+      try { j = await (await fetchT(apiUrl({ action: 'photo', city: c.q, phase: 'day', wx: 'clear', d: slot }), 15000)).json(); } catch (e) { return; }
+      if (j.ok && j.url) return done({ url: j.url, wx: c.wx, ph: c.ph, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } });
+      if (j.flights || j.error === 'no UNSPLASH_KEY') { photoOff = true; return; } // 旧版脚本或还没设 Key：用内置照片
+    }
+  })();
   return null;
 }
 if (typeof Scene !== 'undefined') Scene.setRemote(remotePhoto);
@@ -1366,6 +1372,7 @@ setInterval(() => {
   const trackLoop = () => { const st = compute(Date.now()); if (st.mode === 'flight') pollTrack(st.cur); };
   trackLoop(); setInterval(trackLoop, 30000);
   setInterval(() => { if (document.body.dataset.mode === 'flight') render(true); }, 10000);
+  setInterval(() => render(true), 10 * MIN);   // 每 10 分钟换背景照片
 })();
 </script>
 </body>
