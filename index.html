@@ -106,19 +106,21 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .wx.sm .i{font-size:clamp(20px,3.6vmin,36px)} .wx.sm .t{font-size:clamp(20px,3.6vmin,36px)}
 
 /* ---------- NEXT FLIGHT CARD ---------- */
-.nc{border:1px solid rgba(255,255,255,.12);background:rgba(8,8,10,.52);-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);border-radius:18px;padding:clamp(12px,2.2vmin,22px) clamp(14px,2.6vmin,28px)}
+.nc{background:transparent;border:none;padding:0 clamp(4px,1vmin,10px) clamp(2px,.6vh,6px);text-shadow:0 1px 3px rgba(0,0,0,.8),0 0 22px rgba(0,0,0,.55)}
 .nc-row{display:flex;align-items:center;gap:clamp(14px,3vw,42px);flex-wrap:wrap}
 .nc-id{display:flex;align-items:baseline;gap:clamp(10px,2vw,22px);flex:1 1 auto;min-width:0}
-.nc-no{font-size:clamp(26px,5.2vmin,56px);font-weight:700;color:var(--gold);letter-spacing:.02em}
-.nc-route{font-size:clamp(22px,4.2vmin,46px);font-weight:300;white-space:nowrap}
+.nc-no{font-size:clamp(22px,4.2vmin,42px);font-weight:700;color:var(--gold);letter-spacing:.02em}
+.nc-route{font-size:clamp(19px,3.4vmin,34px);font-weight:300;white-space:nowrap}
 .nc-route .ar{color:var(--dim2);margin:0 .25em}
 .nc-cities{font-size:clamp(12px,1.7vmin,17px);color:var(--dim);margin-top:2px}
 .nc-tag{font-size:11px;border:1px solid var(--gold2);color:var(--gold);border-radius:6px;padding:2px 6px;margin-left:8px;vertical-align:middle;letter-spacing:.1em}
 .kv{display:flex;flex-direction:column;gap:3px;min-width:0}
-.kv .v{font-size:clamp(22px,4.2vmin,44px);font-weight:500}
+.kv .v{font-size:clamp(19px,3.4vmin,34px);font-weight:500}
 .kv .s{font-size:clamp(11px,1.6vmin,16px);color:var(--dim);white-space:nowrap}
 .nc-top{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.kvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,2vw,28px);margin-top:clamp(8px,1.6vh,16px);padding-top:clamp(8px,1.6vh,14px);border-top:1px solid rgba(255,255,255,.08)}
+.kvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,2vw,28px);margin-top:clamp(4px,1vh,10px);padding-top:clamp(4px,1vh,10px);border-top:1px solid rgba(255,255,255,.18)}
+.car{display:inline-block;vertical-align:-3px;width:34px;height:14px;color:var(--gold);filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.cdbox .lbl .car{margin-right:6px}
 .kvs .kv .s{white-space:normal;line-height:1.35}
 .cdbox{margin-left:auto;text-align:right;flex:none}
 .cdbox .v{color:var(--gold)}
@@ -729,7 +731,10 @@ function dxbConv(t, tz) {
   return '迪拜 ' + hm(t, HOME_TZ) + (ymd(t, HOME_TZ) !== ymd(t, tz) ? ' (' + dateShort(t, HOME_TZ) + ')' : '');
 }
 const brDxb = (t, tz) => dxbConv(t, tz) ? '<br>' + dxbConv(t, tz) : '';
+// 旅行车侧影小图标（接车）
+const CAR = '<svg class="car" viewBox="0 0 68 28" aria-label="接车"><path fill="currentColor" d="M3 20v-5.2c0-1.6 1.1-2.8 2.7-3.2l9.6-2.2 7.6-6.1C24.2 2.3 25.9 1.7 27.8 1.7h28.6c2 0 3.6 1.1 4.3 3l3.2 7.5c.6 1.3.9 2.7.9 4.1V20c0 1-.8 1.8-1.8 1.8h-4.5a6.6 6.6 0 0 0-12.9 0H23.9a6.6 6.6 0 0 0-12.9 0H4.8C3.8 21.8 3 21 3 20z"/><path fill="rgba(0,0,0,.55)" d="M24.6 5.2c.8-.6 1.8-1 2.9-1H38v6.6H17.8zM40.6 4.2h11.1v6.6H40.6zM54.3 4.2h1.9c1 0 1.9.6 2.3 1.6l2 5H54.3z"/><circle cx="17.4" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/><circle cx="51.6" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/></svg>';
 function nextCard(f, upcoming) {
+  upcoming = null; // 之后的航班看右侧日历
   if (!f) return '<div class="nc"><div class="empty">暂无航班安排 · 日历里还没有下一班</div></div>';
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
   const pickup = f.std - CFG.pickup * MIN; // 接车 = 起飞前 2 小时 15 分（设置里可改）
@@ -744,11 +749,11 @@ function nextCard(f, upcoming) {
     '<div class="nc-id"><div class="nc-no">' + esc(f.no) + (f.dh ? '<span class="nc-tag">DH</span>' : '') + '</div>' +
       '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
       '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + ' · 飞行 ' + hmDur(f.sta - f.std) + '</div></div></div>' +
-    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? '距接车' : '距起飞') + '</span>' +
+    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? CAR : '距起飞') + '</span>' +
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
     '</div>' +
     '<div class="kvs">' +
-      '<div class="kv"><span class="lbl">接车 Pickup</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + brDxb(pickup, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hm(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + brDxb(pickup, oTz) + '</span></div>' +
       '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + brDxb(f.std, oTz) + '</span></div>' +
       '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hm(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + ' 当地' + (f.staEst ? ' · 约' : '') + brDxb(f.sta, dTz) + '</span></div>' +
     '</div>' + more + '</div>';
@@ -903,10 +908,45 @@ function ensureMap() {
   if (map) return;
   if (typeof L === 'undefined') { loadLeaflet(); return; }
   map = L.map('map', { zoomControl: false, attributionControl: true, worldCopyJump: false, minZoom: 2, zoomSnap: 0.25 });
-  const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
-  L.tileLayer(esri + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 12, attribution: 'Tiles © Esri' }).addTo(map);
-  L.tileLayer(esri + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 12, opacity: .7 }).addTo(map);
+  // 真实地球：白天 NASA Blue Marble 彩色卫星图；夜晚一侧叠 NASA Black Marble 城市灯光，按实时太阳位置裁出昼夜
+  const gibs = (layer, date, ext) => 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/' + layer + '/default/' + date + '/GoogleMapsCompatible_Level8/{z}/{y}/{x}.' + ext;
+  L.tileLayer(gibs('BlueMarble_NextGeneration', '2004-08-01', 'jpeg'), { maxNativeZoom: 8, maxZoom: 12, attribution: 'Imagery © NASA EOSDIS GIBS · Labels © Esri' }).addTo(map);
+  const np = map.createPane('night'); np.style.zIndex = 220; np.style.pointerEvents = 'none';
+  L.tileLayer(gibs('VIIRS_Black_Marble', '2016-01-01', 'png'), { pane: 'night', maxNativeZoom: 8, maxZoom: 12 }).addTo(map);
+  // 晨昏过渡：几层半透明暗影叠加，白天慢慢暗下去
+  const tp = map.createPane('twilight'); tp.style.zIndex = 215; tp.style.pointerEvents = 'none';
+  twiPolys = [[4, .14], [1.5, .16], [-1, .18], [-3, .2]].map(([h, op]) => ({ h, poly: L.polygon([], { pane: 'twilight', stroke: false, fillColor: '#02040c', fillOpacity: op, interactive: false }).addTo(map) }));
+  const lp = map.createPane('labels'); lp.style.zIndex = 230; lp.style.pointerEvents = 'none';
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { pane: 'labels', maxZoom: 12, opacity: .55 }).addTo(map);
   map.attributionControl.setPrefix(false);
+  map.on('zoomend moveend viewreset resize', updateNight);
+  setInterval(updateNight, 60000);
+  updateNight();
+}
+// 昼夜分界：对每条经线二分查找太阳高度 = h 的纬度
+let twiPolys = [];
+function nightLine(h, t) {
+  const pts = [];
+  const southDark = typeof Scene !== 'undefined' && Scene.sunAlt(-89, 0, t) < Scene.sunAlt(89, 0, t);
+  for (let lon = -540; lon <= 540; lon += 4) {
+    let lo = -85, hi = 85;
+    for (let i = 0; i < 18; i++) {
+      const mid = (lo + hi) / 2, a = Scene.sunAlt(mid, lon, t);
+      if ((a < h) === southDark) lo = mid; else hi = mid;
+    }
+    pts.push([(lo + hi) / 2, lon]);
+  }
+  const pole = southDark ? -85 : 85;
+  return pts.concat([[pole, 540], [pole, -540]]);
+}
+function updateNight() {
+  if (!map || typeof Scene === 'undefined' || !map._loaded) return;   // 地图还没定好位置
+  const t = Date.now();
+  // 城市灯光只显示在太阳低于地平线 4° 的地方
+  const poly = nightLine(-4, t).map(ll => { const p = map.latLngToLayerPoint(ll); return Math.round(p.x) + 'px ' + Math.round(p.y) + 'px'; }).join(',');
+  const pane = map.getPane('night');
+  pane.style.clipPath = pane.style.webkitClipPath = 'polygon(' + poly + ')';
+  twiPolys.forEach(o => o.poly.setLatLngs(nightLine(o.h, t)));
 }
 
 function loadTrail(id) { try { return JSON.parse(lsGet('fc.trail.' + id) || '[]'); } catch (e) { return []; } }
@@ -993,6 +1033,7 @@ function renderFlight(st, light) {
       L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div class="plane" id="plane">' + PLANE_SVG + '</div>', iconSize: [38, 38], iconAnchor: [19, 19] }), interactive: false }).addTo(map);
       mapFlightId = f.id;
       fitMap(line);
+      updateNight();
     }
     const line = L_route.getLatLngs();
     const ref = line[Math.min(line.length - 1, Math.round(pos.frac * (line.length - 1)))].lng;
