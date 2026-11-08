@@ -1,0 +1,619 @@
+{
+ "LHR": {
+  "city": "London",
+  "f": "lhr.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Mvkulkarni23",
+   "license": "CC BY-SA 3.0",
+   "title": "Tower Bridge,London Getting Opened 2",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=16088292"
+  },
+  "alias": [
+   "LGW",
+   "STN",
+   "LCY"
+  ]
+ },
+ "FRA": {
+  "city": "Frankfurt",
+  "f": "fra.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "DXR",
+   "license": "CC BY-SA 4.0",
+   "title": "Seat of the European Central Bank and Frankfurt Skyline at dawn 20150422 1",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=41624392"
+  }
+ },
+ "AMS": {
+  "city": "Amsterdam",
+  "f": "ams.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Joshua Doubek",
+   "license": "CC BY-SA 3.0",
+   "title": "Amsterdam canals in summer",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=27430061"
+  }
+ },
+ "MXP": {
+  "city": "Milan",
+  "f": "mxp.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Jiuguang Wang",
+   "license": "CC BY-SA 3.0",
+   "title": "Milan Cathedral from Piazza del Duomo",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=11566236"
+  },
+  "alias": [
+   "LIN",
+   "BGY"
+  ]
+ },
+ "BCN": {
+  "city": "Barcelona",
+  "f": "bcn.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Bernard Gagnon",
+   "license": "CC BY-SA 3.0",
+   "title": "Sagrada Familia 01",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=9029499"
+  }
+ },
+ "IST": {
+  "city": "Istanbul",
+  "f": "ist.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "archer10 (Dennis)",
+   "license": "CC BY-SA 2.0",
+   "title": "Turkey-1249 - Dolmabahee Mosque",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=23447397"
+  },
+  "alias": [
+   "SAW"
+  ]
+ },
+ "MUC": {
+  "city": "Munich",
+  "f": "muc.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Jon Agüera",
+   "license": "CC BY-SA 3.0",
+   "title": "Munich - Marienplatz - panoramio",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=45529129"
+  }
+ },
+ "JFK": {
+  "city": "New York",
+  "f": "jfk.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Kidfly182",
+   "license": "CC BY-SA 4.0",
+   "title": "Midtown Manhattan Skyline 004 (cropped)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=151504894"
+  },
+  "alias": [
+   "EWR",
+   "LGA"
+  ]
+ },
+ "ORD": {
+  "city": "Chicago",
+  "f": "ord.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Sea Cow",
+   "license": "CC BY-SA 4.0",
+   "title": "Chicago Skyline Oct 2022 2",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=124625428"
+  },
+  "alias": [
+   "MDW"
+  ]
+ },
+ "SFO": {
+  "city": "San Francisco",
+  "f": "sfo.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Frank Schulenburg",
+   "license": "CC BY-SA 4.0",
+   "title": "Golden Gate Bridge as seen from Battery East",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=60353189"
+  }
+ },
+ "IAH": {
+  "city": "Houston",
+  "f": "iah.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Henry Han",
+   "license": "CC BY-SA 3.0",
+   "title": "Panoramic Houston skyline",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=17660984"
+  },
+  "alias": [
+   "HOU"
+  ]
+ },
+ "MIA": {
+  "city": "Miami",
+  "f": "mia.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Wilfredor",
+   "license": "CC0",
+   "title": "Miami skylines 343",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=165427771"
+  }
+ },
+ "YYZ": {
+  "city": "Toronto",
+  "f": "yyz.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "JasonParis",
+   "license": "CC BY 2.0",
+   "title": "Toronto CityPlace",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=91645384"
+  }
+ },
+ "GRU": {
+  "city": "Sao Paulo",
+  "f": "gru.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Francisco Anzola",
+   "license": "CC BY 2.0",
+   "title": "Sao Paulo Skyline Brazil",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=21402561"
+  },
+  "alias": [
+   "CGH",
+   "VCP"
+  ]
+ },
+ "NBO": {
+  "city": "Nairobi",
+  "f": "nbo.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Lmwangi",
+   "license": "CC BY-SA 3.0",
+   "title": "Nairobi skyline P1000021",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=5051746"
+  }
+ },
+ "CAI": {
+  "city": "Cairo",
+  "f": "cai.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Morhaf Kamal Aljanee",
+   "license": "CC BY-SA 3.0",
+   "title": "The Giza Pyramids",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=35725572"
+  }
+ },
+ "BOM": {
+  "city": "Mumbai",
+  "f": "bom.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Joe Ravi",
+   "license": "CC BY-SA 3.0",
+   "title": "Gateway Of India",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=12753783"
+  }
+ },
+ "DEL": {
+  "city": "Delhi",
+  "f": "del.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Vyacheslav Argenberg",
+   "license": "CC BY 4.0",
+   "title": "Delhi, India, India Gate",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=103940846"
+  }
+ },
+ "BLR": {
+  "city": "Bangalore",
+  "f": "blr.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Moheen Reeyad",
+   "license": "CC BY-SA 4.0",
+   "title": "Vidhana Soudha, front (01)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=80049628"
+  }
+ },
+ "CMB": {
+  "city": "Colombo",
+  "f": "cmb.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "T Chamika",
+   "license": "CC0",
+   "title": "Colombo skyline 2024",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=163625720"
+  }
+ },
+ "MLE": {
+  "city": "Male",
+  "f": "mle.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Civvi",
+   "license": "CC BY-SA 3.0",
+   "title": "Maldives-Vakarufalhi",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=2025259"
+  }
+ },
+ "BKK": {
+  "city": "Bangkok",
+  "f": "bkk.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Diego Delso",
+   "license": "CC BY-SA 3.0",
+   "title": "Templo Wat Arun, Bangkok, Tailandia, 2013-08-22, DD 30",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=28363641"
+  },
+  "alias": [
+   "DMK"
+  ]
+ },
+ "SIN": {
+  "city": "Singapore",
+  "f": "sin.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Basile Morin",
+   "license": "CC BY-SA 4.0",
+   "title": "ArtScience Museum, Marina Bay Sands, Singapore",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=74555821"
+  }
+ },
+ "KUL": {
+  "city": "Kuala Lumpur",
+  "f": "kul.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "milst1",
+   "license": "CC BY-SA 2.0",
+   "title": "Petronas Towers Legoland Malaysia",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=25657039"
+  },
+  "alias": [
+   "SZB"
+  ]
+ },
+ "DPS": {
+  "city": "Bali",
+  "f": "dps.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Jakub Hałun",
+   "license": "CC BY-SA 4.0",
+   "title": "Bali - Pura Tanah Lot, 20220827 1005 1141",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=124580232"
+  }
+ },
+ "MNL": {
+  "city": "Manila",
+  "f": "mnl.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Lawrence Ruiz",
+   "license": "CC BY-SA 4.0",
+   "title": "Manila Skyline March 2020",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=90051802"
+  }
+ },
+ "HKG": {
+  "city": "Hong Kong",
+  "f": "hkg.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Mk2010",
+   "license": "CC BY-SA 4.0",
+   "title": "Aqua Luna, a Chinese Junk in Victoria Harbour (Hong Kong)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=39754974"
+  }
+ },
+ "PVG": {
+  "city": "Shanghai",
+  "f": "pvg.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Zhang Zhang (张涨）)",
+   "license": "CC BY-SA 3.0",
+   "title": "Lujiazui Skyline from Bund",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=4648483"
+  },
+  "alias": [
+   "SHA"
+  ]
+ },
+ "PEK": {
+  "city": "Beijing",
+  "f": "pek.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "User:kallgan",
+   "license": "CC BY-SA 3.0",
+   "title": "Sunset of the Forbidden City 2006",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=890912"
+  },
+  "alias": [
+   "PKX"
+  ]
+ },
+ "SZX": {
+  "city": "Shenzhen",
+  "f": "szx.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Huangdan2060",
+   "license": "CC BY 3.0",
+   "title": "Shenzhen Skyline from Futian District2",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=52048985"
+  }
+ },
+ "ICN": {
+  "city": "Seoul",
+  "f": "icn.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "USAGI_POST",
+   "license": "CC0",
+   "title": "Han River Seoul skyline Pixabay 1214950",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=83591142"
+  },
+  "alias": [
+   "GMP"
+  ]
+ },
+ "NRT": {
+  "city": "Tokyo",
+  "f": "nrt.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Photo by Chris 73",
+   "license": "CC BY-SA 3.0",
+   "title": "Shiodome Area from Tokyo Tower",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=1004237"
+  },
+  "alias": [
+   "HND"
+  ]
+ },
+ "KIX": {
+  "city": "Osaka",
+  "f": "kix.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "663highland",
+   "license": "CC BY 2.5",
+   "title": "Osaka Castle 02bs3200",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=7745269"
+  },
+  "alias": [
+   "ITM"
+  ]
+ },
+ "SYD": {
+  "city": "Sydney",
+  "f": "syd.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "No machine-readable author provided. Roybb95~commonswiki assumed (based on copyright claims).",
+   "license": "CC BY-SA 3.0",
+   "title": "Sydney Opera House Sails",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=89643"
+  }
+ },
+ "MEL": {
+  "city": "Melbourne",
+  "f": "mel.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "lokesh",
+   "license": "CC BY 2.0",
+   "title": "Melbourne skyline from St. Kilda",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=25611549"
+  }
+ },
+ "BNE": {
+  "city": "Brisbane",
+  "f": "bne.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "MusikAnimal",
+   "license": "CC BY-SA 3.0",
+   "title": "Brisbane skyline and Brisbane River, February 2014",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=31800171"
+  }
+ },
+ "PER": {
+  "city": "Perth",
+  "f": "per.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Robert Young",
+   "license": "CC BY 2.0",
+   "title": "Perth skyline",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=5255262"
+  }
+ },
+ "AKL": {
+  "city": "Auckland",
+  "f": "akl.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Takeshi Aida from Hong Kong, Hong Kong",
+   "license": "CC BY-SA 2.0",
+   "title": "Auckland Sky Tower, Auckland Harbour Bridge (20240203a) (53531528317)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=146089272"
+  }
+ },
+ "JED": {
+  "city": "Jeddah",
+  "f": "jed.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Tahir mq",
+   "license": "CC BY-SA 4.0",
+   "title": "Jeddah Corniche 33",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=77044796"
+  }
+ },
+ "KWI": {
+  "city": "Kuwait",
+  "f": "kwi.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Zairon",
+   "license": "CC BY 4.0",
+   "title": "Kuwait City Kuwait Towers View to the al-Hamra Tower",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=148277386"
+  }
+ },
+ "BAH": {
+  "city": "Bahrain",
+  "f": "bah.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Francisco Anzola from United States",
+   "license": "CC BY 2.0",
+   "title": "Bahrain World Trade Center (30040380192)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=78942742"
+  }
+ },
+ "MCT": {
+  "city": "Muscat",
+  "f": "mct.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Mostafameraji",
+   "license": "CC BY-SA 4.0",
+   "title": "Sultan Qaboos Grand Mosque (1)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=57591888"
+  }
+ },
+ "KHI": {
+  "city": "Karachi",
+  "f": "khi.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Umer07",
+   "license": "CC BY-SA 3.0",
+   "title": "DolmenCity Tower Karachi skyline from Clifton Beach",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=24964940"
+  }
+ },
+ "HAN": {
+  "city": "Hanoi",
+  "f": "han.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Jorge Láscar from Australia",
+   "license": "CC BY 2.0",
+   "title": "Lascar Tortoise Tower (Thap Rua) - Hoan Kiem Lake (4551046826)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=31951623"
+  }
+ },
+ "CDG": {
+  "city": "Paris",
+  "f": "cdg.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Zinneke",
+   "license": "CC BY-SA 3.0",
+   "title": "Seine and Eiffel Tower from Tour Saint Jacques 2013-08",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=27736570"
+  },
+  "alias": [
+   "ORY"
+  ]
+ },
+ "FCO": {
+  "city": "Rome",
+  "f": "fco.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Nicholas Hartmann",
+   "license": "CC BY-SA 4.0",
+   "title": "Rome Colosseum exterior panorama",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=97351714"
+  }
+ },
+ "CPT": {
+  "city": "Cape Town",
+  "f": "cpt.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Ad Meskens You are free to use this picture for any purpose as long as you credit its author, Ad Meskens. Example: © Ad Meskens / Wikimedia Commons If you use this work outside of the Wikimedia projects, a message or a copy is very much appreciated. This image is not in the public domain. A statement such as 'From Wikimedia Commons' or similar is not by itself sufficient. If you do not provide clear attribution to the author you do not comply with the terms of the file's license and you may not use this file. If you are unable or unwilling to provide attribution you should contact Ad Meskens to negotiate a different license.",
+   "license": "CC BY-SA 4.0",
+   "title": "Cape Town Table Mountain 10",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=122423977"
+  }
+ },
+ "CGK": {
+  "city": "Jakarta",
+  "f": "cgk.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Shubhi Rofiddinsa",
+   "license": "CC BY-SA 4.0",
+   "title": "Jakarta's skyline from pedestrian crossing",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=97179264"
+  },
+  "alias": [
+   "HLP"
+  ]
+ },
+ "TPE": {
+  "city": "Taipei",
+  "f": "tpe.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "毛貓大少爺",
+   "license": "CC BY-SA 2.0",
+   "title": "Taipei Skyline 2022.06.29",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=120063783"
+  },
+  "alias": [
+   "TSA"
+  ]
+ },
+ "SGN": {
+  "city": "Ho Chi Minh City",
+  "f": "sgn.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Simon_sees",
+   "license": "CC BY 2.0",
+   "title": "Ho Chi Minh City skyline (49399217481)",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=138699624"
+  }
+ },
+ "ATH": {
+  "city": "Athens",
+  "f": "ath.jpg",
+  "pos": "50% 50%",
+  "credit": {
+   "by": "Christophe Meneboeuf",
+   "license": "CC BY-SA 3.0",
+   "title": "File:View of the Acropolis Athens 2 (pixinn.net).jpg",
+   "url": "https://commons.wikimedia.org/w/index.php?curid=19263987"
+  }
+ }
+}

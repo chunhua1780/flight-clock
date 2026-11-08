@@ -82,7 +82,7 @@
   // 天气专用照片只在白天用；晚上用夜景照片 + 天气动画
   const WX_KEYS = { dust: ['dust'], haze: [], fog: ['fog', 'overcast'], overcast: ['overcast'],
     rain: ['rain', 'overcast'], storm: ['storm', 'rain', 'overcast'], snow: ['snow', 'overcast'] };
-  const PHASE_KEYS = { night: ['night', 'dusk'], dawn: ['dawn', 'dusk', 'day'], dusk: ['dusk', 'dawn', 'day'],
+  const PHASE_KEYS = { night: ['night', 'dusk', 'day'], dawn: ['dawn', 'dusk', 'day'], dusk: ['dusk', 'dawn', 'day'],
     morning: ['day', 'dawn'], evening: ['day', 'dusk'], day: ['day'] };
 
   function pick(code, phase, cat) {
@@ -227,13 +227,14 @@
     else if (p) { url = 'bg/' + p.f; pos = p.pos || pos; key = p.key; }
     else if (ap && ap.city) {
       const mem = wikiMem[ap.city];
-      if (mem === undefined) wikiImage(ap.city, () => update(el, code, ap, w, Date.now()));
+      if (mem === undefined) wikiImage(ap.city, () => update(el, code, ap, w, Date.now(), phaseOverride));
       else if (mem) { url = mem; key = 'day'; }
     }
     // 时段色调：照片和实际时段不一致时补偿
     let filter = '', tint = '';
     if (url) {
-      if (night && key !== 'night') { filter = 'brightness(.32) saturate(.6) hue-rotate(-8deg)'; tint = 'linear-gradient(180deg,rgba(10,20,60,.55),rgba(5,8,20,.35))'; }
+      // 白天照片当夜景用：调暗 + 夜空蓝 + 底部一层暖光（像城市灯光）
+      if (night && key !== 'night') { filter = 'brightness(.5) saturate(.75) contrast(1.1) hue-rotate(-6deg)'; tint = 'linear-gradient(180deg,rgba(6,12,40,.62) 0%,rgba(8,14,40,.42) 55%,rgba(255,170,80,.16) 100%)'; }
       else if ((phase === 'dawn' || phase === 'dusk') && key !== 'dawn' && key !== 'dusk' && key !== 'night') {
         filter = 'brightness(.7) saturate(1.1)';
         tint = phase === 'dawn' ? 'linear-gradient(180deg,rgba(60,50,120,.45),rgba(250,150,110,.30))' : 'linear-gradient(180deg,rgba(50,30,90,.45),rgba(240,120,70,.35))';
@@ -244,7 +245,7 @@
     // 天气滤镜（照片本身不是这种天气时）
     const wxImg = key && (key === cat || (cat === 'haze' && key === 'dust') || (WX_KEYS[cat] && WX_KEYS[cat].includes(key) && key !== 'day'));
     if (!wxImg) {
-      if (cat === 'overcast' || cat === 'rain' || cat === 'storm' || cat === 'snow') filter += ' grayscale(.45) brightness(.82)';
+      if (cat === 'overcast' || cat === 'rain' || cat === 'storm' || cat === 'snow') filter += night ? ' grayscale(.3)' : ' grayscale(.45) brightness(.82)';   // 晚上已经调暗，别再压暗
       else if (cat === 'cloudy') filter += ' saturate(.85)';
       else if (cat === 'dust') filter += ' sepia(.75) saturate(1.3) brightness(.85) contrast(.8)';
       else if (cat === 'haze') filter += ' sepia(.35) contrast(.9)';
@@ -253,6 +254,10 @@
     if (cat === 'dust') tint = 'linear-gradient(180deg,rgba(196,140,70,.45),rgba(170,110,50,.35))' + (tint ? ',' + tint : '');
     if (cat === 'haze') tint = 'linear-gradient(180deg,rgba(210,170,110,.25),rgba(190,150,90,.15))' + (tint ? ',' + tint : '');
     if (cat === 'storm') tint = 'linear-gradient(180deg,rgba(20,25,40,.45),rgba(20,25,40,.2))' + (tint ? ',' + tint : '');
+    // 温度：很热偏暖、很冷偏冷（很淡）
+    const temp = w && w.temp != null ? w.temp : null;
+    if (temp != null && temp >= 38 && !night) tint = 'linear-gradient(180deg,rgba(255,180,100,.14),rgba(255,150,70,.08))' + (tint ? ',' + tint : '');
+    else if (temp != null && temp <= 5) { tint = 'linear-gradient(180deg,rgba(150,190,255,.16),rgba(170,200,255,.10))' + (tint ? ',' + tint : ''); filter += ' saturate(.85)'; }
 
     const bg = url ? 'url("' + url + '")' : SKY[phase];
     const sig = [bg, pos, filter, tint, cat].join('|');
@@ -298,7 +303,15 @@
   }
 
   // 照片署名
-  fetch('bg/credits.json').then(r => r.json()).then(j => { CREDITS = j; }).catch(() => {});
+  fetch('bg/credits.json').then(r => r.json()).then(j => { CREDITS = Object.assign(j, CREDITS); }).catch(() => {});
+  // 内置城市照片库：bg/lib.json  { "LHR": { "f": "lhr.jpg", "pos": "50% 50%", "credit": {...} }, ... }（每个城市一张白天照片）
+  fetch('bg/lib.json').then(r => r.json()).then(j => {
+    for (const code in j) {
+      const e = j[code];
+      if (!LIB[code]) LIB[code] = { alias: e.alias || [], img: { day: { f: e.f, pos: e.pos || '50% 50%' } } };
+      if (e.credit) CREDITS[e.f] = e.credit;
+    }
+  }).catch(() => {});
 
   let remoteFn = null;
   window.Scene = { setRemote: fn => { remoteFn = fn; }, update, clear, weatherCat, phaseOf, sunAlt, CAT_ZH, LIB };

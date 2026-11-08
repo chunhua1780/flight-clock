@@ -103,6 +103,62 @@ Apps Script 每 5 分钟用 ADS-B 信号检查一次正在进行的航班（iPad
 - `can-night.jpg`：[Canton Tower 2013.12.02 18-16-47](https://commons.wikimedia.org/w/index.php?curid=29979838)，作者 Zhangzhugang，CC BY-SA 3.0
 - `can-rain.jpg`：[GuangzhouSkyline2020](https://commons.wikimedia.org/w/index.php?curid=89481087)，作者 Josephua，CC BY-SA 4.0
 
+## 内置城市照片（简洁模式，默认）
+每个城市一张白天地标照片，清晨 / 白天 / 傍晚 / 夜晚、天气（雨雪雾沙尘）和温度都在 iPad 本地用滤镜和动画处理，不依赖任何在线图片库。目前 51 个城市（加上迪拜、广州的多张照片）。加城市：照片放进 `bg/`，在 `bg/lib.json` 里登记机场三字码。
+
+照片来源（Wikimedia Commons）：
+- AKL Auckland：[Auckland Sky Tower, Auckland Harbour Bridge (20240203a) (535](https://commons.wikimedia.org/w/index.php?curid=146089272)，Takeshi Aida from Hong Kong, Hong Kong，CC BY-SA 2.0
+- AMS Amsterdam：[Amsterdam canals in summer](https://commons.wikimedia.org/w/index.php?curid=27430061)，Joshua Doubek，CC BY-SA 3.0
+- ATH Athens：[File:View of the Acropolis Athens 2 (pixinn.net).jpg](https://commons.wikimedia.org/w/index.php?curid=19263987)，Christophe Meneboeuf，CC BY-SA 3.0
+- BAH Bahrain：[Bahrain World Trade Center (30040380192)](https://commons.wikimedia.org/w/index.php?curid=78942742)，Francisco Anzola from United States，CC BY 2.0
+- BCN Barcelona：[Sagrada Familia 01](https://commons.wikimedia.org/w/index.php?curid=9029499)，Bernard Gagnon，CC BY-SA 3.0
+- BKK Bangkok：[Templo Wat Arun, Bangkok, Tailandia, 2013-08-22, DD 30](https://commons.wikimedia.org/w/index.php?curid=28363641)，Diego Delso，CC BY-SA 3.0
+- BLR Bangalore：[Vidhana Soudha, front (01)](https://commons.wikimedia.org/w/index.php?curid=80049628)，Moheen Reeyad，CC BY-SA 4.0
+- BNE Brisbane：[Brisbane skyline and Brisbane River, February 2014](https://commons.wikimedia.org/w/index.php?curid=31800171)，MusikAnimal，CC BY-SA 3.0
+- BOM Mumbai：[Gateway Of India](https://commons.wikimedia.org/w/index.php?curid=12753783)，Joe Ravi，CC BY-SA 3.0
+- CAI Cairo：[The Giza Pyramids](https://commons.wikimedia.org/w/index.php?curid=35725572)，Morhaf Kamal Aljanee，CC BY-SA 3.0
+- CDG Paris：[Seine and Eiffel Tower from Tour Saint Jacques 2013-08](https://commons.wikimedia.org/w/index.php?curid=27736570)，Zinneke，CC BY-SA 3.0
+- CGK Jakarta：[Jakarta's skyline from pedestrian crossing](https://commons.wikimedia.org/w/index.php?curid=97179264)，Shubhi Rofiddinsa，CC BY-SA 4.0
+- CMB Colombo：[Colombo skyline 2024](https://commons.wikimedia.org/w/index.php?curid=163625720)，T Chamika，CC0
+- CPT Cape Town：[Cape Town Table Mountain 10](https://commons.wikimedia.org/w/index.php?curid=122423977)，Ad Meskens You are free to use this pict，CC BY-SA 4.0
+- DEL Delhi：[Delhi, India, India Gate](https://commons.wikimedia.org/w/index.php?curid=103940846)，Vyacheslav Argenberg，CC BY 4.0
+- DPS Bali：[Bali - Pura Tanah Lot, 20220827 1005 1141](https://commons.wikimedia.org/w/index.php?curid=124580232)，Jakub Hałun，CC BY-SA 4.0
+- FCO Rome：[Rome Colosseum exterior panorama](https://commons.wikimedia.org/w/index.php?curid=97351714)，Nicholas Hartmann，CC BY-SA 4.0
+- FRA Frankfurt：[Seat of the European Central Bank and Frankfurt Skyline at d](https://commons.wikimedia.org/w/index.php?curid=41624392)，DXR，CC BY-SA 4.0
+- GRU Sao Paulo：[Sao Paulo Skyline Brazil](https://commons.wikimedia.org/w/index.php?curid=21402561)，Francisco Anzola，CC BY 2.0
+- HAN Hanoi：[Lascar Tortoise Tower (Thap Rua) - Hoan Kiem Lake (455104682](https://commons.wikimedia.org/w/index.php?curid=31951623)，Jorge Láscar from Australia，CC BY 2.0
+- HKG Hong Kong：[Aqua Luna, a Chinese Junk in Victoria Harbour (Hong Kong)](https://commons.wikimedia.org/w/index.php?curid=39754974)，Mk2010，CC BY-SA 4.0
+- IAH Houston：[Panoramic Houston skyline](https://commons.wikimedia.org/w/index.php?curid=17660984)，Henry Han，CC BY-SA 3.0
+- ICN Seoul：[Han River Seoul skyline Pixabay 1214950](https://commons.wikimedia.org/w/index.php?curid=83591142)，USAGI_POST，CC0
+- IST Istanbul：[Turkey-1249 - Dolmabahee Mosque](https://commons.wikimedia.org/w/index.php?curid=23447397)，archer10 (Dennis)，CC BY-SA 2.0
+- JED Jeddah：[Jeddah Corniche 33](https://commons.wikimedia.org/w/index.php?curid=77044796)，Tahir mq，CC BY-SA 4.0
+- JFK New York：[Midtown Manhattan Skyline 004 (cropped)](https://commons.wikimedia.org/w/index.php?curid=151504894)，Kidfly182，CC BY-SA 4.0
+- KHI Karachi：[DolmenCity Tower Karachi skyline from Clifton Beach](https://commons.wikimedia.org/w/index.php?curid=24964940)，Umer07，CC BY-SA 3.0
+- KIX Osaka：[Osaka Castle 02bs3200](https://commons.wikimedia.org/w/index.php?curid=7745269)，663highland，CC BY 2.5
+- KUL Kuala Lumpur：[Petronas Towers Legoland Malaysia](https://commons.wikimedia.org/w/index.php?curid=25657039)，milst1，CC BY-SA 2.0
+- KWI Kuwait：[Kuwait City Kuwait Towers View to the al-Hamra Tower](https://commons.wikimedia.org/w/index.php?curid=148277386)，Zairon，CC BY 4.0
+- LHR London：[Tower Bridge,London Getting Opened 2](https://commons.wikimedia.org/w/index.php?curid=16088292)，Mvkulkarni23，CC BY-SA 3.0
+- MCT Muscat：[Sultan Qaboos Grand Mosque (1)](https://commons.wikimedia.org/w/index.php?curid=57591888)，Mostafameraji，CC BY-SA 4.0
+- MEL Melbourne：[Melbourne skyline from St. Kilda](https://commons.wikimedia.org/w/index.php?curid=25611549)，lokesh，CC BY 2.0
+- MIA Miami：[Miami skylines 343](https://commons.wikimedia.org/w/index.php?curid=165427771)，Wilfredor，CC0
+- MLE Male：[Maldives-Vakarufalhi](https://commons.wikimedia.org/w/index.php?curid=2025259)，Civvi，CC BY-SA 3.0
+- MNL Manila：[Manila Skyline March 2020](https://commons.wikimedia.org/w/index.php?curid=90051802)，Lawrence Ruiz，CC BY-SA 4.0
+- MUC Munich：[Munich - Marienplatz - panoramio](https://commons.wikimedia.org/w/index.php?curid=45529129)，Jon Agüera，CC BY-SA 3.0
+- MXP Milan：[Milan Cathedral from Piazza del Duomo](https://commons.wikimedia.org/w/index.php?curid=11566236)，Jiuguang Wang，CC BY-SA 3.0
+- NBO Nairobi：[Nairobi skyline P1000021](https://commons.wikimedia.org/w/index.php?curid=5051746)，Lmwangi，CC BY-SA 3.0
+- NRT Tokyo：[Shiodome Area from Tokyo Tower](https://commons.wikimedia.org/w/index.php?curid=1004237)，Photo by Chris 73，CC BY-SA 3.0
+- ORD Chicago：[Chicago Skyline Oct 2022 2](https://commons.wikimedia.org/w/index.php?curid=124625428)，Sea Cow，CC BY-SA 4.0
+- PEK Beijing：[Sunset of the Forbidden City 2006](https://commons.wikimedia.org/w/index.php?curid=890912)，User:kallgan，CC BY-SA 3.0
+- PER Perth：[Perth skyline](https://commons.wikimedia.org/w/index.php?curid=5255262)，Robert Young，CC BY 2.0
+- PVG Shanghai：[Lujiazui Skyline from Bund](https://commons.wikimedia.org/w/index.php?curid=4648483)，Zhang Zhang (张涨）)，CC BY-SA 3.0
+- SFO San Francisco：[Golden Gate Bridge as seen from Battery East](https://commons.wikimedia.org/w/index.php?curid=60353189)，Frank Schulenburg，CC BY-SA 4.0
+- SGN Ho Chi Minh City：[Ho Chi Minh City skyline (49399217481)](https://commons.wikimedia.org/w/index.php?curid=138699624)，Simon_sees，CC BY 2.0
+- SIN Singapore：[ArtScience Museum, Marina Bay Sands, Singapore](https://commons.wikimedia.org/w/index.php?curid=74555821)，Basile Morin，CC BY-SA 4.0
+- SYD Sydney：[Sydney Opera House Sails](https://commons.wikimedia.org/w/index.php?curid=89643)，No machine-readable author provided. Roy，CC BY-SA 3.0
+- SZX Shenzhen：[Shenzhen Skyline from Futian District2](https://commons.wikimedia.org/w/index.php?curid=52048985)，Huangdan2060，CC BY 3.0
+- TPE Taipei：[Taipei Skyline 2022.06.29](https://commons.wikimedia.org/w/index.php?curid=120063783)，毛貓大少爺，CC BY-SA 2.0
+- YYZ Toronto：[Toronto CityPlace](https://commons.wikimedia.org/w/index.php?curid=91645384)，JasonParis，CC BY 2.0
+
 ## 文件
 
 | 文件 | 说明 |

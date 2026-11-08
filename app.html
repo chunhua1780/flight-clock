@@ -295,6 +295,7 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
     <label class="chk"><input type="checkbox" id="s-drop8">五位数航班号去掉开头的 8（89876 → EK9876）</label>
     <label class="chk"><input type="checkbox" id="s-dim">夜间自动变暗</label>
     <label class="chk"><input type="checkbox" id="s-cal">主界面右侧显示月历</label>
+    <label class="chk"><input type="checkbox" id="s-ofp">飞行地图用 OFP 计划航路（默认大圆航线）</label>
     <label class="chk"><input type="checkbox" id="s-photos">背景用图片库，每天换（需在 Apps Script 设 PEXELS_KEY 或 UNSPLASH_KEY）</label>
     <div class="btns">
       <button class="btn pri" id="s-save">保存</button>
@@ -324,13 +325,14 @@ window.onerror = function (m, src, line) {
 const DEFAULTS = {
   api: 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
   token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 135,
-  drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: true
+  drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: false, ofp: false
 };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 let CFG = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(lsGet('fc.cfg') || '{}'); } catch (e) { return {}; } })());
 if (/AKfycbxSmqqVM38/.test(CFG.api)) CFG.api = DEFAULTS.api; // 旧接口自动换成新接口
-if (CFG.pickup === 85) CFG.pickup = 135;                         // 以前的默认值（报到）→ 接车
+if (CFG.pickup === 85) CFG.pickup = 135;
+if (!CFG.v2) { CFG.photos = false; CFG.ofp = false; CFG.v2 = 1; lsSet('fc.cfg', JSON.stringify(CFG)); }   // 简洁模式：内置照片 + 大圆航线                         // 以前的默认值（报到）→ 接车
 const Q = new URLSearchParams(location.search);
 if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
 if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
@@ -1027,7 +1029,7 @@ function ensureRoutePts(r) {
   })();
 }
 function routeOf(f) {
-  if (!S.routes || !S.routes.length) return null;
+  if (!CFG.ofp || !S.routes || !S.routes.length) return null;   // 默认用大圆航线
   S.routes.forEach(ensureRoutePts);
   const dd = t => { const p = parts(t, 'UTC'); return p.day + MON3[+p.month - 1]; };
   const dates = [dd(f.std), dd(f.std - 864e5), dd(f.std + 864e5), ymd(f.std, apTz(f.origin)).slice(6) + MON3[+ymd(f.std, apTz(f.origin)).slice(4, 6) - 1]];
@@ -1405,7 +1407,7 @@ function demoFlights() {
 function openSettings() {
   $('s-api').value = CFG.api; $('s-pexels').value = CFG.pexels || ''; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
   $('s-airline').value = CFG.airline; $('s-cs').value = CFG.cs; $('s-pickup').value = CFG.pickup;
-  $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
+  $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-ofp').checked = !!CFG.ofp; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
   $('testout').textContent = '';
   $('settings').classList.add('open');
 }
@@ -1413,7 +1415,7 @@ function readSettings() {
   return {
     api: $('s-api').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
     airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
-    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked,
+    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked, ofp: $('s-ofp').checked, v2: 1,
     dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
   };
 }
