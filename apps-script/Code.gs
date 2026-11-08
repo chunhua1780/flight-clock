@@ -437,8 +437,7 @@ function photo_(p) {
 // 再查出每个航路点的坐标（flightplandatabase.com 免费导航数据库，查过的会记住）。
 // 找 OFP 邮件：主题里带 ofp（大小写都行，连在别的字中间也行），或者发到「你的邮箱+ofp」
 function ofpMessages_() {
-  const me = Session.getEffectiveUser().getEmail();
-  const plus = me.replace('@', '+ofp@').toLowerCase();
+  const plus = '+ofp@';   // 发到「任何邮箱+ofp@」的也算（不需要读取账号邮箱的权限）
   const out = [];
   GmailApp.search('newer_than:4d', 0, 60).forEach(function (th) {
     th.getMessages().forEach(function (msg) {
