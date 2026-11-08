@@ -159,6 +159,8 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .leaflet-control-attribution a{color:#777!important}
 .ap-lbl{background:none;border:none;box-shadow:none;color:var(--text);font-weight:700;font-size:13px;letter-spacing:.08em;text-shadow:0 0 4px #000,0 0 8px #000}
 .ap-lbl:before{display:none}
+.wp-lbl{background:none;border:none;box-shadow:none;color:#f3d99c;font-size:9.5px;font-weight:600;letter-spacing:.06em;text-shadow:0 0 3px #000,0 0 6px #000;padding:0}
+.wp-lbl:before{display:none}
 .plane{filter:drop-shadow(0 0 6px rgba(210,173,98,.8))}
 .fpanel{position:absolute;z-index:500;top:max(14px,env(safe-area-inset-top));left:var(--pad);bottom:max(14px,env(safe-area-inset-bottom));width:min(390px,38vw);
   background:var(--panel);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;padding:clamp(14px,2.4vmin,24px);
@@ -573,7 +575,7 @@ function normFlights(j) {
 /* =====================================================================
    STATE
    ===================================================================== */
-const S = { flights: [], duties: [], apiVer: 0, legacy: false, sync: null, wx: {}, track: {}, view: null, status: {} };
+const S = { flights: [], duties: [], routes: [], routeLines: {}, apiVer: 0, legacy: false, sync: null, wx: {}, track: {}, view: null, status: {} };
 try { S.status = JSON.parse(lsGet('fc.status') || '{}'); } catch (e) {}
 // 实际动态（Apps Script 根据 ADS-B 判断）：{taxi, off, on, reg}
 const stOf = f => S.status[f.id] || {};
@@ -657,6 +659,7 @@ async function loadFlights() {
     S.legacy = !Array.isArray(j.flights);
     S.flights = mergeKnown(f);
     S.duties = normDuties(j); S.apiVer = j.version || 0;
+    if (Array.isArray(j.routes)) { S.routes = j.routes; lsSet('fc.routes', JSON.stringify(j.routes)); }
     lsSet('fc.duties', JSON.stringify({ v: S.apiVer, d: S.duties }));
     if (j.status) for (const k in j.status) setStatus(k, j.status[k]);
     S.sync = { ok: true, t: Date.now() };
@@ -909,6 +912,7 @@ function renderLayover(st) {
 }
 
 /* ---------- flight ---------- */
+let mapRouteKey = '';
 let map = null, mapFlightId = null, L_route, L_done, L_trail, L_plane, L_aps = [];
 const PLANE_SVG = '<svg viewBox="0 0 64 64" width="38" height="38"><path fill="#d2ad62" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
 
@@ -992,6 +996,41 @@ async function pollTrack(f) {
   } catch (e) { /* 网络问题，下次再试 */ } finally { T.busy = false; }
 }
 
+/* ---------- OFP 计划航路 ---------- */
+const MON3 = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function routeOf(f) {
+  if (!S.routes || !S.routes.length) return null;
+  const dd = t => { const p = parts(t, 'UTC'); return p.day + MON3[+p.month - 1]; };
+  const dates = [dd(f.std), dd(f.std - 864e5), dd(f.std + 864e5), ymd(f.std, apTz(f.origin)).slice(6) + MON3[+ymd(f.std, apTz(f.origin)).slice(4, 6) - 1]];
+  const r = S.routes.find(r => r.digits === f.digits && r.depIata === f.origin && r.arrIata === f.dest && dates.includes(r.date) && r.pts && r.pts.length);
+  if (!r) return null;
+  if (!S.routeLines[f.id] || S.routeLines[f.id].src !== r) {
+    // 出发机场 → 航路点 … → 到达机场，每段按大圆加密，经度连续（跨 180° 也不断）
+    const A = AP[f.origin], B = AP[f.dest];
+    const nodes = [{ lat: A.lat, lon: A.lon }].concat(r.pts.map(p => ({ lat: p[0], lon: p[1], id: p[2] }))).concat([{ lat: B.lat, lon: B.lon }]);
+    let line = [], prevLon = A.lon, cum = [0], total = 0;
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const seg = gcLine(nodes[i], nodes[i + 1], Math.max(2, Math.round(dist(nodes[i], nodes[i + 1]) / 60)));
+      seg.forEach((pt, j) => {
+        if (i > 0 && j === 0) return;
+        pt[1] = unwrap(pt[1], prevLon); prevLon = pt[1];
+        if (line.length) { total += dist({ lat: line[line.length - 1][0], lon: line[line.length - 1][1] }, { lat: pt[0], lon: pt[1] }); cum.push(total); }
+        line.push(pt);
+      });
+    }
+    S.routeLines[f.id] = { src: r, line, cum, total, nodes };
+  }
+  return S.routeLines[f.id];
+}
+// 沿计划航路走到 frac（0–1）处的位置和航向
+function alongRoute(R, frac) {
+  const target = frac * R.total, c = R.cum;
+  let i = 1; while (i < c.length - 1 && c[i] < target) i++;
+  const a = R.line[i - 1], b = R.line[i], seg = c[i] - c[i - 1] || 1, t = Math.min(1, Math.max(0, (target - c[i - 1]) / seg));
+  const p = { lat: a[0] + (b[0] - a[0]) * t, lon: a[1] + (b[1] - a[1]) * t };
+  return { p, hdg: bearing({ lat: a[0], lon: a[1] }, { lat: b[0], lon: b[1] }), done: R.line.slice(0, i).concat([[p.lat, p.lon]]) };
+}
+
 function flightPos(f, now) {
   const A = AP[f.origin], B = AP[f.dest];
   const D = dist(A, B);
@@ -1031,6 +1070,12 @@ function flightPos(f, now) {
     if (T.pos.alt != null && T.pos.alt < 18000 && frac > 0.6 && phase === 'cruise') phase = 'descent';
     return Object.assign(p, { live: true, frac, remKm: dB, hdg: T.pos.track != null ? T.pos.track : bearing(p, B), alt: T.pos.alt, gs, eta, phase, src: T.src, reg: T.pos.reg, type: T.pos.type });
   }
+  const RT = routeOf(f);
+  if (RT) {   // 有 OFP 航路：沿真实计划航路推算
+    const ar = alongRoute(RT, est);
+    let phase = now < takeoff ? (st.taxi ? 'taxi' : tracking && now > f.std + 5 * MIN ? 'waiting' : 'boarding') : now > land ? 'landed' : est < 0.06 ? 'climb' : est > 0.92 ? 'descent' : 'cruise';
+    return Object.assign(ar.p, { live: false, frac: est, remKm: (1 - est) * RT.total, hdg: ar.hdg, eta: st.off ? land + onn : f.sta, phase, done: ar.done });
+  }
   const p = gcPoint(A, B, est);
   const p2 = gcPoint(A, B, Math.min(1, est + 0.01));
   let phase = now < takeoff ? (st.taxi ? 'taxi' : tracking && now > f.std + 5 * MIN ? 'waiting' : 'boarding') : now > land ? 'landed' : est < 0.06 ? 'climb' : est > 0.92 ? 'descent' : 'cruise';
@@ -1048,15 +1093,23 @@ function renderFlight(st, light) {
   const T = S.track[f.id] || { pts: [] };
 
   if (map) {
-    if (mapFlightId !== f.id) {
+    if (mapFlightId !== f.id || (routeOf(f) ? 'ofp' : 'gc') !== mapRouteKey) {   // 航班变了，或 OFP 航路刚收到
       [L_route, L_done, L_trail, L_plane].concat(L_aps).forEach(l => l && map.removeLayer(l));
-      const line = gcLine(A, B, 160);
+      const RT = routeOf(f);
+      const line = RT ? RT.line : gcLine(A, B, 160);
+      mapRouteKey = RT ? 'ofp' : 'gc';
       L_route = L.polyline(line, { color: '#d2ad62', weight: 2, opacity: .45, dashArray: '6 8' }).addTo(map);
       L_done = L.polyline([], { color: '#d2ad62', weight: 3, opacity: .95 }).addTo(map);
       L_trail = L.polyline([], { color: '#45d483', weight: 3, opacity: .9 }).addTo(map);
       L_aps = [[A, f.origin, line[0]], [B, f.dest, line[line.length - 1]]].map(([ap, code, ll]) =>
         L.circleMarker(ll, { radius: 5, color: '#d2ad62', weight: 2, fillColor: '#000', fillOpacity: 1 })
           .bindTooltip(code, { permanent: true, direction: 'right', className: 'ap-lbl', offset: [8, 0] }).addTo(map));
+      // OFP 航路点：小点 + 名字
+      if (RT) RT.nodes.slice(1, -1).forEach(n => {
+        const ll = [n.lat, unwrap(n.lon, line[0][1])];
+        L_aps.push(L.circleMarker(ll, { radius: 2.5, color: '#f3d99c', weight: 1, fillColor: '#f3d99c', fillOpacity: .9, interactive: false })
+          .bindTooltip(n.id, { permanent: true, direction: 'top', className: 'wp-lbl', offset: [0, -3] }).addTo(map));
+      });
       L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div class="plane" id="plane">' + PLANE_SVG + '</div>', iconSize: [38, 38], iconAnchor: [19, 19] }), interactive: false }).addTo(map);
       mapFlightId = f.id;
       fitMap(line);
@@ -1078,7 +1131,7 @@ function renderFlight(st, light) {
     } else {
       L_trail.setLatLngs([]);
       const n = Math.max(1, Math.round(pos.frac * 160));
-      L_done.setLatLngs(pos.frac > 0 ? gcLine(A, { lat: pos.lat, lon: pos.lon }, n) : []);
+      L_done.setLatLngs(pos.done ? pos.done : pos.frac > 0 ? gcLine(A, { lat: pos.lat, lon: pos.lon }, n) : []);
     }
   }
 
@@ -1116,7 +1169,7 @@ function renderFlight(st, light) {
     '<div class="fp-foot"><div><div class="lbl">状态</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
       (pos.phase === 'waiting' ? '<span style="color:var(--red)"> · 已过计划 ' + durTxt(now - f.std) + '</span>' : '') +
       (pos.live && pos.reg ? ' · ' + esc(pos.reg) + (pos.type ? ' ' + esc(pos.type) : '') : '') + '</div></div>' +
-      '<div class="lbl" style="text-align:right">' + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
+      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">OFP 计划航路</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
   $('f-panel').innerHTML = html;
 }
 
@@ -1380,6 +1433,7 @@ setInterval(() => {
   // 先用缓存马上画出来，不等网络
   try { S.flights = JSON.parse(lsGet('fc.known2') || '[]'); } catch (e) {}
   try { const c = JSON.parse(lsGet('fc.duties') || '{}'); S.duties = c.d || []; S.apiVer = c.v || 0; } catch (e) {}
+  try { S.routes = JSON.parse(lsGet('fc.routes') || '[]'); } catch (e) {}
   render(true);
   setInterval(tick, 1000);
   await loadFlights();

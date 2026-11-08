@@ -74,6 +74,7 @@ function setup() {
   });
   ScriptApp.newTrigger('poll').timeBased().everyMinutes(5).create();
   Logger.log('✅ 定时器已安装：每 5 分钟检查一次正在进行的航班');
+  try { GmailApp.search('subject:OFP newer_than:1d', 0, 1); Logger.log('✅ 已允许读取 OFP 邮件'); } catch (e) {}
   poll();
 }
 
@@ -125,7 +126,9 @@ function flights_() {
       if (st) status[leg.origin + leg.dest + leg.std] = publicStatus_(st);
     });
   });
-  return { ok: true, version: 4, generated: now.toISOString(), flights: list, status: status };
+  let routes = [];
+  try { routes = ofpRoutes_(); } catch (e) {}
+  return { ok: true, version: 5, generated: now.toISOString(), flights: list, status: status, routes: routes };
 }
 
 // 备注里只保留航班号、「机场 - 日期 时间」和呼号这几种行，
@@ -425,4 +428,117 @@ function photo_(p) {
     };
   }
   return { ok: false, error: 'no photos' };
+}
+
+// ======== 飞行计划（OFP）→ 真实航路 ========
+// 把 OFP 文字用邮件发到「你的邮箱 + ofp」（例如 name+ofp@gmail.com），或者邮件主题里带 OFP。
+// 脚本从里面找出航班（EK9876 08NOV OMDW/DWC-ZGGG/CAN）和航路（OMDW/30 DCT NOLSU M572 ... ZGGG/01L），
+// 再查出每个航路点的坐标（flightplandatabase.com 免费导航数据库，查过的会记住）。
+function ofpRoutes_() {
+  let threads = [];
+  try {
+    const me = Session.getEffectiveUser().getEmail();
+    const plus = me.replace('@', '+ofp@');
+    threads = GmailApp.search('(to:' + plus + ' OR subject:OFP) newer_than:4d', 0, 15);
+  } catch (e) { return []; }   // 还没授权读邮件
+  const cache = CacheService.getScriptCache();
+  const best = {};
+  threads.forEach(function (th) {
+    th.getMessages().forEach(function (msg) {
+      const id = 'ofp_' + msg.getId();
+      let r = null;
+      const hit = cache.get(id);
+      if (hit) r = JSON.parse(hit);
+      else {
+        let text = msg.getPlainBody() || '';
+        msg.getAttachments().forEach(function (a) { if (/^text\//.test(a.getContentType())) text += '\n' + a.getDataAsString(); });
+        r = parseOfp_(text);
+        if (r && r.fixes.length) { r.pts = resolveFixes_(r); r.received = msg.getDate().getTime(); }
+        else r = { none: true };
+        cache.put(id, JSON.stringify(r), 21600);
+      }
+      if (!r || r.none || !r.pts || !r.pts.length) return;
+      const k = r.digits + r.depIata + r.arrIata + r.date;
+      if (!best[k] || best[k].received < r.received) best[k] = r;   // 同一个航班有多份时用最新的
+    });
+  });
+  return Object.keys(best).map(function (k) {
+    const r = best[k];
+    return { digits: r.digits, date: r.date, dep: r.dep, arr: r.arr, depIata: r.depIata, arrIata: r.arrIata, route: r.route, pts: r.pts, received: r.received };
+  });
+}
+
+function parseOfp_(text) {
+  const T = String(text || '').toUpperCase().replace(/\r/g, '');
+  // 第一行：EK9876 08NOV OMDW/DWC-ZGGG/CAN
+  const h = T.match(/\b(?:EK|UAE)?\s?(\d{1,5})\s+(\d{2}[A-Z]{3})\s+([A-Z]{4})\/([A-Z]{3})\s*-\s*([A-Z]{4})\/([A-Z]{3})/);
+  if (!h) return null;
+  const dep = h[3], arr = h[5];
+  // 航路：从「OMDW/30」到「ZGGG/01L」
+  const re = new RegExp('\\b' + dep + '(?:\\/\\d{2}[LRC]?)?[ \\t]+([\\s\\S]+?)\\s' + arr + '(?:\\/\\d{2}[LRC]?)?(?=\\s|$)');
+  const m = T.match(re);
+  if (!m) return null;
+  const route = m[1].replace(/\s+/g, ' ').trim();
+  const fixes = [];
+  route.split(' ').forEach(function (t) {
+    if (t === 'DCT') return;
+    if (/^[A-Z]{2,5}$/.test(t)) { fixes.push({ id: t }); return; }        // 航路点 / 导航台（航路名带数字，会被跳过）
+    const ll = latLonToken_(t);
+    if (ll) fixes.push({ id: t, lat: ll[0], lon: ll[1] });                // 直接写坐标的点，例如 2500N06000E
+  });
+  return { digits: h[1].replace(/^0+/, ''), date: h[2], dep: dep, depIata: h[4], arr: arr, arrIata: h[6], route: route.slice(0, 600), fixes: fixes };
+}
+
+function latLonToken_(t) {
+  let m = t.match(/^(\d{2})(\d{2})?([NS])(\d{3})(\d{2})?([EW])$/);          // 2530N06015E / 25N060E
+  if (m) return [(+m[1] + (+m[2] || 0) / 60) * (m[3] === 'S' ? -1 : 1), (+m[4] + (+m[5] || 0) / 60) * (m[6] === 'W' ? -1 : 1)];
+  m = t.match(/^([NS])(\d{2})(\d{2}(?:\.\d)?)?([EW])(\d{3})(\d{2}(?:\.\d)?)?$/); // N2530.5E06015.2
+  if (m) return [(+m[2] + (+m[3] || 0) / 60) * (m[1] === 'S' ? -1 : 1), (+m[5] + (+m[6] || 0) / 60) * (m[4] === 'W' ? -1 : 1)];
+  return null;
+}
+
+function fixCandidates_(id) {
+  const props = PropertiesService.getScriptProperties();
+  const k = 'fix_' + id;
+  const saved = props.getProperty(k);
+  if (saved) return JSON.parse(saved);
+  let list = [];
+  try {
+    const r = UrlFetchApp.fetch('https://api.flightplandatabase.com/search/nav?q=' + encodeURIComponent(id), { muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) {
+      list = JSON.parse(r.getContentText())
+        .filter(function (x) { return x.ident === id && x.type !== 'APT' && x.type !== 'DME'; })
+        .map(function (x) { return [Math.round(x.lat * 1e4) / 1e4, Math.round(x.lon * 1e4) / 1e4]; });
+      props.setProperty(k, JSON.stringify(list.slice(0, 12)));
+    }
+  } catch (e) {}
+  return list;
+}
+
+// 同名的点（例如 BPL 既是印度博帕尔也是布达佩斯）：选离上一个点近、又朝着目的地方向的那个
+function resolveFixes_(r) {
+  const A = airport_(r.depIata), B = airport_(r.arrIata);
+  if (!A || !B) return [];
+  let prev = { lat: A.lat, lon: A.lon };
+  const out = [];
+  r.fixes.forEach(function (f) {
+    let c = f.lat != null ? [[f.lat, f.lon]] : fixCandidates_(f.id);
+    if (!c.length) return;
+    let bestC = null, bestS = 1e12;
+    c.forEach(function (p) {
+      const q = { lat: p[0], lon: p[1] };
+      const d1 = dist_(prev, q);
+      if (d1 > 3500) return;                                         // 离上一个点太远，肯定不是
+      const s = d1 + 0.5 * dist_(q, B);
+      if (s < bestS) { bestS = s; bestC = q; }
+    });
+    if (!bestC) return;
+    out.push([bestC.lat, bestC.lon, f.id]);
+    prev = bestC;
+  });
+  return out;
+}
+
+function testOfp() {
+  Logger.log(JSON.stringify(ofpRoutes_(), null, 1));
 }
