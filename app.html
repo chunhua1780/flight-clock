@@ -322,17 +322,23 @@ window.onerror = function (m, src, line) {
 /* =====================================================================
    CONFIG
    ===================================================================== */
+// 两个版本：full = 我自己用的全功能版（读我的日历、在线图片库、OFP 航路）
+//           lite = 给同事用的简洁版（内置照片、大圆航线、不连任何人的日历，第一次打开先设置）
+const EDITION = new URLSearchParams(location.search).get('edition') === 'lite' ? 'lite' : 'full';
+const LITE = EDITION === 'lite';
 const DEFAULTS = {
-  api: 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
+  api: LITE ? '' : 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
   token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 135,
-  drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: false, ofp: false
+  drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: !LITE, ofp: !LITE
 };
-const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+// 两个版本各存各的设置和缓存（同一台设备上互不干扰）
+const lsKey = k => LITE ? 'lite.' + k : k;
+const lsGet = k => { try { return localStorage.getItem(lsKey(k)); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(lsKey(k), v); } catch (e) {} };
 let CFG = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(lsGet('fc.cfg') || '{}'); } catch (e) { return {}; } })());
 if (/AKfycbxSmqqVM38/.test(CFG.api)) CFG.api = DEFAULTS.api; // 旧接口自动换成新接口
 if (CFG.pickup === 85) CFG.pickup = 135;
-if (!CFG.v2) { CFG.photos = false; CFG.ofp = false; CFG.v2 = 1; lsSet('fc.cfg', JSON.stringify(CFG)); }   // 简洁模式：内置照片 + 大圆航线                         // 以前的默认值（报到）→ 接车
+if (!CFG.v3) { CFG.photos = DEFAULTS.photos; CFG.ofp = DEFAULTS.ofp; CFG.v3 = 1; lsSet('fc.cfg', JSON.stringify(CFG)); }
 const Q = new URLSearchParams(location.search);
 if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
 if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
@@ -653,6 +659,7 @@ async function loadFlights() {
     return;
   }
   try {
+    if (!CFG.api) { S.sync = { ok: false, t: Date.now(), err: '还没设置日历网址' }; return; }
     const r = await fetchT(apiUrl({ action: 'flights', _: Date.now() }), 15000, { cache: 'no-store' });
     const j = await r.json();
     if (j.ok === false) throw new Error(j.error || 'error');
@@ -1415,7 +1422,7 @@ function readSettings() {
   return {
     api: $('s-api').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
     airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
-    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked, ofp: $('s-ofp').checked, v2: 1,
+    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked, ofp: $('s-ofp').checked, v3: 1,
     dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
   };
 }
@@ -1487,6 +1494,8 @@ if (window.top === window.self) setInterval(() => {
   try { S.routes = JSON.parse(lsGet('fc.routes') || '[]'); } catch (e) {}
   render(true);
   setInterval(tick, 1000);
+  // 简洁版第一次打开：还没填日历地址，先弹出设置
+  if (LITE && !CFG.api && !DEMO) { openSettings(); $('testout').textContent = '欢迎使用！请把你自己的 Apps Script 网址（/exec 结尾）填在第一栏，点「测试连接」，再点「保存」。'; }
   await loadFlights();
   render(true);
   setInterval(() => loadFlights().then(() => render(true)), 5 * MIN);
