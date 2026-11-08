@@ -52,6 +52,7 @@ function doGet(e) {
   if (TOKEN && p.token !== TOKEN) return out_({ ok: false, error: 'unauthorized' });
   try {
     if (p.action === 'photo') return out_(photo_(p));
+    if (p.action === 'ofpcheck') return out_(ofpCheck_());
     if (p.action === 'track') {
       const leg = p.o && p.d && p.std ? { origin: p.o, dest: p.d, std: +p.std, sta: +p.sta || 0 } : null;
       return out_(track_(p.cs, leg));
@@ -74,7 +75,7 @@ function setup() {
   });
   ScriptApp.newTrigger('poll').timeBased().everyMinutes(5).create();
   Logger.log('✅ 定时器已安装：每 5 分钟检查一次正在进行的航班');
-  try { GmailApp.search('subject:OFP newer_than:1d', 0, 1); Logger.log('✅ 已允许读取 OFP 邮件'); } catch (e) {}
+  try { const n = ofpMessages_().length; Logger.log('✅ 已允许读取 OFP 邮件（最近 4 天找到 ' + n + ' 封）'); } catch (e) { Logger.log('⚠️ 读邮件失败：' + e); }
   poll();
 }
 
@@ -434,42 +435,70 @@ function photo_(p) {
 // 把 OFP 文字用邮件发到「你的邮箱 + ofp」（例如 name+ofp@gmail.com），或者邮件主题里带 OFP。
 // 脚本从里面找出航班（EK9876 08NOV OMDW/DWC-ZGGG/CAN）和航路（OMDW/30 DCT NOLSU M572 ... ZGGG/01L），
 // 再查出每个航路点的坐标（flightplandatabase.com 免费导航数据库，查过的会记住）。
+// 找 OFP 邮件：主题里带 ofp（大小写都行，连在别的字中间也行），或者发到「你的邮箱+ofp」
+function ofpMessages_() {
+  const me = Session.getEffectiveUser().getEmail();
+  const plus = me.replace('@', '+ofp@').toLowerCase();
+  const out = [];
+  GmailApp.search('newer_than:4d', 0, 60).forEach(function (th) {
+    th.getMessages().forEach(function (msg) {
+      const subj = msg.getSubject() || '', to = (msg.getTo() || '').toLowerCase();
+      if (/ofp/i.test(subj) || to.indexOf(plus) >= 0) out.push(msg);
+    });
+  });
+  return out;
+}
+
 function ofpRoutes_() {
-  let threads = [];
-  try {
-    const me = Session.getEffectiveUser().getEmail();
-    const plus = me.replace('@', '+ofp@');
-    threads = GmailApp.search('(to:' + plus + ' OR subject:OFP) newer_than:4d', 0, 15);
-  } catch (e) { return []; }   // 还没授权读邮件
+  let msgs = [];
+  try { msgs = ofpMessages_(); } catch (e) { return []; }   // 还没授权读邮件
   const cache = CacheService.getScriptCache();
   const best = {};
-  threads.forEach(function (th) {
-    th.getMessages().forEach(function (msg) {
-      const id = 'ofp_' + msg.getId();
-      let r = null;
-      const hit = cache.get(id);
-      if (hit) r = JSON.parse(hit);
-      else {
-        let text = msg.getPlainBody() || '';
-        msg.getAttachments().forEach(function (a) { if (/^text\//.test(a.getContentType())) text += '\n' + a.getDataAsString(); });
-        r = parseOfp_(text);
-        if (r && r.fixes.length) { r.pts = resolveFixes_(r); r.received = msg.getDate().getTime(); }
-        else r = { none: true };
-        cache.put(id, JSON.stringify(r), 21600);
-      }
-      if (!r || r.none || !r.pts || !r.pts.length) return;
-      const k = r.digits + r.depIata + r.arrIata + r.date;
-      if (!best[k] || best[k].received < r.received) best[k] = r;   // 同一个航班有多份时用最新的
-    });
+  msgs.forEach(function (msg) {
+    const id = 'ofp2_' + msg.getId();
+    let r = null;
+    const hit = cache.get(id);
+    if (hit) r = JSON.parse(hit);
+    else {
+      r = parseOfp_(ofpText_(msg));
+      if (r && r.fixes.length) {
+        r.received = msg.getDate().getTime();
+        try { r.pts = resolveFixes_(r); } catch (e) { r.pts = []; }
+        cache.put(id, JSON.stringify(r), r.pts.length ? 21600 : 600);   // 坐标没查全的 10 分钟后再试
+      } else { r = { none: true }; cache.put(id, JSON.stringify(r), 600); }
+    }
+    if (!r || r.none) return;
+    const k = r.digits + r.depIata + r.arrIata + r.date;
+    if (!best[k] || best[k].received < r.received) best[k] = r;   // 同一个航班有多份时用最新的
   });
   return Object.keys(best).map(function (k) {
     const r = best[k];
-    return { digits: r.digits, date: r.date, dep: r.dep, arr: r.arr, depIata: r.depIata, arrIata: r.arrIata, route: r.route, pts: r.pts, received: r.received };
+    // fixes：航路点名称（网页查不到坐标时会自己去查）；pts：这里已经查到坐标的点
+    return { digits: r.digits, date: r.date, dep: r.dep, arr: r.arr, depIata: r.depIata, arrIata: r.arrIata, route: r.route,
+      fixes: r.fixes.map(function (f) { return f.lat != null ? [f.id, f.lat, f.lon] : [f.id]; }), pts: r.pts || [], received: r.received };
   });
 }
 
+function ofpText_(msg) {
+  let text = msg.getPlainBody() || '';
+  msg.getAttachments().forEach(function (a) { if (/^text\//.test(a.getContentType())) text += '\n' + a.getDataAsString(); });
+  return text;
+}
+
+// 检查用：?action=ofpcheck 看看读到了哪些 OFP 邮件、解析结果怎样（只返回主题和统计，不返回内容）
+function ofpCheck_() {
+  let msgs;
+  try { msgs = ofpMessages_(); } catch (e) { return { ok: false, error: 'Gmail: ' + String(e).slice(0, 160) }; }
+  return { ok: true, count: msgs.length, messages: msgs.slice(0, 10).map(function (m) {
+    const t = ofpText_(m), r = parseOfp_(t);
+    return { subject: (m.getSubject() || '').slice(0, 60), date: m.getDate().toISOString(), bodyLen: t.length,
+      header: !!(r && r.digits), flight: r ? r.digits + ' ' + r.date + ' ' + r.depIata + '-' + r.arrIata : null, fixes: r ? r.fixes.length : 0 };
+  }) };
+}
+
 function parseOfp_(text) {
-  const T = String(text || '').toUpperCase().replace(/\r/g, '');
+  // 统一大写；特殊空格（不换行空格、全角空格等）都换成普通空格
+  const T = String(text || '').toUpperCase().replace(/\r/g, '').replace(/[\u00A0\u2000-\u200B\u202F\u3000\t]/g, ' ');
   // 第一行：EK9876 08NOV OMDW/DWC-ZGGG/CAN
   const h = T.match(/\b(?:EK|UAE)?\s?(\d{1,5})\s+(\d{2}[A-Z]{3})\s+([A-Z]{4})\/([A-Z]{3})\s*-\s*([A-Z]{4})\/([A-Z]{3})/);
   if (!h) return null;
@@ -540,5 +569,6 @@ function resolveFixes_(r) {
 }
 
 function testOfp() {
+  Logger.log(JSON.stringify(ofpCheck_(), null, 1));
   Logger.log(JSON.stringify(ofpRoutes_(), null, 1));
 }
