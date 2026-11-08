@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>Flight Clock</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#000; --panel:rgba(14,14,16,.82); --line:rgba(255,255,255,.09);
+  --text:#f3f1ec; --dim:#8b8a86; --dim2:#5c5b58;
+  --gold:#d2ad62; --gold2:#8f7640; --green:#45d483; --red:#ff5a4f; --blue:#6fb4ff;
+  --pad:max(16px, env(safe-area-inset-left));
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.lbl{font-size:clamp(11px,1.5vmin,15px);letter-spacing:.14em;color:var(--dim);text-transform:uppercase;font-weight:600}
+.gold{color:var(--gold)}
+#app{position:fixed;inset:0;z-index:1;transition:transform 2s ease, opacity 1s}
+body.dim #app, body.dim #bg{opacity:.5}
+/* ---------- 背景场景 ---------- */
+#bg{position:fixed;inset:0;z-index:0;background:#000;transition:opacity 1s}
+.scene{position:absolute;inset:0;overflow:hidden;display:none;background:#000}
+body[data-mode=home] #sc-a, body[data-mode=layover] #sc-a, body[data-mode=layover] #sc-b{display:block}
+body[data-mode=layover] #sc-a{right:50%}
+body[data-mode=layover] #sc-b{left:50%}
+.sc-img{position:absolute;inset:-4%;background-size:cover;background-repeat:no-repeat;opacity:0;transition:opacity 1.6s ease, filter 2s ease;animation:kb 120s ease-in-out infinite alternate;will-change:transform}
+.sc-img.on{opacity:1}
+@keyframes kb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.07) translate(-1.2%,-.8%)}}
+.sc-tint,.sc-fog,.sc-fx,.sc-shade{position:absolute;inset:0;pointer-events:none}
+.sc-fog{inset:0 -8%}
+.sc-fx{width:100%;height:100%}
+.sc-fog{opacity:0;transition:opacity 2s;background:radial-gradient(ellipse 70% 45% at 25% 65%,rgba(232,232,236,.6),transparent 70%),radial-gradient(ellipse 60% 40% at 78% 45%,rgba(232,232,236,.5),transparent 70%),linear-gradient(180deg,rgba(225,226,230,.25),rgba(225,226,230,.5));animation:fog 50s ease-in-out infinite alternate}
+@keyframes fog{from{transform:translateX(-4%)}to{transform:translateX(4%)}}
+.scene[data-cat=dust] .sc-fog,.scene[data-cat=haze] .sc-fog{filter:sepia(1) saturate(2.2) hue-rotate(-12deg)}
+.sc-shade{background:linear-gradient(180deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,.18) 20%,rgba(0,0,0,.08) 42%,rgba(0,0,0,.22) 64%,rgba(0,0,0,.78) 100%)}
+@media (prefers-reduced-motion:reduce){.sc-img,.sc-fog{animation:none}}
+.view{text-shadow:0 1px 14px rgba(0,0,0,.55)}
+.bigclock .t,.city .t{text-shadow:0 4px 40px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.35)}
+.lbl{color:#b9b6ae}
+.datebox .d2,.city .dt,.wx .d,.nc-cities,.kv .s{color:#cfccc4}
+.city .off{color:#bdbab2}
+.city .dt,.city .off,.city .wx,.datebox .d2{text-shadow:0 1px 4px rgba(0,0,0,.8),0 0 18px rgba(0,0,0,.6)}
+body[data-mode=layover] .sc-shade{background:linear-gradient(180deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,.25) 20%,rgba(0,0,0,.22) 50%,rgba(0,0,0,.3) 64%,rgba(0,0,0,.8) 100%)}
+.view{position:absolute;inset:0;display:none;padding:max(14px,env(safe-area-inset-top)) var(--pad) max(14px,env(safe-area-inset-bottom))}
+body[data-mode=home] #v-home, body[data-mode=layover] #v-lay, body[data-mode=flight] #v-flt{display:flex}
+
+/* ---------- HOME ---------- */
+#v-home{flex-direction:row;gap:clamp(14px,2.2vw,30px)}
+.home-main{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
+body.nocal .home-cal{display:none}
+body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
+/* ---------- 月历细条：横屏在右侧，竖屏在底部；淡淡的透明色，不抢照片 ---------- */
+#v-home{gap:8px}
+.home-cal{flex:0 0 44px;align-self:stretch;display:flex;flex-direction:column;min-height:0;min-width:0;border-radius:10px;padding:4px 2px;
+  background:transparent;border:none;text-shadow:0 1px 3px rgba(0,0,0,.75);margin-right:-8px}
+.cal-m{font-size:10px;font-weight:700;color:rgba(255,255,255,.85);text-align:center;padding:1px 0 3px;cursor:pointer}
+.cal-list{flex:1;display:grid;gap:1px;min-height:0;min-width:0;grid-template-rows:repeat(var(--n),minmax(0,1fr))}
+.r{display:flex;align-items:center;border-radius:3px;min-height:0;min-width:0;overflow:hidden;position:relative;background:transparent;color:#fff}
+.r .dn{position:absolute;left:1px;top:50%;transform:translateY(-50%);font-size:7.5px;font-weight:600;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums;width:9px;text-align:right}
+.r .ct{flex:1;min-width:0;margin-left:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.02;white-space:nowrap;overflow:hidden}
+.r .ct b{font-size:9px;font-weight:800;letter-spacing:.01em}
+.r .ct span{font-size:8px;font-weight:600;font-variant-numeric:tabular-nums;opacity:.92}
+.r.t-off{background:rgba(110,230,150,.20)}
+.r.t-rest .ct span{opacity:.55;font-weight:500;font-size:7.5px;letter-spacing:.04em}
+.r.t-lay .ct span{opacity:.6;font-weight:500}
+.r.past{opacity:.4}
+.r.td{box-shadow:inset 0 0 0 1.5px #f5c451,0 0 10px rgba(245,196,81,.55);opacity:1}
+.r.td .dn{background:#f5c451;color:#1a1204;border-radius:50%;width:13px;height:13px;line-height:13px;left:0;font-weight:800;font-size:8px;text-align:center;text-shadow:none}
+.r.m1{border-top:1px solid rgba(255,255,255,.55)}
+@media (orientation:portrait){ .r.m1{border-top:none;border-left:1px solid rgba(255,255,255,.55)} .r.td .dn{margin:0 auto} }
+@media (orientation:portrait){
+  #v-home{flex-direction:column}
+  .home-cal{flex:0 0 auto;height:clamp(40px,5.2vh,58px);flex-direction:row;align-items:stretch;padding:2px 3px;margin:0 0 -6px}
+  .cal-m{writing-mode:vertical-rl;padding:0 2px 0 0;font-size:9px}
+  .cal-list{grid-template-rows:none;grid-template-columns:repeat(var(--n),minmax(0,1fr))}
+  .r{flex-direction:column;justify-content:center}
+  .r .dn{position:static;transform:none;width:auto;text-align:center;font-size:7.5px;line-height:1.1}
+  .r .ct{margin:0;flex:0 1 auto}
+  .r .ct b{font-size:8px}.r .ct span{font-size:7px}
+}
+@media (orientation:portrait) and (max-width:600px){ .r .ct{display:none} .r .dn{font-size:8px} }
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.datebox .d1{font-size:clamp(18px,3.6vmin,40px);font-weight:600}
+.datebox .d2{font-size:clamp(13px,2.1vmin,22px);color:var(--dim);margin-top:4px}
+.bigclock{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0}
+.bigclock .t{font-size:min(29vw,46vh);font-weight:200;line-height:.9;letter-spacing:-.02em}
+.bigclock .t .s{font-size:.22em;color:var(--dim);font-weight:300;margin-left:.15em;letter-spacing:0;vertical-align:.25em}
+.bigclock .tz{margin-top:1.6vh}
+
+/* weather */
+.wx{display:flex;align-items:center;gap:.5em;text-align:right;justify-content:flex-end}
+.wx .i{font-size:clamp(28px,6vmin,64px);line-height:1}
+.wx .t{font-size:clamp(26px,5.4vmin,58px);font-weight:300}
+.wx .d{font-size:clamp(12px,1.8vmin,18px);color:var(--dim);white-space:nowrap}
+.fpanel .wx{justify-content:flex-start;text-align:left;flex-wrap:wrap;gap:.35em}
+.wx.sm .i{font-size:clamp(20px,3.6vmin,36px)} .wx.sm .t{font-size:clamp(20px,3.6vmin,36px)}
+
+/* ---------- NEXT FLIGHT CARD ---------- */
+.nc{background:transparent;border:none;padding:0 clamp(4px,1vmin,10px) clamp(2px,.6vh,6px);text-shadow:0 1px 3px rgba(0,0,0,.8),0 0 22px rgba(0,0,0,.55)}
+.nc-row{display:flex;align-items:center;gap:clamp(14px,3vw,42px);flex-wrap:wrap}
+.nc-id{display:flex;align-items:baseline;gap:clamp(10px,2vw,22px);flex:1 1 auto;min-width:0}
+.nc-no{font-size:clamp(22px,4.2vmin,42px);font-weight:700;color:var(--gold);letter-spacing:.02em}
+.nc-route{font-size:clamp(19px,3.4vmin,34px);font-weight:300;white-space:nowrap}
+.nc-route .ar{color:var(--dim2);margin:0 .25em}
+.nc-cities{font-size:clamp(12px,1.7vmin,17px);color:var(--dim);margin-top:2px}
+.nc-tag{font-size:11px;border:1px solid var(--gold2);color:var(--gold);border-radius:6px;padding:2px 6px;margin-left:8px;vertical-align:middle;letter-spacing:.1em}
+.kv{display:flex;flex-direction:column;gap:3px;min-width:0}
+.kv .v{font-size:clamp(19px,3.4vmin,34px);font-weight:500}
+.kv .s{font-size:clamp(11px,1.6vmin,16px);color:var(--dim);white-space:nowrap}
+.nc-top{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.kvs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,2vw,28px);margin-top:clamp(4px,1vh,10px);padding-top:clamp(4px,1vh,10px);border-top:1px solid rgba(255,255,255,.18)}
+.dxb{color:#8fd0ff;font-size:.6em;font-weight:500;margin-left:1px;letter-spacing:0}
+.dxb sup{font-size:.6em;margin-left:1px}
+.dxbc{color:#8fd0ff}
+.car{display:inline-block;vertical-align:-3px;width:34px;height:14px;color:var(--gold);filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.cdbox .lbl .car{margin-right:6px}
+.kvs .kv .s{white-space:normal;line-height:1.35}
+.cdbox{margin-left:auto;text-align:right;flex:none}
+.cdbox .v{color:var(--gold)}
+.cdbox.soon .v{color:var(--red)}
+.nc-more{display:flex;gap:22px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:clamp(11px,1.6vmin,15px);color:var(--dim);flex-wrap:wrap}
+.nc-more b{color:var(--text);font-weight:600}
+.empty{color:var(--dim);font-size:clamp(16px,2.6vmin,26px);text-align:center;padding:10px}
+
+/* ---------- LAYOVER ---------- */
+#v-lay{flex-direction:column;gap:clamp(10px,2vh,22px)}
+.layhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.layhead .lt{font-size:clamp(14px,2.2vmin,22px)}
+.pill{background:rgba(0,0,0,.35);white-space:nowrap;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--gold2);color:var(--gold);border-radius:99px;padding:5px 14px;font-weight:600;letter-spacing:.12em;font-size:clamp(11px,1.6vmin,15px)}
+.pill.live{border-color:rgba(69,212,131,.5);color:var(--green)}
+.pill.est{border-color:rgba(111,180,255,.45);color:var(--blue)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
+.dual{flex:1;display:grid;grid-template-columns:1fr 1px 1fr;align-items:center;min-height:0}
+.dual .sep{align-self:stretch;background:rgba(255,255,255,.18);margin:4vh 0}
+.city{display:flex;flex-direction:column;align-items:center;text-align:center;gap:1.2vh;padding:0 2vw;min-width:0}
+.city .name{font-size:clamp(16px,3vmin,32px);font-weight:600;letter-spacing:.06em}
+.city .name small{color:#d8d5cc;font-weight:400;margin-left:.4em}
+.city .t{font-size:min(15vw,30vh);font-weight:200;line-height:.95}
+.city .dt{font-size:clamp(13px,2.1vmin,21px);color:var(--dim)}
+.city .off{font-size:clamp(11px,1.6vmin,15px);color:var(--dim2)}
+.city.here .name{color:var(--gold)}
+.city .wx{justify-content:center;text-align:left;margin-top:1vh}
+
+/* ---------- FLIGHT ---------- */
+#v-flt{padding:0}
+#map{position:absolute;inset:0;background:#0b0c0e}
+.leaflet-container{background:#0b0c0e;font-family:inherit}
+.leaflet-control-attribution{background:rgba(0,0,0,.5)!important;color:#666!important;font-size:9px!important}
+.leaflet-control-attribution a{color:#777!important}
+.ap-lbl{background:none;border:none;box-shadow:none;color:var(--text);font-weight:700;font-size:13px;letter-spacing:.08em;text-shadow:0 0 4px #000,0 0 8px #000}
+.ap-lbl:before{display:none}
+.wp-lbl{background:none;border:none;box-shadow:none;color:#f3d99c;font-size:9.5px;font-weight:600;letter-spacing:.06em;text-shadow:0 0 3px #000,0 0 6px #000;padding:0}
+.wp-lbl:before{display:none}
+.plane{filter:drop-shadow(0 0 6px rgba(210,173,98,.8))}
+.fpanel{position:absolute;z-index:500;top:max(14px,env(safe-area-inset-top));left:var(--pad);bottom:max(14px,env(safe-area-inset-bottom));width:min(390px,38vw);
+  background:var(--panel);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;padding:clamp(14px,2.4vmin,24px);
+  display:flex;flex-direction:column;gap:clamp(10px,1.8vh,18px);overflow:hidden}
+.fp-no{font-size:clamp(28px,5vmin,48px);font-weight:700;color:var(--gold);line-height:1}
+.fp-route{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.fp-route .c{font-size:clamp(26px,4.6vmin,44px);font-weight:300;line-height:1}
+.fp-route .n{font-size:12px;color:var(--dim);margin-top:4px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-route .mid{flex:1;text-align:center;color:var(--dim2);font-size:22px;padding-bottom:12px}
+.bar{position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:8px 0 4px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+.bar b{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+.barlbl{display:flex;justify-content:space-between;font-size:clamp(11px,1.6vmin,14px);color:var(--dim)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:clamp(10px,1.8vh,16px) 14px}
+.g2 .kv .v{font-size:clamp(20px,3.4vmin,32px)}
+.fp-sep{height:1px;background:var(--line)}
+.fp-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.fp-phase{font-size:clamp(13px,2vmin,18px);color:var(--text)}
+
+/* ---------- chrome ---------- */
+#tools{position:fixed;z-index:1000;left:50%;transform:translateX(-50%);top:max(12px,env(safe-area-inset-top));display:flex;gap:10px;align-items:center;transition:opacity .6s}
+body.idle #tools{opacity:0;pointer-events:none}
+.ib{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:rgba(20,20,22,.8);color:var(--text);font-size:18px;display:grid;place-items:center;cursor:pointer}
+#sync{font-size:11px;color:#cfccc4;text-shadow:0 1px 6px #000;letter-spacing:.06em;margin-right:6px;text-align:right}
+#sync.bad{color:var(--red)}
+body[data-mode=flight] #tools{left:auto;right:var(--pad);transform:none}
+body[data-mode=layover] #tools{left:auto;right:var(--pad);transform:none}
+body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
+@media (max-width:600px){#sync{display:none}}
+
+@media (orientation:landscape) and (max-height:500px){.home-cal{display:none!important} body #v-home .bigclock .t{font-size:min(29vw,46vh)}}
+
+#settings{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px}
+#settings.open{display:flex}
+.smodal{width:min(560px,100%);max-height:100%;overflow:auto;background:#111113;border:1px solid var(--line);border-radius:18px;padding:22px;-webkit-user-select:text;user-select:text}
+.smodal h2{margin:0 0 4px;font-size:20px} .smodal p{color:var(--dim);font-size:13px;margin:0 0 16px;line-height:1.5}
+.smodal label{display:block;font-size:12px;color:var(--dim);margin:12px 0 5px;letter-spacing:.06em}
+.smodal input[type=text],.smodal input[type=number],.smodal input[type=url]{width:100%;background:#000;color:var(--text);border:1px solid #2a2a2d;border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit}
+.smodal .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.smodal .chk{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--text)}
+.smodal .btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn{border:1px solid #2a2a2d;background:#1b1b1e;color:var(--text);border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit}
+.btn.pri{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+#testout{margin-top:14px;font-size:12px;color:var(--dim);white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;max-height:180px;overflow:auto}
+.smodal .demo a{color:var(--gold);margin-right:14px;font-size:13px}
+
+/* ---------- portrait / small ---------- */
+@media (orientation:portrait){
+  body:not(.nocal) #v-home .bigclock .t{font-size:min(29vw,30vh)}
+  .dual{grid-template-columns:1fr;grid-template-rows:1fr 1px 1fr}
+  .dual .sep{margin:0 8vw}
+  body[data-mode=layover] #sc-a{right:0;bottom:50%}
+  body[data-mode=layover] #sc-b{left:0;top:50%}
+  .city .t{font-size:min(24vw,15vh)}
+  .bigclock .t{font-size:min(30vw,30vh)}
+  .fpanel{top:auto;left:0;right:0;bottom:0;width:auto;max-height:52vh;border-radius:20px 20px 0 0;overflow:auto;
+    padding-bottom:max(16px,env(safe-area-inset-bottom))}
+}
+@media (max-width:600px){
+  .nc-row{gap:12px} .kvs{gap:16px}
+  .nc-id{flex-basis:100%}
+}
+</style>
+</head>
+<body data-mode="home">
+
+<div id="bg"><div class="scene" id="sc-a"></div><div class="scene" id="sc-b"></div></div>
+<div id="app">
+  <!-- 在家 -->
+  <section class="view" id="v-home">
+   <div class="home-main">
+    <div class="topbar">
+      <div class="datebox"><div class="d1" id="h-d1"></div><div class="d2" id="h-d2"></div></div>
+      <div id="h-wx"></div>
+    </div>
+    <div class="bigclock">
+      <div class="t num"><span data-tz="Asia/Dubai" data-f="hm" id="h-time">--:--</span><span class="s" data-tz="Asia/Dubai" data-f="s"></span></div>
+      <div class="tz lbl" id="h-tz">DUBAI</div>
+    </div>
+    <div id="h-next"></div>
+   </div>
+   <aside class="home-cal" id="h-cal"></aside>
+  </section>
+
+  <!-- 驻外 -->
+  <section class="view" id="v-lay">
+    <div class="layhead">
+      <span class="pill"><span class="dot"></span>LAYOVER · 驻外</span>
+      <span class="lt" id="l-head"></span>
+    </div>
+    <div class="dual">
+      <div class="city here" id="l-here"></div>
+      <div class="sep"></div>
+      <div class="city" id="l-home"></div>
+    </div>
+    <div id="l-next"></div>
+  </section>
+
+  <!-- 飞行中 -->
+  <section class="view" id="v-flt">
+    <div id="map"></div>
+    <div class="fpanel" id="f-panel"></div>
+  </section>
+</div>
+
+<div id="tools">
+  <div id="sync"></div>
+  <div class="ib" id="b-fs" title="全屏">⛶</div>
+  <div class="ib" id="b-set" title="设置">⚙︎</div>
+</div>
+
+<div id="settings">
+  <div class="smodal">
+    <h2>设置</h2>
+    <p>航班从 Google 日历读取，经过你部署的 Apps Script 网址。设置只保存在这台设备上。</p>
+    <label>Apps Script 网址（/exec 结尾）</label>
+    <input type="url" id="s-api" spellcheck="false" autocomplete="off">
+    <label>Pexels 图片库 Key（只保存在这台设备上）</label>
+    <input type="text" id="s-pexels" spellcheck="false" autocomplete="off">
+    <label>Token（Apps Script 里设了 TOKEN 才需要）</label>
+    <input type="text" id="s-token" spellcheck="false" autocomplete="off">
+    <div class="row">
+      <div><label>基地机场</label><input type="text" id="s-home" spellcheck="false"></div>
+      <div><label>航司代码</label><input type="text" id="s-airline" spellcheck="false"></div>
+      <div><label>呼号前缀</label><input type="text" id="s-cs" spellcheck="false"></div>
+    </div>
+    <div class="row">
+      <div><label>接车：起飞前（分钟）</label><input type="number" id="s-pickup" min="0" max="600"></div>
+      <div><label>夜间变暗 从</label><input type="number" id="s-dimfrom" min="0" max="23"></div>
+      <div><label>到（点）</label><input type="number" id="s-dimto" min="0" max="23"></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="s-drop8">五位数航班号去掉开头的 8（89876 → EK9876）</label>
+    <label class="chk"><input type="checkbox" id="s-dim">夜间自动变暗</label>
+    <label class="chk"><input type="checkbox" id="s-cal">主界面右侧显示月历</label>
+    <label class="chk"><input type="checkbox" id="s-photos">背景用图片库，每天换（需在 Apps Script 设 PEXELS_KEY 或 UNSPLASH_KEY）</label>
+    <div class="btns">
+      <button class="btn pri" id="s-save">保存</button>
+      <button class="btn" id="s-test">测试连接</button>
+      <button class="btn" id="s-close">关闭</button>
+    </div>
+    <div id="testout"></div>
+    <p class="demo" style="margin-top:14px">演示：<a href="?demo=home">在家</a><a href="?demo=layover">驻外</a><a href="?demo=flight">飞行中</a><a href="./">退出演示</a></p>
+    <p class="demo">背景天气预览：<a href="?demo=layover&wx=dust">沙尘暴</a><a href="?demo=layover&wx=rain">下雨</a><a href="?demo=layover&wx=storm">雷暴</a><a href="?demo=layover&wx=fog">雾</a><a href="?demo=home&wx=clear&phase=dawn">清晨</a><a href="?demo=home&wx=clear&phase=night">夜晚</a></p>
+  </div>
+</div>
+
+<div id="err" style="display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:3000;background:#2a0f0f;color:#ffb4ae;border:1px solid #6b2a26;border-radius:12px;padding:10px 14px;font:13px/1.4 -apple-system,sans-serif;white-space:pre-wrap"></div>
+<script src="scene.js?v=__APP_VER__"></script>
+<script>
+window.onerror = function (m, src, line) {
+  var e = document.getElementById('err');
+  e.style.display = 'block';
+  e.textContent = '页面出错：' + m + (line ? '（第 ' + line + ' 行）' : '') + '\n请截图发给 Claude';
+};
+</script>
+<script>
+'use strict';
+/* =====================================================================
+   CONFIG
+   ===================================================================== */
+const DEFAULTS = {
+  api: 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
+  token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 135,
+  drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: true
+};
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+let CFG = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(lsGet('fc.cfg') || '{}'); } catch (e) { return {}; } })());
+if (/AKfycbxSmqqVM38/.test(CFG.api)) CFG.api = DEFAULTS.api; // 旧接口自动换成新接口
+if (CFG.pickup === 85) CFG.pickup = 135;                         // 以前的默认值（报到）→ 接车
+const Q = new URLSearchParams(location.search);
+if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
+if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
+// ?pexels=KEY：把图片库 Key 存在这台设备上（不会写进代码仓库），然后从地址栏去掉
+if (Q.get('pexels')) {
+  CFG.pexels = Q.get('pexels').trim(); lsSet('fc.cfg', JSON.stringify(CFG));
+  Q.delete('pexels'); try { history.replaceState(null, '', location.pathname + (Q.toString() ? '?' + Q : '')); } catch (e) {}
+}
+const DEMO = Q.get('demo');
+const HOME_TZ = 'Asia/Dubai';
+const homeCodes = () => CFG.home.toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+const isHome = c => homeCodes().includes(c);
+
+const MIN = 60e3, HOUR = 36e5;
+
+/* =====================================================================
+   AIRPORTS
+   ===================================================================== */
+const AP = {
+  DXB: { lat: 25.253, lon: 55.364, tz: 'Asia/Dubai', city: 'Dubai' },
+  DWC: { lat: 24.897, lon: 55.161, tz: 'Asia/Dubai', city: 'Dubai DWC' },
+};
+const apReady = fetchT('airports.json', 20000).then(r => r.json()).then(j => {
+  for (const k in j.ap) if (!AP[k]) { const v = j.ap[k]; AP[k] = { lat: v[0], lon: v[1], tz: j.tz[v[2]], city: v[3] }; }
+}).catch(() => {});
+const apCity = c => (AP[c] && AP[c].city) || c;
+const apTz = c => (AP[c] && AP[c].tz) || HOME_TZ;
+
+/* =====================================================================
+   TIME HELPERS
+   ===================================================================== */
+const _fmt = {};
+function F(tz, opt, loc) {
+  const k = tz + JSON.stringify(opt) + (loc || '');
+  return _fmt[k] || (_fmt[k] = new Intl.DateTimeFormat(loc || 'en-GB', Object.assign({ timeZone: tz }, opt)));
+}
+function parts(t, tz) {
+  const o = {};
+  F(tz, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(t)).forEach(p => o[p.type] = p.value);
+  return o;
+}
+const hm = (t, tz) => { const p = parts(t, tz); return p.hour + ':' + p.minute; };
+const ss = (t, tz) => parts(t, tz).second;
+const dateZh = (t, tz) => F(tz, { month: 'long', day: 'numeric', weekday: 'long' }, 'zh-CN').format(new Date(t));
+const dateShort = (t, tz) => F(tz, { month: 'numeric', day: 'numeric', weekday: 'short' }, 'zh-CN').format(new Date(t));
+const ymd = (t, tz) => { const p = parts(t, tz); return p.year + p.month + p.day; };
+function tzOffset(tz, t) {
+  const p = parts(t, tz);
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
+  return Math.round((asUtc - Math.floor(t / 1000) * 1000) / MIN);
+}
+function dayWord(t, tz) {
+  // 「今天/明天」一律以迪拜（家里）的日期为准，避免外站过了零点就显示「今天」
+  const now = Date.now();
+  const d = ymd(t, tz), td = ymd(now, HOME_TZ);
+  const shift = n => { const x = new Date(Date.UTC(+td.slice(0, 4), +td.slice(4, 6) - 1, +td.slice(6) + n)); return '' + x.getUTCFullYear() + String(x.getUTCMonth() + 1).padStart(2, '0') + String(x.getUTCDate()).padStart(2, '0'); };
+  if (d === td) return '今天';
+  if (d === shift(1)) return '明天';
+  if (d === shift(-1)) return '昨天';
+  return dateShort(t, tz);
+}
+function offWord(tz, t) {
+  const d = tzOffset(tz, t) - tzOffset(HOME_TZ, t);
+  if (!d) return '与迪拜同一时区';
+  const h = Math.abs(d) / 60, s = Number.isInteger(h) ? h : h.toFixed(1);
+  return (d > 0 ? '比迪拜快 ' : '比迪拜慢 ') + s + ' 小时';
+}
+function durTxt(ms) {
+  ms = Math.max(0, ms);
+  const m = Math.floor(ms / MIN), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60;
+  if (d) return d + '天 ' + h + '小时';
+  if (h) return h + '小时 ' + String(mm).padStart(2, '0') + '分';
+  return mm + '分钟';
+}
+function cdTxt(ms) {
+  if (ms <= 0) return '现在';
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  const p2 = n => String(n).padStart(2, '0');
+  if (d) return d + '天 ' + p2(h) + ':' + p2(m);
+  return p2(h) + ':' + p2(m) + ':' + p2(x);
+}
+const hmDur = ms => { const m = Math.max(0, Math.round(ms / MIN)); return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
+
+/* =====================================================================
+   GEO
+   ===================================================================== */
+const R = 6371, rad = x => x * Math.PI / 180, deg = x => x * 180 / Math.PI;
+function dist(a, b) {
+  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function gcPoint(a, b, f) {
+  const p1 = rad(a.lat), l1 = rad(a.lon), p2 = rad(b.lat), l2 = rad(b.lon);
+  const d = dist(a, b) / R;
+  if (d < 1e-9) return { lat: a.lat, lon: a.lon };
+  const A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+  const x = A * Math.cos(p1) * Math.cos(l1) + B * Math.cos(p2) * Math.cos(l2);
+  const y = A * Math.cos(p1) * Math.sin(l1) + B * Math.cos(p2) * Math.sin(l2);
+  const z = A * Math.sin(p1) + B * Math.sin(p2);
+  return { lat: deg(Math.atan2(z, Math.hypot(x, y))), lon: deg(Math.atan2(y, x)) };
+}
+function bearing(a, b) {
+  const y = Math.sin(rad(b.lon - a.lon)) * Math.cos(rad(b.lat));
+  const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lon - a.lon));
+  return (deg(Math.atan2(y, x)) + 360) % 360;
+}
+function unwrap(lon, ref) { while (lon - ref > 180) lon -= 360; while (lon - ref < -180) lon += 360; return lon; }
+function gcLine(a, b, n) {
+  const pts = []; let prev = a.lon;
+  for (let i = 0; i <= n; i++) { const p = gcPoint(a, b, i / n); p.lon = unwrap(p.lon, prev); prev = p.lon; pts.push([p.lat, p.lon]); }
+  return pts;
+}
+function estDurMs(o, d) {
+  if (!AP[o] || !AP[d]) return 7 * HOUR;
+  return (dist(AP[o], AP[d]) / 830 + 0.5) * HOUR;
+}
+
+/* =====================================================================
+   FLIGHT PARSING
+   ===================================================================== */
+function parseTitle(t) {
+  const U = String(t || '').toUpperCase();
+  let origin = '', dest = '';
+  const re = /([A-Z]{3})\s*(?:-|–|—|\/|>|→|TO)\s*([A-Z]{3})(?![A-Z])/g;
+  let m;
+  while ((m = re.exec(U))) {
+    if (AP[m[1]] && AP[m[2]]) { origin = m[1]; dest = m[2]; break; }
+    re.lastIndex = m.index + 1;
+  }
+  if (!origin) {
+    const toks = U.split(/[^A-Z0-9]+/).filter(x => /^[A-Z]{3}$/.test(x) && AP[x]);
+    if (toks.length >= 2) { origin = toks[toks.length - 2]; dest = toks[toks.length - 1]; }
+  }
+  let digits = '';
+  const fm = U.match(/(?:^|[^A-Z0-9])(?:[A-Z]{2}\s?)?(\d{1,5})(?=[^0-9]|$)/);
+  if (fm) {
+    digits = fm[1].replace(/^0+/, '');
+    if (CFG.drop8 && digits.length === 5 && digits[0] === '8') digits = digits.slice(1);
+  }
+  const dh = /(^|[^A-Z])(DH|DHD|PAX|POS|DEADHEAD)([^A-Z]|$)/.test(U);
+  return { origin, dest, digits, dh };
+}
+// 当地时间（某机场时区）→ UTC 毫秒
+const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+function localToUtc(y, mo, d, h, mi, tz) {
+  const guess = Date.UTC(y, mo, d, h, mi);
+  let t = guess - tzOffset(tz, guess) * MIN;
+  t = guess - tzOffset(tz, t) * MIN; // 夏令时边界再校正一次
+  return t;
+}
+// 从日程备注里读出每一段航班（CrewPulse 格式）：
+//   9876
+//    DWC - 08 Nov 2026 09:00
+//    CAN - 08 Nov 2026 20:00
+function parseLegs(desc) {
+  const legs = [];
+  let no = null, pend = null;
+  String(desc || '').split(/\r?\n/).forEach(line => {
+    const L = line.trim().toUpperCase();
+    if (!L) return;
+    const fn = L.match(/^(?:(DH|DHD|PAX|POS)\s+)?(?:[A-Z]{2}\s?)?(\d{1,5})[A-Z]?$/);
+    if (fn) { no = { digits: fn[2].replace(/^0+/, ''), dh: !!fn[1] }; pend = null; return; }
+    const m = L.match(/^([A-Z]{3})\s*[-–]\s*(\d{1,2})\s+([A-Z]{3})[A-Z]*\s+(\d{4})\s+(\d{1,2}):(\d{2})/);
+    if (!m || !AP[m[1]] || MON[m[3]] == null) return;
+    const t = localToUtc(+m[4], MON[m[3]], +m[2], +m[5], +m[6], AP[m[1]].tz);
+    if (!pend) { pend = { code: m[1], t }; return; }
+    if (no) legs.push({ digits: no.digits, dh: no.dh, origin: pend.code, dest: m[1], std: pend.t, sta: t });
+    pend = null; no = null;
+  });
+  return legs;
+}
+function mkFlight(o) {
+  const digits = o.digits || '';
+  return Object.assign(o, {
+    id: o.origin + o.dest + o.std,
+    no: digits ? CFG.airline + digits : (o.title || '').slice(0, 10),
+    callsign: o.callsign || (digits ? CFG.cs + digits : '')
+  });
+}
+function parseEvent(r) {
+  const start = new Date(r.start).getTime();
+  if (!start) return [];
+  const desc = String(r.description || '');
+  const csm = desc.toUpperCase().match(/(?:^|[^A-Z])(?:CS|CALLSIGN)[\s:=]*([A-Z]{3}[0-9][0-9A-Z]{0,3})(?![0-9A-Z])/);
+  const legs = parseLegs(desc);
+  if (legs.length) {
+    // 日程开始时间 = 第一段的报到时间
+    const lead = legs[0].std - start;
+    const reportLead = lead > 15 * MIN && lead < 5 * HOUR ? lead : CFG.pickup * MIN;
+    return legs.map((g, i) => mkFlight({
+      title: r.title || '', origin: g.origin, dest: g.dest, std: g.std, sta: g.sta, staEst: false, dh: g.dh, digits: g.digits,
+      report: g.std - reportLead, reportEst: i > 0 || reportLead !== lead, trip: r.title || '',
+      callsign: csm && legs.length === 1 ? csm[1] : ''
+    }));
+  }
+  // 备注里没有分段：按标题当成单段航班，开始时间当起飞（标题里必须有航班号，人名之类的日程不算）
+  const p = parseTitle(r.title);
+  if (!p.digits) return [];
+  const origin = String(r.origin || p.origin || '').toUpperCase(), dest = String(r.dest || p.dest || '').toUpperCase();
+  if (!origin || !dest || origin === dest) return [];
+  let sta = r.end ? new Date(r.end).getTime() : 0, staEst = false;
+  const h = (sta - start) / HOUR;
+  if (!sta || !(h >= 0.3 && h <= 19)) { sta = start + estDurMs(origin, dest); staEst = true; }
+  return [mkFlight({ title: r.title || '', origin, dest, std: start, sta, staEst, dh: p.dh, digits: p.digits,
+    report: start - CFG.pickup * MIN, reportEst: true, callsign: csm ? csm[1] : '' })];
+}
+const parseFlight = r => parseEvent(r)[0] || null;
+// 非航班任务：模拟机 / 地面 / 备份 / 休假 / 休息
+function dutyKind(title) {
+  const t = String(title || '');
+  const trip = t.toUpperCase().match(/^\s*(?:[A-Z]{2}\s?)?\d{1,5}[A-Z]?\s*[-–]\s*([A-Z]{3})\s*$/);   // 416-SYD：航班任务
+  if (trip) return { k: 'trip', l: trip[1], dest: trip[1] };
+  if (/\bvisa\b/i.test(t)) return { k: 'grd', l: 'VISA', s: 'VISA' };
+  if (/\b(SIM|FFS|LOFT|LPC|OPC)\b|simulator/i.test(t)) return { k: 'sim', l: '模拟机 SIM' };
+  if (/\b(SBY|STBY|ASBY|HSBY|RSV)\b|stand\s?by|reserve/i.test(t)) return { k: 'sby', l: '备份 SBY' };
+  if (/\b(AL|LV)\b|leave|vacation/i.test(t)) return { k: 'leave', l: '休假 LEAVE' };
+  if (/\b(OFF|DO|RDO)\b|day off/i.test(t)) return { k: 'off', l: 'DAY OFF 休息' };
+  if (/\bREST\b|rest day/i.test(t)) return { k: 'rest', l: 'REST DAY' };
+  if (/\b(GRD|GND|TRG|CRM|SEP|DGR)\b|ground|training|course|classroom|medical/i.test(t)) return { k: 'grd', l: '地面 ' + t.slice(0, 14) };
+  return { k: 'duty', l: t.slice(0, 18), s: 'DTY' };
+}
+function normDuties(j) {
+  if (!j || !Array.isArray(j.flights)) return [];
+  return j.flights.filter(r => r.kind === 'duty' || (!r.kind && !parseEvent(r).length && dutyKind(r.title).k !== 'grd'))
+    .map(r => Object.assign({ start: new Date(r.start).getTime(), end: new Date(r.end).getTime(), allDay: !!r.allDay, title: r.title }, dutyKind(r.title)))
+    .filter(d => d.start);
+}
+function normFlights(j) {
+  if (!j || typeof j !== 'object') return null;
+  let raw;
+  if (Array.isArray(j.flights)) raw = j.flights;
+  else if (j.hasFlight === true) raw = [{ title: j.title || ((j.flightNo || '') + ' ' + j.origin + '-' + j.dest), start: j.std, end: j.sta || null, origin: j.origin, dest: j.dest }];
+  else if (j.hasFlight === false) raw = [];
+  else return null;
+  const out = [], seen = {};
+  raw.forEach(r => { if (r.kind === 'duty') return; parseEvent(r).forEach(f => { if (!seen[f.id]) { seen[f.id] = 1; out.push(f); } }); });
+  return out.sort((a, b) => a.std - b.std);
+}
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const S = { flights: [], duties: [], routes: [], routeLines: {}, apiVer: 0, legacy: false, sync: null, wx: {}, track: {}, view: null, status: {} };
+try { S.status = JSON.parse(lsGet('fc.status') || '{}'); } catch (e) {}
+// 实际动态（Apps Script 根据 ADS-B 判断）：{taxi, off, on, reg}
+const stOf = f => S.status[f.id] || {};
+function setStatus(id, st) {
+  if (!st) return;
+  const old = S.status[id] || {};
+  S.status[id] = { taxi: st.taxi || old.taxi || null, off: st.off || old.off || null, on: st.on || old.on || null, reg: st.reg || old.reg || null, seen: st.seen || old.seen || null };
+  const keep = {}, now = Date.now();
+  for (const k in S.status) { const v = S.status[k]; if (now - (v.on || v.off || v.taxi || now) < 10 * 864e5) keep[k] = v; }
+  S.status = keep; lsSet('fc.status', JSON.stringify(keep));
+}
+// 这段航班实际结束（落地）的时间：有实际落地用实际，已起飞按实际起飞推算，否则按计划
+function endOf(f) {
+  const st = stOf(f), now = Date.now();
+  // 还在被跟踪（20 分钟内查过）就说明航班还没结束
+  const tracking = st.seen && now - st.seen < 20 * MIN;
+  if (st.on) return st.on;                                            // 已落地：按实际落地时间
+  if (st.off) {
+    const est = Math.max(f.sta - 8 * MIN, st.off + (f.sta - f.std) - 23 * MIN);
+    // 已起飞但还没检测到落地：一直留在飞行画面（最多到预计落地后 3 小时）
+    return tracking && now < est + 3 * HOUR ? Math.max(est, now + 5 * MIN) : est;
+  }
+  // 还没起飞：延误时一直留在飞行画面显示「尚未起飞」，最多到计划起飞后 8 小时
+  if (tracking && now > f.std - 30 * MIN && now < f.std + 8 * HOUR) return Math.max(f.sta - 8 * MIN, now + 5 * MIN);
+  return f.sta - 8 * MIN;
+}
+function diffTxt(actual, plan) {
+  const d = Math.round((actual - plan) / MIN);
+  if (Math.abs(d) <= 2) return '准点';
+  const a = Math.abs(d), t = a >= 60 ? Math.floor(a / 60) + '小时' + (a % 60 ? a % 60 + '分' : '') : a + '分';
+  return (d > 0 ? '晚 ' : '早 ') + t;
+}
+
+function mergeKnown(fresh) {
+  // 保留已经飞过的航班（旧版接口只返回下一班，这样也能知道"上一班落在哪"）
+  let old = [];
+  try { old = JSON.parse(lsGet('fc.known2') || '[]'); } catch (e) {}
+  const now = Date.now(), byId = {};
+  old.forEach(f => { if (f.std < now && now - f.sta < 40 * 864e5) byId[f.id] = f; });
+  fresh.forEach(f => byId[f.id] = f);
+  const all = Object.values(byId).sort((a, b) => a.std - b.std);
+  // 同一时段如有重叠（日历改过时间），以新数据为准
+  const out = [];
+  all.forEach(f => {
+    const last = out[out.length - 1];
+    if (last && f.std < last.sta && last.origin === f.origin && last.dest === f.dest) {
+      if (fresh.includes(f)) out[out.length - 1] = f;
+    } else out.push(f);
+  });
+  lsSet('fc.known2', JSON.stringify(out));
+  return out;
+}
+
+function fetchT(url, ms, opt) {
+  const c = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  if (typeof ms !== 'number') { opt = ms; ms = 15000; }
+  const t = c && setTimeout(() => c.abort(), ms);
+  return fetch(url, Object.assign({}, opt || {}, c ? { signal: c.signal } : {})).finally(() => t && clearTimeout(t));
+}
+function apiUrl(params) {
+  const u = new URL(CFG.api);
+  for (const k in params) u.searchParams.set(k, params[k]);
+  if (CFG.token) u.searchParams.set('token', CFG.token);
+  return u.toString();
+}
+
+async function loadFlights() {
+  await apReady;
+  if (DEMO) {
+    S.flights = demoFlights(); S.apiVer = 4; S.sync = { ok: true, t: Date.now(), demo: true };
+    const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+    S.duties = [['SIM LOFT', 3, 8], ['GRD CRM', 5, 9], ['SBY', 13, 6]].map(([t, dd, hh]) => Object.assign({ start: d0.getTime() + dd * 864e5 + hh * HOUR, end: d0.getTime() + dd * 864e5 + (hh + 4) * HOUR, allDay: false, title: t }, dutyKind(t)));
+    return;
+  }
+  try {
+    const r = await fetchT(apiUrl({ action: 'flights', _: Date.now() }), 15000, { cache: 'no-store' });
+    const j = await r.json();
+    if (j.ok === false) throw new Error(j.error || 'error');
+    const f = normFlights(j);
+    if (!f) throw new Error('数据格式不对');
+    S.legacy = !Array.isArray(j.flights);
+    S.flights = mergeKnown(f);
+    S.duties = normDuties(j); S.apiVer = j.version || 0;
+    if (Array.isArray(j.routes)) { S.routes = j.routes; lsSet('fc.routes', JSON.stringify(j.routes)); }
+    lsSet('fc.duties', JSON.stringify({ v: S.apiVer, d: S.duties }));
+    if (j.status) for (const k in j.status) setStatus(k, j.status[k]);
+    S.sync = { ok: true, t: Date.now() };
+  } catch (e) {
+    S.sync = { ok: false, t: Date.now(), err: e.name === 'AbortError' ? '连接超时（国内可能需要 VPN）' : e.message };
+    if (!S.flights.length) { try { S.flights = JSON.parse(lsGet('fc.known2') || '[]'); } catch (x) {} }
+  }
+}
+
+function compute(now) {
+  const F = S.flights;
+  const cur = F.find(f => now >= f.std - 15 * MIN && now <= endOf(f) + 38 * MIN);
+  const after = t => F.filter(f => f.std > t);
+  if (cur) return { mode: 'flight', cur, upcoming: after(cur.std).slice(0, 3) };
+  const prev = F.filter(f => endOf(f) + 38 * MIN < now).pop();
+  const up = after(now + 15 * MIN);
+  const next = up[0];
+  let loc = prev ? prev.dest : (next ? next.origin : homeCodes()[0]);
+  if (!prev && next && isHome(next.origin)) loc = next.origin;
+  return { mode: isHome(loc) ? 'home' : 'layover', loc, prev, next, upcoming: up.slice(1, 4) };
+}
+
+/* =====================================================================
+   WEATHER (open-meteo)
+   ===================================================================== */
+const WX = [
+  [[0], '☀️', '🌙', '晴'], [[1], '🌤️', '🌙', '晴间多云'], [[2], '⛅', '☁️', '多云'], [[3], '☁️', '☁️', '阴'],
+  [[45, 48], '🌫️', '🌫️', '雾'], [[51, 53, 55, 56, 57], '🌦️', '🌧️', '毛毛雨'], [[61, 63, 65], '🌧️', '🌧️', '雨'],
+  [[66, 67], '🌧️', '🌧️', '冻雨'], [[71, 73, 75, 77], '🌨️', '🌨️', '雪'], [[80, 81, 82], '🌦️', '🌧️', '阵雨'],
+  [[85, 86], '🌨️', '🌨️', '阵雪'], [[95, 96, 99], '⛈️', '⛈️', '雷暴']
+];
+function wxInfo(code, day) {
+  const r = WX.find(w => w[0].includes(code));
+  return r ? { i: day ? r[1] : r[2], d: r[3] } : { i: '🌡️', d: '' };
+}
+async function getWx(code) {
+  const a = AP[code]; if (!a) return null;
+  const c = S.wx[code];
+  if (c && Date.now() - c.t < 15 * MIN) return c;
+  if (c && c.loading) return c;
+  S.wx[code] = Object.assign(c || {}, { loading: true });
+  try {
+    const u = 'https://api.open-meteo.com/v1/forecast?latitude=' + a.lat + '&longitude=' + a.lon +
+      '&current=temperature_2m,weather_code,is_day,wind_speed_10m,relative_humidity_2m,visibility&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1&wind_speed_unit=kn';
+    const aqU = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + a.lat + '&longitude=' + a.lon + '&current=dust,pm10';
+    const aqP = fetchT(aqU, 12000).then(r => r.json()).catch(() => null);
+    const j = await (await fetchT(u, 12000)).json();
+    const aq = await aqP;
+    S.wx[code] = {
+      vis: j.current.visibility != null ? j.current.visibility : null,
+      dust: aq && aq.current ? aq.current.dust : null, pm10: aq && aq.current ? aq.current.pm10 : null,
+      t: Date.now(), temp: Math.round(j.current.temperature_2m), code: j.current.weather_code, day: j.current.is_day,
+      wind: Math.round(j.current.wind_speed_10m), rh: j.current.relative_humidity_2m,
+      hi: Math.round(j.daily.temperature_2m_max[0]), lo: Math.round(j.daily.temperature_2m_min[0])
+    };
+    render(true);
+  } catch (e) { S.wx[code] = Object.assign(c || {}, { loading: false, t: Date.now() - 12 * MIN }); }
+  return S.wx[code];
+}
+function wxHtml(code, cls) {
+  const w = S.wx[code];
+  getWx(code);
+  if (!w || w.temp == null) return '<div class="wx ' + (cls || '') + '"><span class="d">天气加载中…</span></div>';
+  const x = wxInfo(w.code, w.day);
+  const cat = typeof Scene !== 'undefined' ? Scene.weatherCat(w) : '';
+  if (cat === 'dust') { x.i = '🌪️'; x.d = '沙尘暴'; } else if (cat === 'haze') { x.d = '浮尘 · ' + x.d; }
+  return '<div class="wx ' + (cls || '') + '"><span class="i">' + x.i + '</span><span class="t num">' + w.temp + '°</span>' +
+    '<span class="d">' + x.d + '<br>' + w.lo + '° / ' + w.hi + '° · 风 ' + w.wind + 'kt</span></div>';
+}
+
+/* =====================================================================
+   RENDER — helpers
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clk = (tz, f) => '<span data-tz="' + tz + '" data-f="' + (f || 'hm') + '">' + (f === 's' ? ss(Date.now(), tz) : hm(Date.now(), tz)) + '</span>';
+
+// 「明天 11/8周日」或「11/9周一」
+function dayLbl(t, tz) { const w = dayWord(t, tz), d = dateShort(t, tz); return (w === '今天' || w === '明天' || w === '昨天') ? w + ' ' + d : d; }
+// 换算成迪拜时间（不在迪拜时区时才显示）；日期不同就带上日期
+function dxbConv(t, tz) {
+  if (tzOffset(tz, t) === tzOffset(HOME_TZ, t)) return '';
+  return '迪拜 ' + hm(t, HOME_TZ) + (ymd(t, HOME_TZ) !== ymd(t, tz) ? ' (' + dateShort(t, HOME_TZ) + ')' : '');
+}
+const brDxb = (t, tz) => dxbConv(t, tz) ? '<br>' + dxbConv(t, tz) : '';
+// 「20:00/16:00」：斜杠后面换颜色的是迪拜时间；迪拜日期不同时带 +1 / -1
+function hmDual(t, tz) {
+  const loc = hm(t, tz);
+  if (tzOffset(tz, t) === tzOffset(HOME_TZ, t)) return loc;
+  const dl = ymd(t, HOME_TZ), ll = ymd(t, tz);
+  return loc + '<span class="dxb">/' + hm(t, HOME_TZ) + (dl === ll ? '' : '<sup>' + (dl > ll ? '+1' : '-1') + '</sup>') + '</span>';
+}
+const dualNote = (t, tz) => tzOffset(tz, t) === tzOffset(HOME_TZ, t) ? '' : ' 当地<span class="dxbc">/迪拜</span>';
+// 旅行车侧影小图标（接车）
+const CAR = '<svg class="car" viewBox="0 0 68 28" aria-label="接车"><path fill="currentColor" d="M3 20v-5.2c0-1.6 1.1-2.8 2.7-3.2l9.6-2.2 7.6-6.1C24.2 2.3 25.9 1.7 27.8 1.7h28.6c2 0 3.6 1.1 4.3 3l3.2 7.5c.6 1.3.9 2.7.9 4.1V20c0 1-.8 1.8-1.8 1.8h-4.5a6.6 6.6 0 0 0-12.9 0H23.9a6.6 6.6 0 0 0-12.9 0H4.8C3.8 21.8 3 21 3 20z"/><path fill="rgba(0,0,0,.55)" d="M24.6 5.2c.8-.6 1.8-1 2.9-1H38v6.6H17.8zM40.6 4.2h11.1v6.6H40.6zM54.3 4.2h1.9c1 0 1.9.6 2.3 1.6l2 5H54.3z"/><circle cx="17.4" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/><circle cx="51.6" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/></svg>';
+function nextCard(f, upcoming) {
+  upcoming = null; // 之后的航班看右侧日历
+  if (!f) return '<div class="nc"><div class="empty">暂无航班安排 · 日历里还没有下一班</div></div>';
+  const oTz = apTz(f.origin), dTz = apTz(f.dest);
+  const pickup = f.std - CFG.pickup * MIN; // 接车 = 起飞前 2 小时 15 分（设置里可改）
+  const toPick = pickup - Date.now();
+  let more = '';
+  if (upcoming && upcoming.length) {
+    more = '<div class="nc-more"><span class="lbl" style="font-size:11px">之后</span>' + upcoming.map(u =>
+      '<span>' + dateShort(u.std, apTz(u.origin)) + ' <b>' + esc(u.no) + '</b> ' + u.origin + '→' + u.dest + ' ' + hm(u.std, apTz(u.origin)) + '</span>').join('') + '</div>';
+  }
+  // 两行布局：上面「航班 + 倒计时」，下面「接车 / 起飞 / 到达」三栏，任何屏幕比例都不会挤乱
+  return '<div class="nc"><div class="nc-top">' +
+    '<div class="nc-id"><div class="nc-no">' + esc(f.no) + (f.dh ? '<span class="nc-tag">DH</span>' : '') + '</div>' +
+      '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
+      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + ' · 飞行 ' + hmDur(f.sta - f.std) + '</div></div></div>' +
+    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? CAR : '距起飞') + '</span>' +
+      '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
+    '</div>' +
+    '<div class="kvs">' +
+      '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hmDual(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + dualNote(pickup, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hmDual(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + dualNote(f.std, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hmDual(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + (dualNote(f.sta, dTz) || ' 当地') + (f.staEst ? ' · 约' : '') + '</span></div>' +
+    '</div>' + more + '</div>';
+}
+
+function cityBlock(code, label, isHere) {
+  const tz = apTz(code);
+  return '<div class="name">' + esc(label) + '<small>' + code + '</small></div>' +
+    '<div class="t num">' + clk(tz) + '</div>' +
+    '<div class="dt">' + dateZh(Date.now(), tz) + '</div>' +
+    '<div class="off">' + (isHere ? offWord(tz, Date.now()) : '基地 · 家') + '</div>' +
+    wxHtml(code, 'sm');
+}
+
+/* =====================================================================
+   RENDER — views
+   ===================================================================== */
+function renderHome(st) {
+  const now = Date.now();
+  const code = st.loc && isHome(st.loc) ? st.loc : homeCodes()[0];
+  $('h-d1').textContent = dateZh(now, HOME_TZ);
+  $('h-d2').textContent = 'DUBAI · ' + F(HOME_TZ, { year: 'numeric', month: 'short', day: '2-digit' }).format(new Date(now)).toUpperCase();
+  $('h-wx').innerHTML = wxHtml(code === 'DWC' ? 'DXB' : code);
+  $('h-tz').textContent = 'DUBAI · 迪拜时间';
+  $('h-next').innerHTML = nextCard(st.next, st.upcoming);
+  document.body.classList.toggle('nocal', !CFG.cal);
+  if (CFG.cal) renderCal();
+}
+
+/* ---------- 月历 ---------- */
+S.calOff = 0;
+let calReset = null;
+function calNav(d) {
+  S.calOff = d === 0 ? 0 : S.calOff + d;
+  clearTimeout(calReset);
+  if (S.calOff) calReset = setTimeout(() => { S.calOff = 0; renderCal(); }, 120000); // 2 分钟后自动回到本月
+  renderCal();
+}
+function renderCal() {
+  const el = $('h-cal'); if (!el) return;
+  const now = Date.now();
+  const p = parts(now, HOME_TZ);
+  const nDays = 31, BACK = 3;   // 今天往前 3 天 + 往后，共 31 天
+  const addDays = (k, n) => { const d = new Date(Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6) + n)); return '' + d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0'); };
+  const today = ymd(now, HOME_TZ);
+  // 数据覆盖范围之外的日子不乱标「休息」
+  const known0 = addDays(today, S.apiVer >= 3 ? -34 : -3);
+  // 排班按月发布：只把「最后一个任务所在月份」的月底之前算作已知，之后还没排班的日子不标休息
+  let lastT = 0;
+  S.flights.forEach(f => { lastT = Math.max(lastT, f.sta); });
+  S.duties.forEach(d => { lastT = Math.max(lastT, d.end); });
+  const lastK = lastT ? ymd(lastT, HOME_TZ) : today;
+  const monthEnd = lastK.slice(0, 6) + String(new Date(Date.UTC(+lastK.slice(0, 4), +lastK.slice(4, 6), 0)).getUTCDate()).padStart(2, '0');
+  const known1 = monthEnd < addDays(today, 58) ? monthEnd : addDays(today, 58);
+  const F_ = S.flights, info = {};
+  const put = (k, pri, type, txt) => { const o = info[k] = info[k] || { pri: 99, type: '', parts: [] }; o.parts.push(txt); if (pri < o.pri) { o.pri = pri; o.type = type; } };
+  const homeDep = {};
+  const cell = (code, time) => '<b>' + code + '</b>' + (time ? '<span>' + time + '</span>' : '');
+  F_.forEach(f => {
+    const st = stOf(f), oTz = apTz(f.origin);
+    const dep = st.off || f.std, k = ymd(dep, oTz);
+    if (isHome(f.origin)) homeDep[ymd(f.std, HOME_TZ)] = 1;
+    if (isHome(f.dest) && !isHome(f.origin)) {
+      // 回迪拜：显示落地迪拜的时间
+      const land = st.on || f.sta, lk = ymd(land, HOME_TZ);
+      put(lk, 1, 't-ret', cell(f.dest, hm(land, HOME_TZ)));
+      if (lk !== k) put(k, 1, 't-flt', cell(f.dest, hm(dep, oTz)));
+    } else put(k, 1, 't-flt', cell(f.dest, hm(dep, oTz)));
+  });
+  const PRI = { sim: 2, grd: 3, sby: 4, leave: 5, rest: 6, off: 7 };
+  const SHORT = { sim: 'SIM', grd: 'GRD', sby: 'SBY', leave: 'VAC', rest: '', off: '', duty: 'DTY' };
+  const flightDays = {};
+  Object.keys(info).forEach(k => flightDays[k] = 1);
+  S.duties.forEach(d => {
+    const code = d.s || SHORT[d.k] || '';
+    const long = d.allDay || d.end - d.start >= 20 * HOUR;          // 「00:01–24:00」这种整天的任务
+    const days = [];
+    for (let t = d.start + MIN, c = 0; c < 40; t += 864e5, c++) { const k = ymd(t, HOME_TZ); if (t >= d.end) break; days.push(k); }
+    if (!days.length) days.push(ymd(d.start, HOME_TZ));
+    if (d.k === 'trip') {
+      // 「416-SYD」这类：第一天出发、中间驻外、最后一天回基地（时间要等新版 Apps Script 才有）
+      if (homeDep) homeDep[days[0]] = 1;
+      days.forEach((k, i) => {
+        if (flightDays[k]) return;
+        if (i === 0) put(k, 1, 't-flt', cell(d.dest));
+        else if (i === days.length - 1) put(k, 1, 't-ret', cell(homeCodes()[0]));
+        else put(k, 8, 't-lay', '<span>' + d.dest + '</span>');
+      });
+      return;
+    }
+    const type = d.k === 'leave' ? 't-off' : 't-' + d.k;
+    const txt = code ? cell(code, long || d.k === 'leave' ? '' : hm(d.start, HOME_TZ)) : '';
+    days.forEach(k => put(k, PRI[d.k] || 3, type, txt));
+  });
+  // 驻外
+  F_.forEach((f, i) => {
+    if (isHome(f.dest)) return;
+    const n = F_[i + 1], end = n && n.origin === f.dest ? n.std : f.sta, tz = apTz(f.dest), endK = ymd(end, tz);
+    for (let t = f.sta, c = 0; c < 40; t += 864e5, c++) { const k = ymd(t, tz); if (k > endK) break; if (!info[k]) put(k, 8, 't-lay', '<span>' + f.dest + '</span>'); }
+  });
+  let rows = '';
+  const first = addDays(today, -BACK), months = [];
+  for (let i = 0; i < nDays; i++) {
+    const k = addDays(first, i), d = +k.slice(6), mo = +k.slice(4, 6);
+    if (!months.includes(mo)) months.push(mo);
+    let o = info[k];
+    if (!o) {
+      if (k < known0 || k > known1) o = { type: 't-unk', parts: [''] };
+      else if (homeDep[addDays(k, 1)]) o = { type: 't-rest', parts: ['<span>REST</span>'] };
+      else if (S.apiVer < 4) o = { type: 't-unk', parts: [''] };   // 旧版脚本不传模拟机/地面任务，不乱标休息
+      else o = { type: 't-off', parts: [''] };
+    }
+    const cls = ['r', o.type, k === today ? 'td' : '', k < today ? 'past' : '', d === 1 && i > 0 ? 'm1' : ''].join(' ');
+    rows += '<div class="' + cls + '"><div class="dn">' + d + '</div><div class="ct">' + o.parts[0] + '</div></div>';
+  }
+  el.innerHTML = '<div class="cal-m">' + months.join('·') + '月</div>' +
+    '<div class="cal-list" style="--n:' + nDays + '">' + rows + '</div>';
+}
+
+function renderLayover(st) {
+  const now = Date.now();
+  const here = st.loc;
+  $('l-here').innerHTML = cityBlock(here, apCity(here), true);
+  $('l-home').innerHTML = cityBlock('DXB', 'Dubai', false);
+  let h = '';
+  if (st.prev) {
+    const ps = stOf(st.prev), arr = ps.on || st.prev.sta;
+    h += (ps.on ? '<span style="color:var(--green)">' + hm(ps.on, apTz(here)) + ' 落地</span> · ' : '') +
+      '已到达 ' + esc(apCity(here)) + ' <span class="num" data-el="' + arr + '">' + durTxt(now - arr) + '</span>';
+  }
+  if (st.next) h += (h ? ' · 驻外共 ' + durTxt(st.next.std - (stOf(st.prev).on || st.prev.sta)) : '距回程起飞 <span class="num" data-cd="' + st.next.std + '">' + cdTxt(st.next.std - now) + '</span>');
+  $('l-head').innerHTML = h;
+  $('l-next').innerHTML = nextCard(st.next, st.upcoming);
+}
+
+/* ---------- flight ---------- */
+let mapRouteKey = '';
+let map = null, mapFlightId = null, L_route, L_done, L_trail, L_plane, L_aps = [];
+const PLANE_SVG = '<svg viewBox="0 0 64 64" width="38" height="38"><path fill="#d2ad62" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
+
+let leafletState = 0; // 0 未加载 1 加载中 2 好了 3 失败
+function loadLeaflet() {
+  if (leafletState) return;
+  leafletState = 1;
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'vendor/leaflet/leaflet.css';
+  document.head.insertBefore(css, document.head.firstChild); // 放最前面，让下面自己的样式优先
+  const js = document.createElement('script'); js.src = 'vendor/leaflet/leaflet.js';
+  js.onload = () => { leafletState = 2; render(true); };
+  js.onerror = () => { leafletState = 3; };
+  document.head.appendChild(js);
+}
+function ensureMap() {
+  if (map) return;
+  if (typeof L === 'undefined') { loadLeaflet(); return; }
+  map = L.map('map', { zoomControl: false, attributionControl: true, worldCopyJump: false, minZoom: 2, zoomSnap: 0.25 });
+  // 真实地球：白天 NASA Blue Marble 彩色卫星图；夜晚一侧叠 NASA Black Marble 城市灯光，按实时太阳位置裁出昼夜
+  const gibs = (layer, date, ext) => 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/' + layer + '/default/' + date + '/GoogleMapsCompatible_Level8/{z}/{y}/{x}.' + ext;
+  L.tileLayer(gibs('BlueMarble_NextGeneration', '2004-08-01', 'jpeg'), { maxNativeZoom: 8, maxZoom: 12, attribution: 'Imagery © NASA EOSDIS GIBS · Labels © Esri' }).addTo(map);
+  const np = map.createPane('night'); np.style.zIndex = 220; np.style.pointerEvents = 'none';
+  L.tileLayer(gibs('VIIRS_Black_Marble', '2016-01-01', 'png'), { pane: 'night', maxNativeZoom: 8, maxZoom: 12 }).addTo(map);
+  // 晨昏过渡：几层半透明暗影叠加，白天慢慢暗下去
+  const tp = map.createPane('twilight'); tp.style.zIndex = 215; tp.style.pointerEvents = 'none';
+  twiPolys = [[4, .14], [1.5, .16], [-1, .18], [-3, .2]].map(([h, op]) => ({ h, poly: L.polygon([], { pane: 'twilight', stroke: false, fillColor: '#02040c', fillOpacity: op, interactive: false }).addTo(map) }));
+  const lp = map.createPane('labels'); lp.style.zIndex = 230; lp.style.pointerEvents = 'none';
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { pane: 'labels', maxZoom: 12, opacity: .55 }).addTo(map);
+  map.attributionControl.setPrefix(false);
+  map.on('zoomend moveend viewreset resize', updateNight);
+  setInterval(updateNight, 60000);
+  updateNight();
+}
+// 昼夜分界：对每条经线二分查找太阳高度 = h 的纬度
+let twiPolys = [];
+function nightLine(h, t) {
+  const pts = [];
+  const southDark = typeof Scene !== 'undefined' && Scene.sunAlt(-89, 0, t) < Scene.sunAlt(89, 0, t);
+  for (let lon = -540; lon <= 540; lon += 4) {
+    let lo = -85, hi = 85;
+    for (let i = 0; i < 18; i++) {
+      const mid = (lo + hi) / 2, a = Scene.sunAlt(mid, lon, t);
+      if ((a < h) === southDark) lo = mid; else hi = mid;
+    }
+    pts.push([(lo + hi) / 2, lon]);
+  }
+  const pole = southDark ? -85 : 85;
+  return pts.concat([[pole, 540], [pole, -540]]);
+}
+function updateNight() {
+  if (!map || typeof Scene === 'undefined' || !map._loaded) return;   // 地图还没定好位置
+  const t = Date.now();
+  // 城市灯光只显示在太阳低于地平线 4° 的地方
+  const poly = nightLine(-4, t).map(ll => { const p = map.latLngToLayerPoint(ll); return Math.round(p.x) + 'px ' + Math.round(p.y) + 'px'; }).join(',');
+  const pane = map.getPane('night');
+  pane.style.clipPath = pane.style.webkitClipPath = 'polygon(' + poly + ')';
+  twiPolys.forEach(o => o.poly.setLatLngs(nightLine(o.h, t)));
+}
+
+function loadTrail(id) { try { return JSON.parse(lsGet('fc.trail.' + id) || '[]'); } catch (e) { return []; } }
+function saveTrail(id, pts) { lsSet('fc.trail.' + id, JSON.stringify(pts.slice(-1500))); }
+function mergeTrail(a, b) {
+  const m = {}; a.concat(b).forEach(p => m[p[3]] = p);
+  return Object.values(m).sort((x, y) => x[3] - y[3]);
+}
+
+async function pollTrack(f) {
+  const T = S.track[f.id] || (S.track[f.id] = { pts: loadTrail(f.id) });
+  if (DEMO) return;
+  if (S.legacy || !f.callsign) { T.unsupported = true; return; }
+  if (T.busy) return; T.busy = true;
+  try {
+    const j = await (await fetchT(apiUrl({ action: 'track', cs: f.callsign, o: f.origin, d: f.dest, std: f.std, sta: f.sta, _: Date.now() }), 15000, { cache: 'no-store' })).json();
+    if (!('found' in j)) { T.unsupported = true; return; }
+    if (j.found && j.pos) { T.pos = j.pos; T.at = Date.now(); T.src = j.source; }
+    if (j.status) setStatus(f.id, j.status);
+    const pts = (j.trail || []).filter(p => p[3] >= f.std - HOUR && p[3] <= f.sta + 2 * HOUR);
+    T.pts = mergeTrail(T.pts, pts);
+    saveTrail(f.id, T.pts);
+    renderFlight(compute(Date.now()), true);
+  } catch (e) { /* 网络问题，下次再试 */ } finally { T.busy = false; }
+}
+
+/* ---------- OFP 计划航路 ---------- */
+const MON3 = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function routeOf(f) {
+  if (!S.routes || !S.routes.length) return null;
+  const dd = t => { const p = parts(t, 'UTC'); return p.day + MON3[+p.month - 1]; };
+  const dates = [dd(f.std), dd(f.std - 864e5), dd(f.std + 864e5), ymd(f.std, apTz(f.origin)).slice(6) + MON3[+ymd(f.std, apTz(f.origin)).slice(4, 6) - 1]];
+  const r = S.routes.find(r => r.digits === f.digits && r.depIata === f.origin && r.arrIata === f.dest && dates.includes(r.date) && r.pts && r.pts.length);
+  if (!r) return null;
+  if (!S.routeLines[f.id] || S.routeLines[f.id].src !== r) {
+    // 出发机场 → 航路点 … → 到达机场，每段按大圆加密，经度连续（跨 180° 也不断）
+    const A = AP[f.origin], B = AP[f.dest];
+    const nodes = [{ lat: A.lat, lon: A.lon }].concat(r.pts.map(p => ({ lat: p[0], lon: p[1], id: p[2] }))).concat([{ lat: B.lat, lon: B.lon }]);
+    let line = [], prevLon = A.lon, cum = [0], total = 0;
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const seg = gcLine(nodes[i], nodes[i + 1], Math.max(2, Math.round(dist(nodes[i], nodes[i + 1]) / 60)));
+      seg.forEach((pt, j) => {
+        if (i > 0 && j === 0) return;
+        pt[1] = unwrap(pt[1], prevLon); prevLon = pt[1];
+        if (line.length) { total += dist({ lat: line[line.length - 1][0], lon: line[line.length - 1][1] }, { lat: pt[0], lon: pt[1] }); cum.push(total); }
+        line.push(pt);
+      });
+    }
+    S.routeLines[f.id] = { src: r, line, cum, total, nodes };
+  }
+  return S.routeLines[f.id];
+}
+// 沿计划航路走到 frac（0–1）处的位置和航向
+function alongRoute(R, frac) {
+  const target = frac * R.total, c = R.cum;
+  let i = 1; while (i < c.length - 1 && c[i] < target) i++;
+  const a = R.line[i - 1], b = R.line[i], seg = c[i] - c[i - 1] || 1, t = Math.min(1, Math.max(0, (target - c[i - 1]) / seg));
+  const p = { lat: a[0] + (b[0] - a[0]) * t, lon: a[1] + (b[1] - a[1]) * t };
+  return { p, hdg: bearing({ lat: a[0], lon: a[1] }, { lat: b[0], lon: b[1] }), done: R.line.slice(0, i).concat([[p.lat, p.lon]]) };
+}
+
+function flightPos(f, now) {
+  const A = AP[f.origin], B = AP[f.dest];
+  const D = dist(A, B);
+  const T = S.track[f.id] || {};
+  const st = stOf(f);
+  const onn = 8 * MIN;
+  // 有跟踪数据（15 分钟内查过）且还没起飞 → 飞机停在出发地等；没有跟踪数据 → 按计划估算
+  const tracking = st.seen && now - st.seen < 15 * MIN;
+  const liveAny = T.pos && now - T.at < 4 * MIN;
+  // 在跟踪、还没起飞、也没有实时位置：飞机停在出发机场，预计到达随延误往后推
+  if (tracking && !st.off && !liveAny && now > f.std - 30 * MIN) {
+    return { lat: A.lat, lon: A.lon, live: false, frac: 0, remKm: D, hdg: bearing(A, B),
+      eta: Math.max(f.sta, now + (f.sta - f.std) + 15 * MIN), phase: st.taxi ? 'taxi' : now > f.std + 5 * MIN ? 'waiting' : 'boarding' };
+  }
+  const takeoff = st.off || (tracking ? Math.max(f.std + 15 * MIN, st.taxi ? st.taxi + 12 * MIN : 0, Math.min(now + MIN, f.sta - 60 * MIN)) : f.std + 15 * MIN);
+  let land = st.on || (st.off ? st.off + (f.sta - f.std) - 23 * MIN : f.sta - onn);
+  // 已起飞、还在跟踪、但还没检测到落地：别提前说「已落地」，当作还在进近
+  if (!st.on && st.off && tracking && now > land - 5 * MIN) land = now + 8 * MIN;
+  if (st.on && now >= st.on) {
+    const q = { lat: B.lat, lon: B.lon };
+    return Object.assign(q, { live: false, frac: 1, remKm: 0, hdg: bearing(A, B), eta: st.on, phase: 'landed' });
+  }
+  const est = Math.min(1, Math.max(0, (now - takeoff) / (land - takeoff)));
+  const live = T.pos && now - T.at < 4 * MIN && (T.pos.seen == null || T.pos.seen < 300);
+  // 飞行途中信号断了：从最后看到的真实位置接着沿航路往前推，按当时的预计到达时间匀速走完
+  if (!live && T.pos && !T.pos.ground && T.at && !st.on && now - T.at < 14 * HOUR) {
+    const RT0 = routeOf(f), last = { lat: T.pos.lat, lon: T.pos.lon };
+    const eta0 = Math.max(T.eta0 || land + onn, T.at + 10 * MIN), arrive = eta0 - onn;
+    if (now < arrive + 20 * MIN) {
+      let f0;
+      if (RT0) { let bi = 0, bd = 1e9; RT0.line.forEach((q, i) => { const d = dist(last, { lat: q[0], lon: unwrap(q[1], last.lon) }); if (d < bd) { bd = d; bi = i; } }); f0 = RT0.cum[bi] / RT0.total; }
+      else { const dA = dist(A, last), dB = dist(last, B); f0 = dA / (dA + dB); }
+      const fr = Math.min(1, f0 + (1 - f0) * Math.max(0, now - T.at) / Math.max(MIN, arrive - T.at));
+      const total = RT0 ? RT0.total : D;
+      let q, hdg, done;
+      if (RT0) { const ar = alongRoute(RT0, fr); q = ar.p; hdg = ar.hdg; done = ar.done; }
+      else { q = gcPoint(A, B, fr); hdg = bearing(q, gcPoint(A, B, Math.min(1, fr + 0.01))); }
+      return Object.assign(q, { live: false, lost: true, frac: fr, remKm: (1 - fr) * total, hdg, eta: eta0, phase: fr > 0.92 ? 'descent' : 'cruise', done });
+    }
+  }
+  if (live) {
+    const p = { lat: T.pos.lat, lon: T.pos.lon };
+    const dA = dist(A, p), dB = dist(p, B);
+    if (T.pos.ground) {
+      const landed = dB < 40 || !!st.on;
+      return Object.assign(p, { live: true, ground: true, frac: landed ? 1 : 0, remKm: landed ? 0 : D, hdg: T.pos.track || bearing(A, B), phase: landed ? 'landed' : (T.pos.gs >= 5 ? 'taxi' : now > f.std + 5 * MIN ? 'waiting' : 'boarding'), eta: landed ? (st.on || now) : f.sta, reg: T.pos.reg, type: T.pos.type, src: T.src });
+    }
+    const frac = dA / (dA + dB);
+    const gs = T.pos.gs;
+    const eta = gs > 150 ? now + dB / (gs * 1.852) * HOUR + onn : f.sta;
+    if (S.track[f.id]) S.track[f.id].eta0 = eta;          // 记下来：信号断了以后按这个时间走完剩下的航路
+    let phase = 'cruise';
+    if (T.pos.alt != null && T.pos.alt < 18000 && T.pos.vs != null) phase = T.pos.vs > 300 ? 'climb' : T.pos.vs < -300 ? 'descent' : phase;
+    if (T.pos.alt != null && T.pos.alt < 18000 && frac > 0.6 && phase === 'cruise') phase = 'descent';
+    return Object.assign(p, { live: true, frac, remKm: dB, hdg: T.pos.track != null ? T.pos.track : bearing(p, B), alt: T.pos.alt, gs, eta, phase, src: T.src, reg: T.pos.reg, type: T.pos.type });
+  }
+  const RT = routeOf(f);
+  if (RT) {   // 有 OFP 航路：沿真实计划航路推算
+    const ar = alongRoute(RT, est);
+    let phase = now < takeoff ? (st.taxi ? 'taxi' : tracking && now > f.std + 5 * MIN ? 'waiting' : 'boarding') : now > land ? 'landed' : est < 0.06 ? 'climb' : est > 0.92 ? 'descent' : 'cruise';
+    return Object.assign(ar.p, { live: false, frac: est, remKm: (1 - est) * RT.total, hdg: ar.hdg, eta: st.off ? land + onn : f.sta, phase, done: ar.done });
+  }
+  const p = gcPoint(A, B, est);
+  const p2 = gcPoint(A, B, Math.min(1, est + 0.01));
+  let phase = now < takeoff ? (st.taxi ? 'taxi' : tracking && now > f.std + 5 * MIN ? 'waiting' : 'boarding') : now > land ? 'landed' : est < 0.06 ? 'climb' : est > 0.92 ? 'descent' : 'cruise';
+  return Object.assign(p, { live: false, frac: est, remKm: (1 - est) * D, hdg: bearing(p, p2), eta: st.off ? land + onn : f.sta, phase });
+}
+
+const PHASE = { boarding: '登机 / 准备推出', waiting: '尚未起飞', taxi: '滑行中', climb: '起飞爬升', cruise: '巡航中', descent: '下降进近', landed: '已落地' };
+
+function renderFlight(st, light) {
+  const f = st.cur, now = Date.now();
+  const A = AP[f.origin], B = AP[f.dest];
+  if (!A || !B) { $('f-panel').innerHTML = '<div class="empty">未知机场 ' + f.origin + ' / ' + f.dest + '</div>'; return; }
+  ensureMap();
+  const pos = flightPos(f, now);
+  const T = S.track[f.id] || { pts: [] };
+
+  if (map) {
+    if (mapFlightId !== f.id || (routeOf(f) ? 'ofp' : 'gc') !== mapRouteKey) {   // 航班变了，或 OFP 航路刚收到
+      [L_route, L_done, L_trail, L_plane].concat(L_aps).forEach(l => l && map.removeLayer(l));
+      const RT = routeOf(f);
+      const line = RT ? RT.line : gcLine(A, B, 160);
+      mapRouteKey = RT ? 'ofp' : 'gc';
+      L_route = L.polyline(line, { color: '#d2ad62', weight: 2, opacity: .45, dashArray: '6 8' }).addTo(map);
+      L_done = L.polyline([], { color: '#d2ad62', weight: 3, opacity: .95 }).addTo(map);
+      L_trail = L.polyline([], { color: '#45d483', weight: 3, opacity: .9 }).addTo(map);
+      L_aps = [[A, f.origin, line[0]], [B, f.dest, line[line.length - 1]]].map(([ap, code, ll]) =>
+        L.circleMarker(ll, { radius: 5, color: '#d2ad62', weight: 2, fillColor: '#000', fillOpacity: 1 })
+          .bindTooltip(code, { permanent: true, direction: 'right', className: 'ap-lbl', offset: [8, 0] }).addTo(map));
+      // OFP 航路点：小点 + 名字
+      if (RT) RT.nodes.slice(1, -1).forEach(n => {
+        const ll = [n.lat, unwrap(n.lon, line[0][1])];
+        L_aps.push(L.circleMarker(ll, { radius: 2.5, color: '#f3d99c', weight: 1, fillColor: '#f3d99c', fillOpacity: .9, interactive: false })
+          .bindTooltip(n.id, { permanent: true, direction: 'top', className: 'wp-lbl', offset: [0, -3] }).addTo(map));
+      });
+      L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div class="plane" id="plane">' + PLANE_SVG + '</div>', iconSize: [38, 38], iconAnchor: [19, 19] }), interactive: false }).addTo(map);
+      mapFlightId = f.id;
+      fitMap(line);
+      updateNight();
+    }
+    const line = L_route.getLatLngs();
+    const ref = line[Math.min(line.length - 1, Math.round(pos.frac * (line.length - 1)))].lng;
+    const plon = unwrap(pos.lon, ref);
+    L_plane.setLatLng([pos.lat, plon]);
+    const pe = document.getElementById('plane'); if (pe) pe.style.transform = 'rotate(' + Math.round(pos.hdg || 0) + 'deg)';
+    // 已飞航段：有实时轨迹就画轨迹，否则画估算的大圆航段
+    if (T.pts && T.pts.length > 1) {
+      let prev = line[0].lng;
+      const tr = T.pts.map(p => { const lo = unwrap(p[1], prev); prev = lo; return [p[0], lo]; });
+      L_trail.setLatLngs(tr);
+      // 轨迹开始前的部分（屏幕没开时）用大圆航段补上
+      const p0 = { lat: T.pts[0][0], lon: T.pts[0][1] };
+      L_done.setLatLngs(dist(A, p0) > 50 ? gcLine(A, p0, 80) : []);
+    } else {
+      L_trail.setLatLngs([]);
+      const n = Math.max(1, Math.round(pos.frac * 160));
+      L_done.setLatLngs(pos.done ? pos.done : pos.frac > 0 ? gcLine(A, { lat: pos.lat, lon: pos.lon }, n) : []);
+    }
+  }
+
+  const oTz = apTz(f.origin), dTz = apTz(f.dest);
+  const fs = stOf(f);
+  const offT = fs.off || (pos.frac > 0 ? f.std + 15 * MIN : 0);   // 没有实际起飞数据时，按计划估算
+  const elapsed = offT ? (fs.on ? fs.on : now) - offT : 0, remain = Math.max(0, pos.eta - now);
+  const depCell = fs.off
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际起飞 ' + f.origin + '</span><span class="v num">' + hm(fs.off, oTz) + '</span><span class="s">计划 ' + hm(f.std, oTz) + ' · ' + diffTxt(fs.off - 15 * MIN, f.std) + '</span></div>'
+    : '<div class="kv"><span class="lbl">计划起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
+      (pos.phase === 'waiting' ? '<span style="color:var(--red)">尚未起飞 · 已过 ' + hmDur(now - f.std) + '</span>' : '当地 · ' + dayWord(f.std, oTz)) + '</span></div>';
+  const arrCell = fs.on
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际落地 ' + f.dest + '</span><span class="v num">' + hmDual(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + dualNote(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
+    : '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hmDual(pos.eta, dTz) + '</span><span class="s">' + dayLbl(pos.eta, dTz) + (dualNote(pos.eta, dTz) || ' 当地') + (fs.off ? ' · ' + diffTxt(pos.eta, f.sta) : '') + '</span></div>';
+  const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
+  const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
+  const html =
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="fp-no">' + esc(f.no) + '</div>' + src + '</div>' +
+    '<div class="fp-route"><div><div class="c">' + f.origin + '</div><div class="n">' + esc(apCity(f.origin)) + '</div></div>' +
+      '<div class="mid">✈</div><div style="text-align:right"><div class="c">' + f.dest + '</div><div class="n" style="margin-left:auto">' + esc(apCity(f.dest)) + '</div></div></div>' +
+    '<div><div class="bar"><i style="width:' + (pos.frac * 100).toFixed(1) + '%"></i><b style="left:' + (pos.frac * 100).toFixed(1) + '%"></b></div>' +
+      '<div class="barlbl num"><span>' + (offT ? '已飞 ' + hmDur(Math.max(0, elapsed)) : '未起飞') + '</span><span>' + Math.round(pos.frac * 100) + '%</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
+    '<div class="g2">' +
+      depCell + arrCell +
+      '<div class="kv"><span class="lbl">迪拜时间</span><span class="v num">' + clk(HOME_TZ) + '</span><span class="s">' + dateShort(now, HOME_TZ) + '</span></div>' +
+      '<div class="kv"><span class="lbl">' + esc(apCity(f.dest)) + ' 时间</span><span class="v num">' + clk(dTz) + '</span><span class="s">' + dateShort(now, dTz) + '</span></div>' +
+    '</div>' +
+    '<div class="fp-sep"></div>' +
+    '<div class="g2">' +
+      '<div class="kv"><span class="lbl">高度</span><span class="v num">' + altTxt + '</span></div>' +
+      '<div class="kv"><span class="lbl">地速</span><span class="v num">' + (pos.live && pos.gs ? pos.gs + ' kt' : '—') + '</span></div>' +
+      '<div class="kv"><span class="lbl">剩余距离</span><span class="v num">' + Math.round(pos.remKm / 1.852).toLocaleString() + ' nm</span></div>' +
+      '<div class="kv"><span class="lbl">' + f.dest + ' 天气</span>' + wxHtml(f.dest, 'sm') + '</div>' +
+    '</div>' +
+    '<div class="fp-foot"><div><div class="lbl">状态</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
+      (pos.phase === 'waiting' ? '<span style="color:var(--red)"> · 已过计划 ' + durTxt(now - f.std) + '</span>' : '') +
+      (pos.live && pos.reg ? ' · ' + esc(pos.reg) + (pos.type ? ' ' + esc(pos.type) : '') : '') + '</div></div>' +
+      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">OFP 计划航路</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : pos.lost ? '信号中断 · 按航路推算' : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
+  $('f-panel').innerHTML = html;
+}
+
+function fitMap(line) {
+  if (!map) return;
+  map.invalidateSize();
+  const portrait = innerHeight > innerWidth;
+  const panelW = Math.min(390, innerWidth * .38) + 40;
+  map.fitBounds(L.latLngBounds(line), portrait
+    ? { paddingTopLeft: [30, 50], paddingBottomRight: [30, innerHeight * .52 + 20], maxZoom: 7 }
+    : { paddingTopLeft: [panelW, 50], paddingBottomRight: [70, 50], maxZoom: 7 });
+}
+
+/* =====================================================================
+   MAIN RENDER / TICK
+   ===================================================================== */
+let lastRender = 0;
+function render(force) {
+  const now = Date.now();
+  const st = compute(now);
+  const key = st.mode + '|' + (st.cur ? st.cur.id : '') + '|' + (st.next ? st.next.id : '') + '|' + st.loc;
+  const changed = key !== S.view;
+  if (!force && !changed && now - lastRender < 20000) return;
+  if (changed) document.body.dataset.mode = st.mode;
+  S.view = key; lastRender = now;
+  if (st.mode === 'home') renderHome(st);
+  else if (st.mode === 'layover') renderLayover(st);
+  else {
+    if (changed) setTimeout(() => { if (map) { map.invalidateSize(); if (L_route) fitMap(L_route.getLatLngs()); } }, 60);
+    renderFlight(st);
+  }
+  renderScenes(st);
+  // 夜间变暗：按"我现在所在地"的当地时间
+  const tz = st.mode === 'layover' ? apTz(st.loc) : HOME_TZ;
+  const h = +parts(now, tz).hour;
+  const dim = CFG.dim && st.mode !== 'flight' && (CFG.dimFrom > CFG.dimTo ? (h >= CFG.dimFrom || h < CFG.dimTo) : (h >= CFG.dimFrom && h < CFG.dimTo));
+  document.body.classList.toggle('dim', !!dim);
+  renderSync();
+}
+
+// 背景预览参数：?wx=dust|rain|storm|snow|fog|haze|overcast|clear  ?phase=dawn|day|dusk|night
+const WX_PREVIEW = { clear: { code: 0 }, cloudy: { code: 2 }, overcast: { code: 3 }, fog: { code: 45 }, rain: { code: 63 }, storm: { code: 95 }, snow: { code: 73 }, dust: { code: 0, dust: 400 }, haze: { code: 1, dust: 90 } }[Q.get('wx')];
+const PHASE_PREVIEW = Q.get('phase');
+// 图片库照片：同一天、同一城市/时段/天气用同一张（Apps Script 按日期挑）
+const PHOTO = (() => { try { return JSON.parse(lsGet('fc.photos') || '{}'); } catch (e) { return {}; } })();
+let photoOff = false;
+// 直接在浏览器里查 Pexels（Key 存在本机设置里）
+const PX_PHASE = { dawn: 'sunrise', morning: 'morning', day: '', evening: 'golden hour', dusk: 'sunset', night: 'night' };
+const PX_WX = { rain: 'rain', storm: 'storm', snow: 'snow', fog: 'fog', dust: 'sandstorm', overcast: 'cloudy' };
+const strHash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+let PXC = (() => { try { return JSON.parse(lsGet('fc.px') || '{}'); } catch (e) { return {}; } })();
+async function pexelsSearch(q) {
+  const c = PXC[q];
+  if (c && Date.now() - c.t < 24 * HOUR) return c.list;
+  const r = await fetchT('https://api.pexels.com/v1/search?orientation=landscape&size=large&per_page=40&query=' + encodeURIComponent(q), 15000, { headers: { Authorization: CFG.pexels } });
+  if (!r.ok) throw new Error('Pexels ' + r.status);
+  const j = await r.json();
+  const list = (j.photos || []).filter(x => x.width >= 2000 && x.width > x.height * 1.2)
+    .map(x => ({ s: x.src.original.split('?')[0], by: x.photographer, u: x.url, a: (x.alt || '').toLowerCase() }));
+  for (const k in PXC) if (Date.now() - PXC[k].t > 2 * 864e5) delete PXC[k];
+  PXC[q] = { t: Date.now(), list };
+  lsSet('fc.px', JSON.stringify(PXC));
+  return list;
+}
+// 各城市的地标，搜索更准
+const LANDMARK = { Dubai: 'Burj Khalifa', Guangzhou: 'Canton Tower', 'Hong Kong': 'Victoria Harbour', Shanghai: 'Lujiazui', London: 'Tower Bridge', Amsterdam: 'canal', Paris: 'Eiffel Tower', Frankfurt: 'skyline', Chicago: 'skyline', 'New York': 'Manhattan', Singapore: 'Marina Bay', Tokyo: 'Tokyo Tower', Seoul: 'Namsan Tower' };
+async function pexelsPhoto(city, phase, cat) {
+  const pw = PX_PHASE[phase] || '', ww = PX_WX[cat] || '', tries = [];
+  const lm = LANDMARK[city] && LANDMARK[city] !== 'skyline' ? LANDMARK[city] : '';
+  const words = [city.toLowerCase()].concat(lm ? lm.toLowerCase().split(' ').filter(w => w.length > 3) : []);
+  // ph = 搜索词里有没有时段词（没有的话，页面会按实际时段给照片调暗/加暖色）
+  const add = (words, wx, ph) => { const q = words.filter(Boolean).join(' '); if (q && !tries.some(t => t.q === q)) tries.push({ q, wx, ph }); };
+  if (ww) { add([city, ww, pw === 'night' ? 'night' : ''], true, pw === 'night' || !pw); add([city, ww], true, !pw); }
+  if (lm) add([city, lm, pw], false, true);
+  add([city, pw, 'skyline'], false, true); add([city, pw], false, true); add([city, 'skyline'], false, !pw); add([city, 'city'], false, !pw);
+  const day = ymd(Date.now(), HOME_TZ);
+  for (const t of tries) {
+    const all = await pexelsSearch(t.q);
+    // 只要照片描述里提到这个城市或地标的，避免搜「广州」出来别的城市
+    const list = all.filter(x => !x.a || words.some(w => x.a.includes(w)));
+    if (list.length < 3) continue;
+    const ph = list[strHash(day + '|' + t.q) % list.length];
+    return { url: ph.s + '?auto=compress&cs=tinysrgb&w=1920', wx: t.wx, ph: t.ph, credit: { by: ph.by, license: 'Pexels', url: ph.u } };
+  }
+  return null;
+}
+// 每 2 小时换一个角度（地标 / 市中心 / 海滨……），时段或天气一变也会换
+const FLAVORS = {
+  Dubai: ['', 'Burj Khalifa', 'Marina', 'Downtown', 'Creek', 'Palm Jumeirah', 'Business Bay'],
+  Guangzhou: ['', 'Canton Tower', 'Pearl River', 'Tianhe', 'skyline'],
+  _: ['', 'downtown', 'architecture', 'street', 'landmark']
+};
+// 每 10 分钟换一张；搜索词同时带「时段 + 天气」，例如 Dubai Marina sunset rain
+const photoSlot = () => { const p = parts(Date.now(), HOME_TZ); return ymd(Date.now(), HOME_TZ) + '-' + Math.floor((+p.hour * 60 + +p.minute) / 10); };
+const PH_WORDS = { dawn: ['sunrise', 'dawn'], morning: ['morning'], day: [''], evening: ['golden hour', 'evening'], dusk: ['sunset', 'dusk'], night: ['night', 'night lights'] };
+const WX_WORDS = { rain: ['rain', 'rainy'], storm: ['thunderstorm', 'storm'], snow: ['snow'], fog: ['fog', 'mist'], dust: ['sandstorm', 'dust storm'], overcast: ['cloudy', 'overcast'] };
+function photoQueries(city, phase, cat, slot) {
+  const n = strHash(slot + '|' + city + '|' + phase + '|' + cat);
+  const fl = FLAVORS[city] || FLAVORS._, pws = PH_WORDS[phase] || [''], wws = WX_WORDS[cat] || [''];
+  const flavor = fl[n % fl.length], pw = pws[(n >>> 4) % pws.length], ww = wws[(n >>> 8) % wws.length];
+  const out = [];
+  const add = (...w) => { const q = w.filter(Boolean).join(' '); if (q && !out.some(o => o.q === q)) out.push({ q, ph: !pw || q.indexOf(pw) >= 0, wx: !!ww && q.indexOf(ww) >= 0 }); };
+  add(city, flavor, pw, ww); add(city, pw, ww); if (ww) add(city, ww); add(city, flavor, pw); add(city, pw);
+  return out.slice(0, 5);
+}
+function remotePhoto(city, phase, cat, cb) {
+  if (!CFG.photos) return null;
+  const slot = photoSlot();
+  if (PHOTO.day !== slot) { PHOTO.day = slot; PHOTO.m = {}; }
+  const k = city + '|' + phase + '|' + cat;
+  if (k in PHOTO.m) return PHOTO.m[k];
+  PHOTO.m[k] = null;
+  const done = r => { if (r) { PHOTO.m[k] = r; lsSet('fc.photos', JSON.stringify(PHOTO)); render(true); } };
+  if (CFG.pexels) { pexelsPhoto(city, phase, cat).then(done).catch(() => {}); return null; }
+  if (photoOff || S.legacy) return null;
+  const qs = photoQueries(city, phase, cat, slot);
+  // 依次试，直到找到照片（Apps Script 会再在后面加 skyline 等词试一遍）
+  (async () => {
+    for (const c of qs) {
+      let j;
+      try { j = await (await fetchT(apiUrl({ action: 'photo', city: c.q, phase: 'day', wx: 'clear', d: slot }), 15000)).json(); } catch (e) { return; }
+      if (j.ok && j.url) return done({ url: j.url, wx: c.wx, ph: c.ph, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } });
+      if (j.flights || j.error === 'no UNSPLASH_KEY') { photoOff = true; return; } // 旧版脚本或还没设 Key：用内置照片
+    }
+  })();
+  return null;
+}
+if (typeof Scene !== 'undefined') Scene.setRemote(remotePhoto);
+
+function renderScenes(st) {
+  if (typeof Scene === 'undefined') return;
+  const now = Date.now(), credits = [];
+  const one = (id, code) => {
+    const wcode = code === 'DWC' ? 'DXB' : code;
+    getWx(wcode);
+    const a = AP[code];
+    const r = Scene.update($(id), code, a ? { lat: a.lat, lon: a.lon, city: a.city } : null, WX_PREVIEW || S.wx[wcode], now, PHASE_PREVIEW);
+    if (r && r.credit) credits.push(r.credit);
+  };
+  if (st.mode === 'home') { one('sc-a', st.loc && isHome(st.loc) ? 'DXB' : 'DXB'); Scene.clear($('sc-b')); }
+  else if (st.mode === 'layover') { one('sc-a', st.loc); one('sc-b', 'DXB'); }
+  else { Scene.clear($('sc-a')); Scene.clear($('sc-b')); }
+  S.credits = credits;
+}
+
+function renderSync() {
+  const s = S.sync, el = $('sync');
+  if (!s) { el.textContent = '同步中…'; return; }
+  if (s.demo) { el.innerHTML = 'DEMO 演示模式' + (S.credits && S.credits.length ? '<br>照片：' + S.credits.map(c => esc(c.by) + ' · ' + esc(c.license)).join('；') : ''); el.className = ''; return; }
+  const n = S.flights.filter(f => f.std > Date.now()).length;
+  el.className = s.ok ? '' : 'bad';
+  el.innerHTML = s.ok
+    ? '日历已同步 ' + hm(s.t, HOME_TZ) + ' · ' + n + ' 个航班' + (S.legacy ? '<br>旧版接口' : '') +
+      (S.credits && S.credits.length ? '<br>照片：' + S.credits.map(c => esc(c.by) + ' · ' + esc(c.license)).join('；') : '')
+    : '同步失败（' + esc(s.err || '') + '）· 显示缓存';
+}
+
+function tick() {
+  const now = Date.now();
+  document.querySelectorAll('[data-tz]').forEach(el => {
+    const v = el.dataset.f === 's' ? ss(now, el.dataset.tz) : hm(now, el.dataset.tz);
+    if (el.textContent !== v) el.textContent = v;
+  });
+  document.querySelectorAll('[data-cd]').forEach(el => { el.textContent = cdTxt(+el.dataset.cd - now); });
+  document.querySelectorAll('[data-el]').forEach(el => { el.textContent = durTxt(now - +el.dataset.el); });
+  render(false);
+}
+
+/* =====================================================================
+   DEMO
+   ===================================================================== */
+function demoFlights() {
+  const now = Date.now();
+  const mk = (o, d, n, s, h) => ({ title: n + '-' + o + '-' + d, start: new Date(s).toISOString(), end: new Date(s + h * HOUR).toISOString() });
+  let raw;
+  if (DEMO === 'flight') raw = [mk('DWC', 'CAN', '89876', now - 3.2 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 30 * HOUR, 8.6)];
+  else if (DEMO === 'layover') raw = [mk('DWC', 'CAN', '89876', now - 20 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 9.4 * HOUR, 8.6), mk('DWC', 'HKG', '89820', now + 4 * 864e5, 7.2)];
+  else raw = [mk('DWC', 'CAN', '89876', now + 26.3 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 60 * HOUR, 8.6), mk('DWC', 'LHR', '89801', now + 6 * 864e5, 7.9)];
+  return normFlights({ flights: raw });
+}
+
+/* =====================================================================
+   SETTINGS / CHROME
+   ===================================================================== */
+function openSettings() {
+  $('s-api').value = CFG.api; $('s-pexels').value = CFG.pexels || ''; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
+  $('s-airline').value = CFG.airline; $('s-cs').value = CFG.cs; $('s-pickup').value = CFG.pickup;
+  $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
+  $('testout').textContent = '';
+  $('settings').classList.add('open');
+}
+function readSettings() {
+  return {
+    api: $('s-api').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
+    airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
+    pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked,
+    dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
+  };
+}
+$('b-set').onclick = openSettings;
+$('s-close').onclick = () => $('settings').classList.remove('open');
+$('s-save').onclick = async () => {
+  CFG = Object.assign({}, DEFAULTS, readSettings());
+  lsSet('fc.cfg', JSON.stringify(CFG));
+  $('settings').classList.remove('open');
+  S.view = null; await loadFlights(); render(true);
+};
+$('s-test').onclick = async () => {
+  const out = $('testout'); out.textContent = '连接中…';
+  const old = CFG; CFG = Object.assign({}, DEFAULTS, readSettings());
+  try {
+    await apReady;
+    const j = await (await fetchT(apiUrl({ action: 'flights', _: Date.now() }), 15000, { cache: 'no-store' })).json();
+    const f = normFlights(j);
+    if (!f) throw new Error('返回内容不是航班数据：' + JSON.stringify(j).slice(0, 200));
+    out.textContent = (Array.isArray(j.flights) ? '✅ 新版接口（支持多航班 + 实时轨迹）' : '⚠️ 旧版接口（只有下一班，没有实时轨迹）') +
+      '\n识别到 ' + f.length + ' 段航班（时间均为当地）：\n' + f.slice(0, 10).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  到 ' + hm(x.sta, apTz(x.dest))).join('\n') +
+      (() => { const bad = Array.isArray(j.flights) ? j.flights.filter(r => !parseFlight(r)) : []; return bad.length ? '\n\n有 ' + bad.length + ' 条日程没认出来：' + bad.slice(0, 3).map(r => '“' + r.title + '”').join(' ') : ''; })();
+  } catch (e) { out.textContent = '❌ ' + e.message; }
+  CFG = old;
+};
+$('b-fs').onclick = () => {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  else (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el);
+};
+
+// 工具栏自动隐藏
+let idleT;
+function poke() { document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 6000); }
+['pointerdown', 'pointermove', 'keydown'].forEach(e => addEventListener(e, poke, { passive: true }));
+poke();
+
+// 屏幕常亮
+let wakeLock = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => wakeLock = null); } } catch (e) {} }
+addEventListener('pointerdown', keepAwake, { passive: true });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); loadFlights().then(() => render(true)); } });
+
+// 防烧屏：每 2 分钟轻微移动
+setInterval(() => { $('app').style.transform = 'translate(' + (Math.round(Math.random() * 6) - 3) + 'px,' + (Math.round(Math.random() * 6) - 3) + 'px)'; }, 120000);
+addEventListener('resize', () => { S.view = null; render(true); });
+addEventListener('resize', () => { if (map && L_route && document.body.dataset.mode === 'flight') fitMap(L_route.getLatLngs()); });
+
+/* ---------- 自动更新：发现新版本就自己刷新（kiosk 里不用手动刷新） ---------- */
+const APP_VER = '__APP_VER__';
+// 在外壳（index.html）里运行时，由外壳负责无缝更新；直接打开 app.html 时才自己刷新
+if (window.top === window.self) setInterval(() => {
+  fetch('version.txt?_=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(v => {
+    v = (v || '').trim();
+    if (v && v.length < 40 && v !== APP_VER && APP_VER.indexOf('__') !== 0) {
+      const q = new URLSearchParams(location.search); q.set('v', v);
+      location.replace(location.pathname + '?' + q.toString());
+    }
+  }).catch(() => {});
+}, 10 * MIN);
+
+/* =====================================================================
+   START
+   ===================================================================== */
+(async function start() {
+  // 先用缓存马上画出来，不等网络
+  try { S.flights = JSON.parse(lsGet('fc.known2') || '[]'); } catch (e) {}
+  try { const c = JSON.parse(lsGet('fc.duties') || '{}'); S.duties = c.d || []; S.apiVer = c.v || 0; } catch (e) {}
+  try { S.routes = JSON.parse(lsGet('fc.routes') || '[]'); } catch (e) {}
+  render(true);
+  setInterval(tick, 1000);
+  await loadFlights();
+  render(true);
+  setInterval(() => loadFlights().then(() => render(true)), 5 * MIN);
+  const trackLoop = () => { const st = compute(Date.now()); if (st.mode === 'flight') pollTrack(st.cur); };
+  trackLoop(); setInterval(trackLoop, 30000);
+  setInterval(() => { if (document.body.dataset.mode === 'flight') render(true); }, 10000);
+  setInterval(() => render(true), 10 * MIN);   // 每 10 分钟换背景照片
+})();
+</script>
+</body>
+</html>
