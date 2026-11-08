@@ -1055,6 +1055,22 @@ function flightPos(f, now) {
   }
   const est = Math.min(1, Math.max(0, (now - takeoff) / (land - takeoff)));
   const live = T.pos && now - T.at < 4 * MIN && (T.pos.seen == null || T.pos.seen < 300);
+  // 飞行途中信号断了：从最后看到的真实位置接着沿航路往前推，按当时的预计到达时间匀速走完
+  if (!live && T.pos && !T.pos.ground && T.at && !st.on && now - T.at < 14 * HOUR) {
+    const RT0 = routeOf(f), last = { lat: T.pos.lat, lon: T.pos.lon };
+    const eta0 = Math.max(T.eta0 || land + onn, T.at + 10 * MIN), arrive = eta0 - onn;
+    if (now < arrive + 20 * MIN) {
+      let f0;
+      if (RT0) { let bi = 0, bd = 1e9; RT0.line.forEach((q, i) => { const d = dist(last, { lat: q[0], lon: unwrap(q[1], last.lon) }); if (d < bd) { bd = d; bi = i; } }); f0 = RT0.cum[bi] / RT0.total; }
+      else { const dA = dist(A, last), dB = dist(last, B); f0 = dA / (dA + dB); }
+      const fr = Math.min(1, f0 + (1 - f0) * Math.max(0, now - T.at) / Math.max(MIN, arrive - T.at));
+      const total = RT0 ? RT0.total : D;
+      let q, hdg, done;
+      if (RT0) { const ar = alongRoute(RT0, fr); q = ar.p; hdg = ar.hdg; done = ar.done; }
+      else { q = gcPoint(A, B, fr); hdg = bearing(q, gcPoint(A, B, Math.min(1, fr + 0.01))); }
+      return Object.assign(q, { live: false, lost: true, frac: fr, remKm: (1 - fr) * total, hdg, eta: eta0, phase: fr > 0.92 ? 'descent' : 'cruise', done });
+    }
+  }
   if (live) {
     const p = { lat: T.pos.lat, lon: T.pos.lon };
     const dA = dist(A, p), dB = dist(p, B);
@@ -1065,6 +1081,7 @@ function flightPos(f, now) {
     const frac = dA / (dA + dB);
     const gs = T.pos.gs;
     const eta = gs > 150 ? now + dB / (gs * 1.852) * HOUR + onn : f.sta;
+    if (S.track[f.id]) S.track[f.id].eta0 = eta;          // 记下来：信号断了以后按这个时间走完剩下的航路
     let phase = 'cruise';
     if (T.pos.alt != null && T.pos.alt < 18000 && T.pos.vs != null) phase = T.pos.vs > 300 ? 'climb' : T.pos.vs < -300 ? 'descent' : phase;
     if (T.pos.alt != null && T.pos.alt < 18000 && frac > 0.6 && phase === 'cruise') phase = 'descent';
@@ -1169,7 +1186,7 @@ function renderFlight(st, light) {
     '<div class="fp-foot"><div><div class="lbl">状态</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
       (pos.phase === 'waiting' ? '<span style="color:var(--red)"> · 已过计划 ' + durTxt(now - f.std) + '</span>' : '') +
       (pos.live && pos.reg ? ' · ' + esc(pos.reg) + (pos.type ? ' ' + esc(pos.type) : '') : '') + '</div></div>' +
-      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">OFP 计划航路</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
+      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">OFP 计划航路</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : pos.lost ? '信号中断 · 按航路推算' : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
   $('f-panel').innerHTML = html;
 }
 
