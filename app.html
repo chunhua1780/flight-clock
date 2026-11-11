@@ -1031,6 +1031,8 @@ async function pollTrack(f) {
     const pts = (j.trail || []).filter(p => p[3] >= f.std - HOUR && p[3] <= f.sta + 2 * HOUR);
     T.pts = mergeTrail(T.pts, pts);
     saveTrail(f.id, T.pts);
+    const fs0 = S.status[f.id] || {};
+    if (fs0.on) learnRoute(f, T.pts);                                // 落地了：把这趟真实轨迹记成这条航线的航路
     renderFlight(compute(Date.now()), true);
   } catch (e) { /* 网络问题，下次再试 */ } finally { T.busy = false; }
 }
@@ -1065,31 +1067,62 @@ function ensureRoutePts(r) {
     if (out.length > (r.pts || []).length) { r.pts = out; S.routeLines = {}; lsSet('fc.routes', JSON.stringify(S.routes)); render(true); }
   })();
 }
+/* ---------- 从实际飞过的轨迹「学」航路：每条航线记住上一次 ADS-B 轨迹 ---------- */
+let LEARN = (() => { try { return JSON.parse(lsGet('fc.learn') || '{}'); } catch (e) { return {}; } })();
+fetchT('routes.json', 15000).then(r => r.json()).then(j => {   // 网站自带的种子航路（本机学到的更新的优先）
+  let changed = false;
+  for (const k in j) if (!LEARN[k] || (LEARN[k].t || 0) < (j[k].t || 0)) { LEARN[k] = j[k]; changed = true; }
+  if (changed) { S.routeLines = {}; render(true); }
+}).catch(() => {});
+function learnRoute(f, pts) {
+  const A = AP[f.origin], B = AP[f.dest];
+  if (!A || !B || !pts || pts.length < 20) return;
+  const first = { lat: pts[0][0], lon: pts[0][1] }, last = { lat: pts[pts.length - 1][0], lon: pts[pts.length - 1][1] };
+  if (dist(A, first) > 500 || dist(last, B) > 80) return;          // 轨迹不完整就不学
+  const k = f.origin + f.dest;
+  if (LEARN[k] && LEARN[k].t >= pts[pts.length - 1][3]) return;    // 已经学过这一趟
+  const out = [];
+  pts.forEach(p => { const q = [Math.round(p[0] * 1e3) / 1e3, Math.round(p[1] * 1e3) / 1e3]; if (!out.length || dist({ lat: out[out.length - 1][0], lon: out[out.length - 1][1] }, { lat: q[0], lon: q[1] }) >= 40) out.push(q); });
+  LEARN[k] = { pts: out, t: pts[pts.length - 1][3], flight: f.no };
+  lsSet('fc.learn', JSON.stringify(LEARN));
+}
+function learnedOf(f) {
+  const k = f.origin + f.dest, rk = f.dest + f.origin;
+  if (LEARN[k] && LEARN[k].pts.length > 3) return { src: LEARN[k], pts: LEARN[k].pts };
+  if (LEARN[rk] && LEARN[rk].pts.length > 3) return { src: LEARN[rk], pts: LEARN[rk].pts.slice().reverse() };   // 反方向的也凑合用
+  return null;
+}
+function buildRoute(f, src, pts, kind) {
+  if (S.routeLines[f.id] && S.routeLines[f.id].src === src && S.routeLines[f.id].n === pts.length) return S.routeLines[f.id];
+  const A = AP[f.origin], B = AP[f.dest];
+  const nodes = [{ lat: A.lat, lon: A.lon }].concat(pts.map(p => ({ lat: p[0], lon: p[1], id: p[2] }))).concat([{ lat: B.lat, lon: B.lon }]);
+  let line = [], prevLon = A.lon, cum = [0], total = 0;
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const seg = gcLine(nodes[i], nodes[i + 1], Math.max(2, Math.round(dist(nodes[i], nodes[i + 1]) / 60)));
+    seg.forEach((pt, j) => {
+      if (i > 0 && j === 0) return;
+      pt[1] = unwrap(pt[1], prevLon); prevLon = pt[1];
+      if (line.length) { total += dist({ lat: line[line.length - 1][0], lon: line[line.length - 1][1] }, { lat: pt[0], lon: pt[1] }); cum.push(total); }
+      line.push(pt);
+    });
+  }
+  return (S.routeLines[f.id] = { src, n: pts.length, line, cum, total, nodes, kind });
+}
 function routeOf(f) {
-  if (!CFG.ofp || !S.routes || !S.routes.length) return null;   // 默认用大圆航线
+  if (CFG.ofp && S.routes && S.routes.length) {
+    const r0 = ofpRouteOf(f);
+    if (r0) return r0;
+  }
+  const L = learnedOf(f);                                           // 没有 OFP：用上次实际飞过的航路
+  return L ? buildRoute(f, L.src, L.pts, 'learned') : null;
+}
+function ofpRouteOf(f) {
   S.routes.forEach(ensureRoutePts);
   const dd = t => { const p = parts(t, 'UTC'); return p.day + MON3[+p.month - 1]; };
   const dates = [dd(f.std), dd(f.std - 864e5), dd(f.std + 864e5), ymd(f.std, apTz(f.origin)).slice(6) + MON3[+ymd(f.std, apTz(f.origin)).slice(4, 6) - 1]];
   const r = S.routes.find(r => r.digits === f.digits && r.depIata === f.origin && r.arrIata === f.dest && dates.includes(r.date) && r.pts && r.pts.length);
-  // 航路点查全了以后，换掉旧的航路线
   if (!r) return null;
-  if (!S.routeLines[f.id] || S.routeLines[f.id].src !== r || S.routeLines[f.id].n !== r.pts.length) {
-    // 出发机场 → 航路点 … → 到达机场，每段按大圆加密，经度连续（跨 180° 也不断）
-    const A = AP[f.origin], B = AP[f.dest];
-    const nodes = [{ lat: A.lat, lon: A.lon }].concat(r.pts.map(p => ({ lat: p[0], lon: p[1], id: p[2] }))).concat([{ lat: B.lat, lon: B.lon }]);
-    let line = [], prevLon = A.lon, cum = [0], total = 0;
-    for (let i = 0; i < nodes.length - 1; i++) {
-      const seg = gcLine(nodes[i], nodes[i + 1], Math.max(2, Math.round(dist(nodes[i], nodes[i + 1]) / 60)));
-      seg.forEach((pt, j) => {
-        if (i > 0 && j === 0) return;
-        pt[1] = unwrap(pt[1], prevLon); prevLon = pt[1];
-        if (line.length) { total += dist({ lat: line[line.length - 1][0], lon: line[line.length - 1][1] }, { lat: pt[0], lon: pt[1] }); cum.push(total); }
-        line.push(pt);
-      });
-    }
-    S.routeLines[f.id] = { src: r, n: r.pts.length, line, cum, total, nodes };
-  }
-  return S.routeLines[f.id];
+  return buildRoute(f, r, r.pts, 'ofp');
 }
 // 沿计划航路走到 frac（0–1）处的位置和航向
 function alongRoute(R, frac) {
@@ -1194,7 +1227,7 @@ function renderFlight(st, light) {
         L.circleMarker(ll, { radius: 5, color: '#d2ad62', weight: 2, fillColor: '#000', fillOpacity: 1 })
           .bindTooltip(code, { permanent: true, direction: 'right', className: 'ap-lbl', offset: [8, 0] }).addTo(map));
       // OFP 航路点：小点 + 名字
-      if (RT) RT.nodes.slice(1, -1).forEach(n => {
+      if (RT) RT.nodes.slice(1, -1).filter(n => n.id).forEach(n => {
         const ll = [n.lat, unwrap(n.lon, line[0][1])];
         L_aps.push(L.circleMarker(ll, { radius: 2.5, color: '#f3d99c', weight: 1, fillColor: '#f3d99c', fillOpacity: .9, interactive: false })
           .bindTooltip(n.id, { permanent: true, direction: 'top', className: 'wp-lbl', offset: [0, -3] }).addTo(map));
@@ -1258,7 +1291,7 @@ function renderFlight(st, light) {
     '<div class="fp-foot"><div><div class="lbl">状态</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
       (pos.phase === 'waiting' ? '<span style="color:var(--red)"> · 已过计划 ' + durTxt(now - f.std) + '</span>' : '') +
       (pos.live && pos.reg ? ' · ' + esc(pos.reg) + (pos.type ? ' ' + esc(pos.type) : '') : '') + '</div></div>' +
-      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">OFP 计划航路</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : pos.lost ? '信号中断 · 按航路推算' : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
+      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">' + (routeOf(f).kind === 'ofp' ? 'OFP 计划航路' : '按上次实际航路') + '</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : pos.lost ? '信号中断 · 按航路推算' : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
   $('f-panel').innerHTML = html;
 }
 
