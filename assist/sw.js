@@ -1,5 +1,5 @@
 /* 飞行助手离线缓存：第一次联网打开时把所有文件存下来，之后没网也能用 */
-const CACHE = 'fa-v3';
+const CACHE = 'fa-v4';
 const FILES = ['./', 'index.html', 'ofp.js', 'wx.js', 'ekparse.js', 'manifest.json', 'data/airports.json', 'data/countries.json',
   'vendor/pdf.min.js', 'vendor/pdf.worker.min.js', 'vendor/topojson-client.min.js',
   '../vendor/leaflet/leaflet.js', '../vendor/leaflet/leaflet.css', '../icon-180.png'];

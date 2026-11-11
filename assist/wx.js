@@ -119,14 +119,14 @@
         else if (g.type === 'FM' && t >= g.from) main = merge({}, g.c);
         else if (g.type === 'BECMG') {
           if (t >= g.to) main = merge(main, g.c);
-          else if (t >= g.from) maybe.push({ g, c: merge(main, g.c), why: '转变中 BECMG' });
+          else if (t >= g.from) maybe.push({ g, c: merge(main, g.c), why: '转变中 BECMG', whyEn: 'BECMG in progress' });
         } else if ((g.type === 'TEMPO' || g.type === 'PROB' || g.type === 'INTER') && t >= g.from && t < g.to) {
-          maybe.push({ g, c: merge(main, g.c), why: (g.prob ? 'PROB' + g.prob + ' ' : '') + (g.type === 'PROB' ? '' : g.type) });
+          { const why = (g.prob ? 'PROB' + g.prob + ' ' : '') + (g.type === 'PROB' ? '' : g.type); maybe.push({ g, c: merge(main, g.c), why, whyEn: why }); }
         }
       }
     } else if (M) { src = 'metar'; main = merge({}, M); }
     // 离实况时间 2 小时以内，也参考实况
-    if (M && M.time && Math.abs(t - M.time) < 2 * 3600e3 && src === 'taf') maybe.push({ c: merge(main, M), why: '实况 METAR' });
+    if (M && M.time && Math.abs(t - M.time) < 2 * 3600e3 && src === 'taf') maybe.push({ c: merge(main, M), why: '实况 METAR', whyEn: 'actual METAR' });
     return { main, maybe, src };
   }
 
@@ -147,7 +147,25 @@
   }
 
   const visTxt = v => v == null ? '' : v >= 10000 ? '能见度 10 公里以上' : v >= 5000 ? '能见度 ' + Math.round(v / 1000) + ' 公里' : '能见度 ' + v + ' 米';
-  function sayOne(c) {
+  const visEn = v => v == null ? '' : v >= 10000 ? 'vis 10 km+' : v >= 5000 ? 'vis ' + Math.round(v / 1000) + ' km' : 'vis ' + v + ' m';
+  function sayEn(c) {
+    if (!c) return '';
+    const p = [];
+    if (c.wind) { const w = c.wind; p.push(w.spd <= 2 ? 'calm' : (w.dir == null ? 'VRB' : String(w.dir).padStart(3, '0') + '°') + '/' + w.spd + ' kt' + (w.gust ? ' G' + w.gust : '')); }
+    if (c.cavok) p.push('CAVOK');
+    else {
+      if (c.vis != null) p.push(visEn(c.vis));
+      if (c.wx && c.wx.length) p.push(c.wx.join(' '));
+      if (c.ceil != null) p.push('ceiling ' + c.ceil + ' ft');
+      else if (c.clouds && c.clouds.length) p.push('cloud ' + Math.min(...c.clouds.map(x => x.h)) + ' ft+, no ceiling');
+      if (c.cb) p.push('CB');
+    }
+    if (c.temp != null) p.push(c.temp + '°C');
+    if (c.qnh) p.push('QNH ' + c.qnh);
+    return p.join(', ');
+  }
+  function sayOne(c, lang) {
+    if (lang === 'en') return sayEn(c);
     if (!c) return '';
     const p = [];
     if (c.wind) {
@@ -167,12 +185,14 @@
     return p.join('，');
   }
   const hhmmZ = t => { const d = new Date(t); return String(d.getUTCHours()).padStart(2, '0') + String(d.getUTCMinutes()).padStart(2, '0') + 'Z'; };
-  function say(w) {
-    const lines = [sayOne(w.main)];
+  function say(w, lang) {
+    const en = lang === 'en';
+    const lines = [sayOne(w.main, lang)];
     w.maybe.forEach(m => {
       const diff = ['vis', 'ceil', 'wx', 'wind', 'cb'].some(k => JSON.stringify(m.c[k]) !== JSON.stringify(w.main[k]));
       if (!diff) return;
-      lines.push('可能（' + m.why.trim() + (m.g ? ' ' + hhmmZ(m.g.from) + '–' + hhmmZ(m.g.to) : '') + '）：' + sayOne(m.c));
+      const when = (m.g ? ' ' + hhmmZ(m.g.from) + '–' + hhmmZ(m.g.to) : '');
+      lines.push(en ? 'Possible (' + (m.whyEn || m.why).trim() + when + '): ' + sayEn(m.c) : '可能（' + m.why.trim() + when + '）：' + sayOne(m.c));
     });
     return lines.filter(Boolean);
   }
@@ -203,6 +223,22 @@
   }
 
   // ---------- NOTAM：只挑影响落地/备降的，翻成大白话 ----------
+  const EN = {
+    '机场关闭': 'Aerodrome closed', '燃油供应受限': 'Fuel limited', '有开放时间/宵禁限制': 'Operating hours / curfew',
+    'GPS 可能受干扰': 'GPS interference possible', '公司规定：除紧急情况外不能用作备降': 'Not for diversion except emergency',
+    '鸟情活动': 'Bird activity', '跑道/进近灯光部分不可用': 'Rwy/approach lights partly U/S', '下滑道 不可用': 'GP U/S', '航向道 不可用': 'LOC U/S',
+    '二类运行不可用': 'CAT II not available', '三类运行不可用': 'CAT III not available'
+  };
+  function toEn(zh) {
+    if (EN[zh]) return EN[zh];
+    let m;
+    if ((m = /^跑道 (\S+) 关闭$/.exec(zh))) return 'RWY ' + m[1] + ' closed';
+    if ((m = /^跑道 (\S+) 不可用$/.exec(zh))) return 'RWY ' + m[1] + ' not available';
+    if ((m = /^ILS ?(\S*) 不可用$/.exec(zh))) return ('ILS ' + m[1]).trim() + ' U/S';
+    if ((m = /^消防等级降为 (\d+) 级$/.exec(zh))) return 'RFF reduced to CAT ' + m[1];
+    if ((m = /^(\S+) 不可用$/.exec(zh))) return m[1] + ' U/S';
+    return zh;
+  }
   const RULES = [
     [/\bAD\s+CLSD\b|AERODROME\s+CLOSED|AIRPORT\s+CLOSED/, 'red', () => '机场关闭'],
     [/\bRWY\s*(\d{2}[LRC]?(?:\/\d{2}[LRC]?)?)\s+(?:IS\s+)?CLSD\b/, 'red', m => '跑道 ' + m[1] + ' 关闭'],
@@ -236,7 +272,7 @@
         const key = zh;
         if (seen[key]) { seen[key].ids.push(n.id); return; }
         const sched = /\b(MON|TUE|WED|THU|FRI|SAT|SUN|DAILY|\d{4}-\d{4})\b/.test(tx.slice(0, 60));
-        const item = { lv, zh: zh + (sched ? '（有时段）' : ''), ids: [n.id], raw: tx, cat: n.cat };
+        const item = { lv, zh: zh + (sched ? '（有时段）' : ''), en: toEn(zh) + (sched ? ' (scheduled)' : ''), ids: [n.id], raw: tx, cat: n.cat };
         seen[key] = item; out.push(item);
         return;
       }
