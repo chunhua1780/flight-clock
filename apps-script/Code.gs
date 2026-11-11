@@ -5,6 +5,7 @@
  *   1. ?action=flights   读取 Google 日历里的排班，返回航班列表 + 每段航班的实际动态
  *   2. ?action=track     查询 ADS-B 实时位置（浏览器直连会被拦），缓存轨迹，判断起飞/落地
  *   3. 定时器 poll()     每 5 分钟自动查一次正在进行的航班，iPad 关着也能记下起飞/落地时间
+ *   5. ?action=ics&url=…  同事用：读他自己 Google 日历的「iCal 私密地址」，返回同样格式的航班列表
  *   4. ?action=photo     从图片库（Pexels 或 Unsplash）找「城市 + 时段 + 天气」的背景照片，每天换一张
  *                        （需要在 项目设置 → 脚本属性 里加 PEXELS_KEY 或 UNSPLASH_KEY）
  *
@@ -57,6 +58,7 @@ function doGet(e) {
       const leg = p.o && p.d && p.std ? { origin: p.o, dest: p.d, std: +p.std, sta: +p.sta || 0 } : null;
       return out_(track_(p.cs, leg));
     }
+    if (p.action === 'ics') return out_(flights_(p.url));
     return out_(flights_());
   } catch (err) {
     return out_({ ok: false, error: String(err) });
@@ -84,40 +86,102 @@ function setup() {
 const DUTY_CODE = /\b(SIM|FFS|LOFT|LPC|OPC|SBY|STBY|ASBY|HSBY|RSV|GRD|GND|TRG|CRM|SEP|DGR|OFF|DO|RDO|AL|LV|REST)\b/;
 const DUTY_WORD = /simulator|stand\s?by|reserve|ground|training|course|classroom|leave|vacation|day off|rest day|medical|visa/i;
 
+// 判断一条日程是航班、排班任务，还是私人日程（私人的不发出去）
+function pushEvent_(list, seen, e) {
+  const title = String(e.title || '').trim(), desc = String(e.desc || '');
+  const isFlight = !e.allDay && FLIGHT_TITLE.test(title.toUpperCase());
+  const isDuty = !isFlight && (/crewpulse/i.test(desc) || DUTY_CODE.test(title) || DUTY_WORD.test(title));
+  if (!isFlight && !isDuty) return;
+  const start = new Date(e.start).toISOString();
+  const key = title.toUpperCase() + '|' + start;
+  if (seen[key]) return;
+  seen[key] = 1;
+  list.push({
+    title: title.slice(0, 60), start: start, end: new Date(e.end).toISOString(), allDay: !!e.allDay,
+    kind: isFlight ? 'flight' : 'duty',
+    location: isFlight ? String(e.location || '') : '',
+    description: isFlight ? legsOnly_(desc) : '',
+  });
+}
+
 function events_(from, to) {
   const list = [], seen = {};
   CALENDAR_IDS.forEach(function (id) {
     const cal = id === 'primary' ? CalendarApp.getDefaultCalendar() : CalendarApp.getCalendarById(id);
     if (!cal) return;
     cal.getEvents(from, to).forEach(function (ev) {
-      const allDay = ev.isAllDayEvent();
-      const title = (ev.getTitle() || '').trim();
-      const desc = ev.getDescription() || '';
-      const isFlight = !allDay && FLIGHT_TITLE.test(title.toUpperCase());
-      const isDuty = !isFlight && (/crewpulse/i.test(desc) || DUTY_CODE.test(title) || DUTY_WORD.test(title));
-      if (!isFlight && !isDuty) return;          // 私人日程不发出去
-      const start = ev.getStartTime().toISOString();
-      const key = title.toUpperCase() + '|' + start;
-      if (seen[key]) return;
-      seen[key] = 1;
-      list.push({
-        title: title.slice(0, 60),
-        start: start,
-        end: ev.getEndTime().toISOString(),
-        allDay: allDay,
-        kind: isFlight ? 'flight' : 'duty',
-        location: isFlight ? (ev.getLocation() || '') : '',
-        description: isFlight ? legsOnly_(desc) : '',
-      });
+      pushEvent_(list, seen, { title: ev.getTitle(), desc: ev.getDescription(), allDay: ev.isAllDayEvent(),
+        start: ev.getStartTime(), end: ev.getEndTime(), location: ev.getLocation() });
     });
   });
   list.sort(function (a, b) { return a.start < b.start ? -1 : 1; });
   return list;
 }
 
-function flights_() {
+// ======== 同事用：读他自己的日历「iCal 私密地址」 ========
+// 同事在时钟设置里粘贴 Google 日历的私密地址（…/basic.ics），时钟通过本脚本读取（浏览器不能直接读）。
+// 只允许日历网站的地址，防止被拿去访问别的网站。
+const ICS_HOSTS = /^https:\/\/(calendar\.google\.com\/calendar\/ical\/|p\d+-caldav\.icloud\.com\/published\/|outlook\.(office365|live)\.com\/owa\/calendar\/)/i;
+
+function icsList_(url, from, to) {
+  url = String(url || '').trim().replace(/^webcal:\/\//i, 'https://');
+  if (!ICS_HOSTS.test(url)) throw new Error('不是有效的日历地址（需要 Google 日历的「iCal 格式私密地址」）');
+  const cache = CacheService.getScriptCache(), ck = 'icsl_' + hash_(url);
+  const hit = cache.get(ck);
+  if (hit) return JSON.parse(hit);
+  const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+  if (r.getResponseCode() !== 200) throw new Error('日历地址打不开（' + r.getResponseCode() + '），请重新复制私密地址');
+  const text = r.getContentText();
+  if (text.indexOf('BEGIN:VCALENDAR') < 0) throw new Error('这个地址不是日历文件');
+  const calTz = ((text.match(/^X-WR-TIMEZONE:(.+)$/m) || [])[1] || 'UTC').trim();
+  const lines = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/);
+  const list = [], seen = {};
+  let ev = null;
+  lines.forEach(function (ln) {
+    if (ln === 'BEGIN:VEVENT') { ev = {}; return; }
+    if (ln === 'END:VEVENT') {
+      if (ev && ev.start && ev.status !== 'CANCELLED' && ev.start < to.getTime() && (ev.end || ev.start) > from.getTime()) {
+        pushEvent_(list, seen, { title: ev.summary, desc: ev.desc, allDay: ev.allDay, start: ev.start, end: ev.end || ev.start, location: ev.location });
+      }
+      ev = null; return;
+    }
+    if (!ev) return;
+    const i = ln.indexOf(':'); if (i < 0) return;
+    const head = ln.slice(0, i), val = ln.slice(i + 1), name = head.split(';')[0].toUpperCase();
+    const unesc = function (v) { return v.replace(/\\n/gi, '\n').replace(/\\([,;\\])/g, '$1'); };
+    if (name === 'SUMMARY') ev.summary = unesc(val);
+    else if (name === 'DESCRIPTION') ev.desc = unesc(val);
+    else if (name === 'LOCATION') ev.location = unesc(val);
+    else if (name === 'STATUS') ev.status = val.trim().toUpperCase();
+    else if (name === 'DTSTART' || name === 'DTEND') {
+      const tz = (head.match(/TZID=([^;:]+)/i) || [])[1];
+      const t = icsTime_(val.trim(), tz || calTz);
+      if (!t) return;
+      if (name === 'DTSTART') { ev.start = t.ms; ev.allDay = t.allDay; } else ev.end = t.ms;
+    }
+  });
+  list.sort(function (a, b) { return a.start < b.start ? -1 : 1; });
+  const json = JSON.stringify(list);
+  if (json.length < 95000) cache.put(ck, json, 300);   // 5 分钟内重复读用缓存
+  return list;
+}
+
+function icsTime_(v, tz) {
+  let m = v.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (m) return { allDay: true, ms: safeLocal_(+m[1], +m[2] - 1, +m[3], 0, 0, tz) };
+  m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/);
+  if (!m) return null;
+  if (m[7]) return { allDay: false, ms: Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) };
+  return { allDay: false, ms: safeLocal_(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], tz) };
+}
+function safeLocal_(y, mo, d, h, mi, tz) {
+  try { return localToUtc_(y, mo, d, h, mi, tz); } catch (e) { return Date.UTC(y, mo, d, h, mi); }
+}
+
+function flights_(icsUrl) {
   const now = new Date();
-  const list = events_(new Date(now.getTime() - DAYS_BACK * 864e5), new Date(now.getTime() + DAYS_AHEAD * 864e5));
+  const from = new Date(now.getTime() - DAYS_BACK * 864e5), to = new Date(now.getTime() + DAYS_AHEAD * 864e5);
+  const list = icsUrl ? icsList_(icsUrl, from, to) : events_(from, to);
   // 附上每段航班的实际动态（起飞/落地时间）
   const status = {};
   list.forEach(function (ev) {
@@ -128,7 +192,7 @@ function flights_() {
     });
   });
   let routes = [];
-  try { routes = ofpRoutes_(); } catch (e) {}
+  if (!icsUrl) { try { routes = ofpRoutes_(); } catch (e) {} }   // OFP 只给自己用
   return { ok: true, version: 5, generated: now.toISOString(), flights: list, status: status, routes: routes };
 }
 

@@ -204,6 +204,9 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 .smodal .btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
 .btn{border:1px solid #2a2a2d;background:#1b1b1e;color:var(--text);border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit}
 .btn.pri{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+.howto{margin:8px 0 4px;font-size:13px;color:#cfccc4}.howto summary{cursor:pointer;color:var(--gold)}.howto ol{margin:8px 0;padding-left:20px;line-height:1.6}.howto p{margin:6px 0 0}
+body.lite .adv, body.lite .full-only{display:none}
+body:not(.lite) .ics-box{display:none}
 #testout{margin-top:14px;font-size:12px;color:var(--dim);white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;max-height:180px;overflow:auto}
 .smodal .demo a{color:var(--gold);margin-right:14px;font-size:13px}
 
@@ -275,13 +278,29 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
 <div id="settings">
   <div class="smodal">
     <h2>设置</h2>
-    <p>航班从 Google 日历读取，经过你部署的 Apps Script 网址。设置只保存在这台设备上。</p>
+    <p>设置只保存在这台 iPad 上。</p>
+    <div class="ics-box">
+      <label>你的 Google 日历「iCal 格式的私密地址」</label>
+      <input type="url" id="s-ics" spellcheck="false" autocomplete="off" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics">
+      <details class="howto"><summary>怎么找到这个地址？</summary>
+        <ol>
+          <li>用电脑或手机浏览器打开 <b>calendar.google.com</b>（iPad 上的 Google 日历 App 里找不到）</li>
+          <li>右上角 ⚙ → <b>设置</b></li>
+          <li>左边「我的日历的设置」里，点你的排班日历</li>
+          <li>往下拉到「<b>集成日历</b>」→「<b>iCal 格式的私密地址</b>」→ 点复制</li>
+          <li>粘贴到上面这一栏，点「测试连接」，没问题再点「保存」</li>
+        </ol>
+        <p>这个地址只能看、不能改你的日历，但别人拿到也能看，所以不要发给别人。</p>
+      </details>
+    </div>
+    <div class="adv">
     <label>Apps Script 网址（/exec 结尾）</label>
     <input type="url" id="s-api" spellcheck="false" autocomplete="off">
     <label>Pexels 图片库 Key（只保存在这台设备上）</label>
     <input type="text" id="s-pexels" spellcheck="false" autocomplete="off">
     <label>Token（Apps Script 里设了 TOKEN 才需要）</label>
     <input type="text" id="s-token" spellcheck="false" autocomplete="off">
+    </div>
     <div class="row">
       <div><label>基地机场</label><input type="text" id="s-home" spellcheck="false"></div>
       <div><label>航司代码</label><input type="text" id="s-airline" spellcheck="false"></div>
@@ -295,8 +314,8 @@ body[data-mode=layover] .layhead{justify-content:flex-start;gap:18px}
     <label class="chk"><input type="checkbox" id="s-drop8">五位数航班号去掉开头的 8（89876 → EK9876）</label>
     <label class="chk"><input type="checkbox" id="s-dim">夜间自动变暗</label>
     <label class="chk"><input type="checkbox" id="s-cal">主界面右侧显示月历</label>
-    <label class="chk"><input type="checkbox" id="s-ofp">飞行地图用 OFP 计划航路（默认大圆航线）</label>
-    <label class="chk"><input type="checkbox" id="s-photos">背景用图片库，每天换（需在 Apps Script 设 PEXELS_KEY 或 UNSPLASH_KEY）</label>
+    <label class="chk full-only"><input type="checkbox" id="s-ofp">飞行地图用 OFP 计划航路（默认大圆航线）</label>
+    <label class="chk full-only"><input type="checkbox" id="s-photos">背景用图片库，每天换（需在 Apps Script 设 PEXELS_KEY 或 UNSPLASH_KEY）</label>
     <div class="btns">
       <button class="btn pri" id="s-save">保存</button>
       <button class="btn" id="s-test">测试连接</button>
@@ -327,7 +346,8 @@ window.onerror = function (m, src, line) {
 const EDITION = new URLSearchParams(location.search).get('edition') === 'lite' ? 'lite' : 'full';
 const LITE = EDITION === 'lite';
 const DEFAULTS = {
-  api: LITE ? '' : 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',
+  api: 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',   // 简洁版也经过这个脚本读取同事自己的日历地址（只读他填的那个）
+  ics: '',
   token: '', home: 'DXB,DWC', airline: 'EK', cs: 'UAE', pickup: 135,
   drop8: true, dim: true, dimFrom: 23, dimTo: 6, cal: true, photos: !LITE, ofp: !LITE
 };
@@ -651,6 +671,8 @@ function fetchT(url, ms, opt) {
   const t = c && setTimeout(() => c.abort(), ms);
   return fetch(url, Object.assign({}, opt || {}, c ? { signal: c.signal } : {})).finally(() => t && clearTimeout(t));
 }
+// 有 iCal 地址就读那个日历（同事），否则读脚本主人的日历
+const flightsQuery = () => CFG.ics ? { action: 'ics', url: CFG.ics, _: Date.now() } : { action: 'flights', _: Date.now() };
 function apiUrl(params) {
   const u = new URL(CFG.api);
   for (const k in params) u.searchParams.set(k, params[k]);
@@ -667,8 +689,8 @@ async function loadFlights() {
     return;
   }
   try {
-    if (!CFG.api) { S.sync = { ok: false, t: Date.now(), err: '还没设置日历网址' }; return; }
-    const r = await fetchT(apiUrl({ action: 'flights', _: Date.now() }), 15000, { cache: 'no-store' });
+    if (!CFG.api || (LITE && !CFG.ics)) { S.sync = { ok: false, t: Date.now(), err: '还没设置日历地址' }; return; }
+    const r = await fetchT(apiUrl(flightsQuery()), 30000, { cache: 'no-store' });
     const j = await r.json();
     if (j.ok === false) throw new Error(j.error || 'error');
     const f = normFlights(j);
@@ -1420,7 +1442,7 @@ function demoFlights() {
    SETTINGS / CHROME
    ===================================================================== */
 function openSettings() {
-  $('s-api').value = CFG.api; $('s-pexels').value = CFG.pexels || ''; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
+  $('s-api').value = CFG.api; $('s-ics').value = CFG.ics || ''; $('s-pexels').value = CFG.pexels || ''; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
   $('s-airline').value = CFG.airline; $('s-cs').value = CFG.cs; $('s-pickup').value = CFG.pickup;
   $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-ofp').checked = !!CFG.ofp; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
   $('testout').textContent = '';
@@ -1428,7 +1450,7 @@ function openSettings() {
 }
 function readSettings() {
   return {
-    api: $('s-api').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
+    api: $('s-api').value.trim() || DEFAULTS.api, ics: $('s-ics').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
     airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
     pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked, ofp: $('s-ofp').checked, v3: 1,
     dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
@@ -1447,12 +1469,14 @@ $('s-test').onclick = async () => {
   const old = CFG; CFG = Object.assign({}, DEFAULTS, readSettings());
   try {
     await apReady;
-    const j = await (await fetchT(apiUrl({ action: 'flights', _: Date.now() }), 15000, { cache: 'no-store' })).json();
+    if (LITE && !CFG.ics) throw new Error('请先粘贴你的 Google 日历私密地址');
+    const j = await (await fetchT(apiUrl(flightsQuery()), 30000, { cache: 'no-store' })).json();
+    if (j.ok === false) throw new Error(j.error || '读取失败');
     const f = normFlights(j);
     if (!f) throw new Error('返回内容不是航班数据：' + JSON.stringify(j).slice(0, 200));
     out.textContent = (Array.isArray(j.flights) ? '✅ 新版接口（支持多航班 + 实时轨迹）' : '⚠️ 旧版接口（只有下一班，没有实时轨迹）') +
-      '\n识别到 ' + f.length + ' 段航班（时间均为当地）：\n' + f.slice(0, 10).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  到 ' + hm(x.sta, apTz(x.dest))).join('\n') +
-      (() => { const bad = Array.isArray(j.flights) ? j.flights.filter(r => !parseFlight(r)) : []; return bad.length ? '\n\n有 ' + bad.length + ' 条日程没认出来：' + bad.slice(0, 3).map(r => '“' + r.title + '”').join(' ') : ''; })();
+      '\n识别到 ' + f.length + ' 段航班' + (Array.isArray(j.flights) ? '、' + j.flights.filter(r => r.kind === 'duty').length + ' 个其他任务（模拟机/地面/休假等）' : '') + '（时间均为当地）：\n' + f.slice(0, 10).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  到 ' + hm(x.sta, apTz(x.dest))).join('\n') +
+      (() => { const bad = Array.isArray(j.flights) ? j.flights.filter(r => r.kind !== 'duty' && !parseFlight(r)) : []; return bad.length ? '\n\n有 ' + bad.length + ' 条日程没认出来：' + bad.slice(0, 3).map(r => '“' + r.title + '”').join(' ') : ''; })();
   } catch (e) { out.textContent = '❌ ' + e.message; }
   CFG = old;
 };
@@ -1503,7 +1527,8 @@ if (window.top === window.self) setInterval(() => {
   render(true);
   setInterval(tick, 1000);
   // 简洁版第一次打开：还没填日历地址，先弹出设置
-  if (LITE && !CFG.api && !DEMO) { openSettings(); $('testout').textContent = '欢迎使用！请把你自己的 Apps Script 网址（/exec 结尾）填在第一栏，点「测试连接」，再点「保存」。'; }
+  if (LITE) document.body.classList.add('lite');
+  if (LITE && !CFG.ics && !DEMO) { openSettings(); $('testout').textContent = '欢迎使用！请把你的 Google 日历私密地址粘贴到第一栏（不知道在哪里就点「怎么找到这个地址？」），点「测试连接」，再点「保存」。'; }
   await loadFlights();
   render(true);
   setInterval(() => loadFlights().then(() => render(true)), 5 * MIN);
