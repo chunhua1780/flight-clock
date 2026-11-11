@@ -4,7 +4,7 @@
  * 作用：
  *   1. ?action=flights   读取 Google 日历里的排班，返回航班列表 + 每段航班的实际动态
  *   2. ?action=track     查询 ADS-B 实时位置（浏览器直连会被拦），缓存轨迹，判断起飞/落地
- *   3. 定时器 poll()     每 5 分钟自动查一次正在进行的航班，iPad 关着也能记下起飞/落地时间
+ *   3. 定时器 poll()     每 1 分钟自动查一次正在进行的航班，iPad 关着也能记下起飞/落地时间
  *   5. ?action=ics&url=…  同事用：读他自己 Google 日历的「iCal 私密地址」，返回同样格式的航班列表
  *   4. ?action=photo     从图片库（Pexels 或 Unsplash）找「城市 + 时段 + 天气」的背景照片，每天换一张
  *                        （需要在 项目设置 → 脚本属性 里加 PEXELS_KEY 或 UNSPLASH_KEY）
@@ -75,8 +75,8 @@ function setup() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'poll') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('poll').timeBased().everyMinutes(5).create();
-  Logger.log('✅ 定时器已安装：每 5 分钟检查一次正在进行的航班');
+  ScriptApp.newTrigger('poll').timeBased().everyMinutes(1).create();
+  Logger.log('✅ 定时器已安装：每 1 分钟检查一次正在进行的航班');
   try { const n = ofpMessages_().length; Logger.log('✅ 已允许读取 OFP 邮件（最近 4 天找到 ' + n + ' 封）'); } catch (e) { Logger.log('⚠️ 读邮件失败：' + e); }
   poll();
 }
@@ -279,7 +279,11 @@ function legsOf_(ev) {
 // ======== 定时器：自动跟踪正在进行的航班 ========
 function poll() {
   const now = Date.now();
-  const list = events_(new Date(now - 2 * 864e5), new Date(now + 864e5));
+  // 日历 10 分钟读一次就够（每分钟都读太浪费额度）
+  const cache = CacheService.getScriptCache();
+  let list = null;
+  try { list = JSON.parse(cache.get('poll_list') || 'null'); } catch (e) {}
+  if (!list) { list = events_(new Date(now - 2 * 864e5), new Date(now + 864e5)); cache.put('poll_list', JSON.stringify(list), 600); }
   list.forEach(function (ev) {
     legsOf_(ev).forEach(function (leg) {
       const st = getStatus_(leg);

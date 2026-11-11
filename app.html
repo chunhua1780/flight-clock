@@ -1127,7 +1127,9 @@ function flightPos(f, now) {
   // 飞行途中信号断了：从最后看到的真实位置接着沿航路往前推，按当时的预计到达时间匀速走完
   if (!live && T.pos && !T.pos.ground && T.at && !st.on && now - T.at < 14 * HOUR) {
     const RT0 = routeOf(f), last = { lat: T.pos.lat, lon: T.pos.lon };
-    const eta0 = Math.max(T.eta0 || land + onn, T.at + 10 * MIN), arrive = eta0 - onn;
+    // 按计划飞行时间：实际起飞时间 + 计划航段时间 = 预计落地；从最后一个真实位置按时间比例推到目的地
+    const planEta = st.off ? st.off + (f.sta - f.std) - 15 * MIN : f.sta;
+    const eta0 = Math.max(planEta > T.at + 10 * MIN ? planEta : (T.eta0 || land + onn), T.at + 10 * MIN), arrive = eta0 - onn;
     if (now < arrive + 20 * MIN) {
       let f0;
       if (RT0) { let bi = 0, bd = 1e9; RT0.line.forEach((q, i) => { const d = dist(last, { lat: q[0], lon: unwrap(q[1], last.lon) }); if (d < bd) { bd = d; bi = i; } }); f0 = RT0.cum[bi] / RT0.total; }
