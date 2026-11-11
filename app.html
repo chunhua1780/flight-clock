@@ -607,11 +607,22 @@ function normFlights(j) {
 const S = { flights: [], duties: [], routes: [], routeLines: {}, apiVer: 0, legacy: false, sync: null, wx: {}, track: {}, view: null, status: {} };
 try { S.status = JSON.parse(lsGet('fc.status') || '{}'); } catch (e) {}
 // 实际动态（Apps Script 根据 ADS-B 判断）：{taxi, off, on, reg}
+// 飞行计划（快捷指令发来的 OFP）：计划飞行时间 TRIP、滑行 TAXI
+const MON3_ = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function planOf(f) {
+  if (!S.plans || !S.plans.length) return null;
+  const dd = t => { const d = new Date(t); return String(d.getUTCDate()).padStart(2, '0') + MON3_[d.getUTCMonth()]; };
+  const dates = [dd(f.std), dd(f.std - 864e5), dd(f.std + 864e5)];
+  return S.plans.find(p => p.digits === f.digits && p.depIata === f.origin && p.arrIata === f.dest && dates.includes(p.date) && p.trip) || null;
+}
+const airMs = f => { const p = planOf(f); return p ? p.trip * MIN : (f.sta - f.std) - 23 * MIN; };     // 空中时间
+const taxiMs = f => { const p = planOf(f); return p && p.taxi ? p.taxi * MIN : 15 * MIN; };            // 起飞前滑行
+const planLand = f => planOf(f) ? f.std + taxiMs(f) + airMs(f) : f.sta - 8 * MIN;                       // 计划落地
 // 已起飞但一直没检测到落地（快落地时信号断了）：过了预计落地 1 小时，就按「实际起飞 + 计划飞行时间」估算落地
 const stOf = f => {
   const s = S.status[f.id] || {};
   if (s.off && !s.on) {
-    const est = s.off + (f.sta - f.std) - 23 * MIN;
+    const est = s.off + airMs(f);
     if (Date.now() > est + HOUR) return Object.assign({}, s, { on: est, onEst: true });
   }
   return s;
@@ -631,7 +642,7 @@ function endOf(f) {
   const tracking = st.seen && now - st.seen < 20 * MIN;
   if (st.on) return st.on;                                            // 已落地：按实际落地时间
   if (st.off) {
-    const est = Math.max(f.sta - 8 * MIN, st.off + (f.sta - f.std) - 23 * MIN);
+    const est = planOf(f) ? st.off + airMs(f) : Math.max(f.sta - 8 * MIN, st.off + airMs(f));
     // 已起飞但还没检测到落地：一直留在飞行画面（最多到预计落地后 3 小时）
     return tracking && now < est + 3 * HOUR ? Math.max(est, now + 5 * MIN) : est;
   }
@@ -700,6 +711,7 @@ async function loadFlights() {
     S.flights = mergeKnown(f);
     S.duties = normDuties(j); S.apiVer = j.version || 0;
     if (Array.isArray(j.routes)) { S.routes = j.routes; lsSet('fc.routes', JSON.stringify(j.routes)); }
+    if (Array.isArray(j.plans)) { S.plans = j.plans; lsSet('fc.plans', JSON.stringify(j.plans)); }
     lsSet('fc.duties', JSON.stringify({ v: S.apiVer, d: S.duties }));
     if (j.status) for (const k in j.status) setStatus(k, j.status[k]);
     S.sync = { ok: true, t: Date.now() };
@@ -810,7 +822,7 @@ function nextCard(f, upcoming) {
   return '<div class="nc"><div class="nc-top">' +
     '<div class="nc-id"><div class="nc-no">' + esc(f.no) + (f.dh ? '<span class="nc-tag">DH</span>' : '') + '</div>' +
       '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
-      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + ' · 飞行 ' + hmDur(f.sta - f.std) + '</div></div></div>' +
+      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + (planOf(f) ? ' · 计划飞行 ' + hmDur(airMs(f)) : ' · 飞行 ' + hmDur(f.sta - f.std)) + '</div></div></div>' +
     '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? CAR : '距起飞') + '</span>' +
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
     '</div>' +
@@ -1149,8 +1161,8 @@ function flightPos(f, now) {
     return { lat: A.lat, lon: A.lon, live: false, frac: 0, remKm: D, hdg: bearing(A, B),
       eta: Math.max(f.sta, now + (f.sta - f.std) + 15 * MIN), phase: st.taxi ? 'taxi' : now > f.std + 5 * MIN ? 'waiting' : 'boarding' };
   }
-  const takeoff = st.off || (tracking ? Math.max(f.std + 15 * MIN, st.taxi ? st.taxi + 12 * MIN : 0, Math.min(now + MIN, f.sta - 60 * MIN)) : f.std + 15 * MIN);
-  let land = st.on || (st.off ? st.off + (f.sta - f.std) - 23 * MIN : f.sta - onn);
+  const takeoff = st.off || (tracking ? Math.max(f.std + taxiMs(f), st.taxi ? st.taxi + 12 * MIN : 0, Math.min(now + MIN, f.sta - 60 * MIN)) : f.std + taxiMs(f));
+  let land = st.on || (st.off ? st.off + airMs(f) : planLand(f));
   // 已起飞、还在跟踪、但还没检测到落地：别提前说「已落地」，当作还在进近
   if (!st.on && st.off && tracking && now > land - 5 * MIN) land = now + 8 * MIN;
   if (st.on && now >= st.on) {
@@ -1163,7 +1175,7 @@ function flightPos(f, now) {
   if (!live && T.pos && !T.pos.ground && T.at && !st.on && now - T.at < 14 * HOUR) {
     const RT0 = routeOf(f), last = { lat: T.pos.lat, lon: T.pos.lon };
     // 按计划飞行时间：实际起飞时间 + 计划航段时间 = 预计落地；从最后一个真实位置按时间比例推到目的地
-    const planEta = st.off ? st.off + (f.sta - f.std) - 15 * MIN : f.sta;
+    const planEta = (st.off ? st.off + airMs(f) : planLand(f)) + onn;
     const eta0 = Math.max(planEta > T.at + 10 * MIN ? planEta : (T.eta0 || land + onn), T.at + 10 * MIN), arrive = eta0 - onn;
     if (now < arrive + 20 * MIN) {
       let f0;
@@ -1261,7 +1273,7 @@ function renderFlight(st, light) {
 
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
   const fs = stOf(f);
-  const offT = fs.off || (pos.frac > 0 ? f.std + 15 * MIN : 0);   // 没有实际起飞数据时，按计划估算
+  const offT = fs.off || (pos.frac > 0 ? f.std + taxiMs(f) : 0);   // 没有实际起飞数据时，按计划估算
   // 落地时间（不是到停机位）：已落地用实际；否则用估算到达减去滑行
   const landT = fs.on || (pos.phase === 'landed' ? pos.eta : pos.eta - 8 * MIN);
   const elapsed = offT ? (fs.on ? fs.on : now) - offT : 0, remain = Math.max(0, landT - now);
@@ -1271,7 +1283,7 @@ function renderFlight(st, light) {
       (pos.phase === 'waiting' ? '<span style="color:var(--red)">尚未起飞 · 已过 ' + hmDur(now - f.std) + '</span>' : '当地 · ' + dayWord(f.std, oTz)) + '</span></div>';
   const arrCell = fs.on
     ? '<div class="kv"><span class="lbl" style="color:var(--green)">' + (fs.onEst ? '落地（约）' : '实际落地 ') + f.dest + '</span><span class="v num">' + hmDual(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + dualNote(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
-    : '<div class="kv"><span class="lbl">预计落地 ' + f.dest + '</span><span class="v num">' + hmDual(landT, dTz) + '</span><span class="s">' + dayLbl(landT, dTz) + (dualNote(landT, dTz) || ' 当地') + ' · 计划 ' + hm(f.sta - 8 * MIN, dTz) + (fs.off ? ' · ' + diffTxt(landT, f.sta - 8 * MIN) : '') + '</span></div>';
+    : '<div class="kv"><span class="lbl">预计落地 ' + f.dest + '</span><span class="v num">' + hmDual(landT, dTz) + '</span><span class="s">' + dayLbl(landT, dTz) + (dualNote(landT, dTz) || ' 当地') + ' · 计划 ' + hm(planLand(f), dTz) + (fs.off ? ' · ' + diffTxt(landT, planLand(f)) : '') + '</span></div>';
   const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
   const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
   const html =
@@ -1279,7 +1291,7 @@ function renderFlight(st, light) {
     '<div class="fp-route"><div><div class="c">' + f.origin + '</div><div class="n">' + esc(apCity(f.origin)) + '</div></div>' +
       '<div class="mid">✈</div><div style="text-align:right"><div class="c">' + f.dest + '</div><div class="n" style="margin-left:auto">' + esc(apCity(f.dest)) + '</div></div></div>' +
     '<div><div class="bar"><i style="width:' + (pos.frac * 100).toFixed(1) + '%"></i><b style="left:' + (pos.frac * 100).toFixed(1) + '%"></b></div>' +
-      '<div class="barlbl num"><span>' + (offT ? '已飞 ' + hmDur(Math.max(0, elapsed)) : '未起飞') + '</span><span>' + (offT ? '全程约 ' + hmDur(landT - offT) : Math.round(pos.frac * 100) + '%') + '</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
+      '<div class="barlbl num"><span>' + (offT ? '已飞 ' + hmDur(Math.max(0, elapsed)) : '未起飞') + '</span><span>' + (planOf(f) ? '计划飞行 ' + hmDur(airMs(f)) : offT ? '全程约 ' + hmDur(landT - offT) : Math.round(pos.frac * 100) + '%') + '</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
     '<div class="g2">' +
       depCell + arrCell +
       '<div class="kv"><span class="lbl">迪拜时间</span><span class="v num">' + clk(HOME_TZ) + '</span><span class="s">' + dateShort(now, HOME_TZ) + '</span></div>' +
@@ -1563,6 +1575,7 @@ if (window.top === window.self) setInterval(() => {
   try { S.flights = JSON.parse(lsGet('fc.known2') || '[]'); } catch (e) {}
   try { const c = JSON.parse(lsGet('fc.duties') || '{}'); S.duties = c.d || []; S.apiVer = c.v || 0; } catch (e) {}
   try { S.routes = JSON.parse(lsGet('fc.routes') || '[]'); } catch (e) {}
+  try { S.plans = JSON.parse(lsGet('fc.plans') || '[]'); } catch (e) {}
   render(true);
   setInterval(tick, 1000);
   // 简洁版第一次打开：还没填日历地址，先弹出设置

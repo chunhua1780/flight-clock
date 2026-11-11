@@ -5,6 +5,7 @@
  *   1. ?action=flights   读取 Google 日历里的排班，返回航班列表 + 每段航班的实际动态
  *   2. ?action=track     查询 ADS-B 实时位置（浏览器直连会被拦），缓存轨迹，判断起飞/落地
  *   3. 定时器 poll()     每 1 分钟自动查一次正在进行的航班，iPad 关着也能记下起飞/落地时间
+ *   6. POST ?k=口令         快捷指令「发给时钟」：复制飞行计划后一点，记下计划飞行时间（TRIP）
  *   5. ?action=ics&url=…  同事用：读他自己 Google 日历的「iCal 私密地址」，返回同样格式的航班列表
  *   4. ?action=photo     从图片库（Pexels 或 Unsplash）找「城市 + 时段 + 天气」的背景照片，每天换一张
  *                        （需要在 项目设置 → 脚本属性 里加 PEXELS_KEY 或 UNSPLASH_KEY）
@@ -46,6 +47,44 @@ const ADSB_SOURCES = [
 ];
 
 const MIN = 60e3, HOUR = 36e5;
+
+// ======== 快捷指令「发给时钟」：复制 OFP 文字后发到这里（POST） ========
+// 防止别人乱发：快捷指令网址末尾要带 ?k=这个口令（公开代码里留空 = 关闭这个功能）
+const OFP_POST_KEY = '';
+
+function doPost(e) {
+  const p = (e && e.parameter) || {};
+  if (!OFP_POST_KEY || p.k !== OFP_POST_KEY) return txt_('❌ 口令不对');
+  const text = (e.postData && e.postData.contents) || p.text || '';
+  const r = parsePlan_(text);
+  if (!r) return txt_('❌ 没认出飞行计划（要包含第一行，例如 EK9876 08NOV OMDW/DWC-ZGGG/CAN）');
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('plan_' + r.digits + r.depIata + r.arrIata + r.date, JSON.stringify(r));
+  // 清掉 10 天前的
+  const all = props.getProperties();
+  Object.keys(all).forEach(function (k) { if (k.indexOf('plan_') === 0) { try { if (Date.now() - JSON.parse(all[k]).t > 10 * 864e5) props.deleteProperty(k); } catch (x) {} } });
+  const hm = function (m) { return Math.floor(m / 60) + 'h' + ('0' + m % 60).slice(-2); };
+  return txt_('✅ EK' + r.digits + ' ' + r.date + ' ' + r.depIata + '→' + r.arrIata +
+    (r.trip ? ' · 计划飞行 ' + hm(r.trip) : ' · ⚠️ 没找到 TRIP 时间') + (r.taxi ? ' · 滑行 ' + r.taxi + ' 分' : '') + (r.reg ? ' · ' + r.reg : ''));
+}
+function txt_(s) { return ContentService.createTextOutput(s).setMimeType(ContentService.MimeType.TEXT); }
+
+// 从 OFP 里读：航班、日期、起降机场、计划飞行时间（TRIP）、滑行时间（TAXI）、机号
+function parsePlan_(text) {
+  const T = String(text || '').toUpperCase().replace(/\r/g, '').replace(/[\u00A0\u2000-\u200B\u202F\u3000\t]/g, ' ');
+  const h = T.match(/\b(?:EK|UAE)?\s?(\d{1,5})\s+(\d{2}[A-Z]{3})\s+([A-Z]{4})\/([A-Z]{3})\s*-\s*([A-Z]{4})\/([A-Z]{3})(?:\s+\S+\s+([A-Z0-9]{1,2}-[A-Z0-9]{3,5}))?/);
+  if (!h) return null;
+  const mins = function (v) { return v ? +v.slice(0, 2) * 60 + +v.slice(2) : null; };
+  const trip = (T.match(/\bTRIP\s+[A-Z]{4}\s+\d+\s+(\d{4})\b/) || [])[1];
+  const taxi = (T.match(/\bTAXI\s+\d+\s+(\d{4})\b/) || [])[1];
+  return { digits: h[1].replace(/^0+/, ''), date: h[2], depIata: h[4], arrIata: h[6], reg: h[7] || null,
+    trip: mins(trip), taxi: mins(taxi), t: Date.now() };
+}
+function plans_() {
+  const all = PropertiesService.getScriptProperties().getProperties(), out = [];
+  Object.keys(all).forEach(function (k) { if (k.indexOf('plan_') === 0) { try { out.push(JSON.parse(all[k])); } catch (e) {} } });
+  return out;
+}
 
 // ======== 入口 ========
 function doGet(e) {
@@ -192,8 +231,9 @@ function flights_(icsUrl) {
     });
   });
   let routes = [];
-  if (!icsUrl) { try { routes = ofpRoutes_(); } catch (e) {} }   // OFP 只给自己用
-  return { ok: true, version: 5, generated: now.toISOString(), flights: list, status: status, routes: routes };
+  let plans = [];
+  if (!icsUrl) { try { routes = ofpRoutes_(); } catch (e) {} try { plans = plans_(); } catch (e) {} }   // OFP 只给自己用
+  return { ok: true, version: 5, generated: now.toISOString(), flights: list, status: status, routes: routes, plans: plans };
 }
 
 // 备注里只保留航班号、「机场 - 日期 时间」和呼号这几种行，
