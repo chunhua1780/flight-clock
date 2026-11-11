@@ -61,7 +61,12 @@ button{font-family:inherit}
 .g{background:var(--green)}.a{background:var(--amber)}.r{background:var(--red)}.x{background:#5b6680}
 .t-red{color:var(--red)}.t-amber{color:var(--amber)}.t-info{color:var(--dim)}
 .tag{border:1px solid #3a4b6c;color:#bcd0f0;border-radius:5px;font-size:10.5px;padding:0 5px;margin-left:4px;white-space:nowrap}
-.tag.c1{border-color:#3fcf7f;color:#8ef0b6}.tag.c2{border-color:#f3b13c;color:#ffd58a}.tag.c3{border-color:#ff8a7a;color:#ffb3a8}
+.cat{display:inline-block;min-width:26px;text-align:center;border-radius:6px;padding:1px 5px;font-size:12px;font-weight:800;color:#0b1220;vertical-align:2px}
+.cat.cD{background:#14a04f;color:#fff}.cat.cA1{background:#8ff0a8}.cat.cA2{background:#f7dc2a}.cat.cCA{background:#ff8c1a}.cat.cEA{background:#ff3b30;color:#fff}.cat.cX{background:#6d0000;color:#fff}.cat.cN{background:#4a5570;color:#c9d3e6}
+#legend{position:absolute;left:10px;top:10px;z-index:500;background:rgba(10,16,30,.88);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:11px;line-height:1.7;color:var(--dim)}
+#legend .cat{font-size:10px;min-width:22px;margin-right:3px}
+#map.far5 .apl.x5{display:none}
+.hint{font-size:12px;margin-top:3px;line-height:1.45}
 /* 详情 */
 #sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:2000}
 #sheet.open{display:block}
@@ -100,6 +105,7 @@ details summary{cursor:pointer;color:var(--blue);font-size:12px;margin-top:3px}
   <div id="mapwrap">
     <div id="map"></div>
     <button class="btn sm" id="recenter">◎ 回到飞机</button>
+    <div id="legend"></div>
     <div id="hud"></div>
   </div>
   <div id="side">
@@ -130,12 +136,15 @@ details summary{cursor:pointer;color:var(--blue);font-size:12px;margin-top:3px}
       <button class="btn sm" id="b-clock">发给时钟</button>
     </div>
     <div id="msg"></div>
-    <details style="margin-top:12px"><summary>设置（时钟、备降场分类）</summary>
+    <details style="margin-top:12px"><summary>设置（机型、时钟）</summary>
+      <p>机型（决定用公司机场授权表里哪一栏）：</p>
+      <div class="row"><select id="s-type" style="font-size:15px;padding:6px;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px"><option value="">自动（按 OFP）</option></select></div>
       <p>时钟网址（Apps Script /exec）和口令：</p>
       <input type="text" id="s-clock" placeholder="https://script.google.com/macros/s/…/exec">
       <div class="row"><input type="text" id="s-key" placeholder="口令" style="max-width:220px"></div>
-      <p>备降场分类（每行一个：机场代码,类别，例如 <code>VECC,2</code>；也可以直接粘贴 Excel 两列）：</p>
-      <textarea id="s-cats" style="height:110px" placeholder="OMAA,1&#10;VECC,2"></textarea>
+      <p>公司机场授权表（OMA 12.2.5 Aerodrome Authorisation Table）：从手册里整张复制，粘贴到下面，点「导入」。<b>只保存在这台 iPad 上</b>，不会上传。<span id="ek-st"></span></p>
+      <textarea id="s-ek" style="height:90px" placeholder="Aerodrome Authorisation Table (Listed ICAO)&#10;12.2.5.1 — AG-AY&#10;ICAO&#10;IATA&#10;…"></textarea>
+      <div class="row"><button class="btn" id="b-ek">导入授权表</button><button class="btn sm" id="b-ekclr">删除</button></div>
       <div class="row"><button class="btn" id="b-save">保存设置</button></div>
     </details>
   </div>
@@ -145,6 +154,7 @@ details summary{cursor:pointer;color:var(--blue);font-size:12px;margin-top:3px}
 <script src="vendor/topojson-client.min.js"></script>
 <script src="ofp.js"></script>
 <script src="wx.js"></script>
+<script src="ekparse.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -168,8 +178,7 @@ function brg(a, b) {
 }
 
 /* ---------------- 状态 ---------------- */
-const S = { ofp: null, atd: null, AP: {}, cats: {}, tab: 'near', follow: true, pts: [] };
-try { S.cats = JSON.parse(lsGet('cats') || '{}'); } catch (e) {}
+const S = { ofp: null, atd: null, AP: {}, EK: null, tab: 'near', follow: true, pts: [] };
 try { S.ofp = JSON.parse(lsGet('ofp') || 'null'); } catch (e) {}
 S.atd = +lsGet('atd') || null;
 
@@ -181,7 +190,7 @@ fetch('data/countries.json').then(r => r.json()).then(topo => {
 }).catch(() => {});
 let L_route, L_done, L_plane, L_wps = [], L_aps = [];
 const PLANE = '<svg viewBox="0 0 64 64" width="34" height="34"><path fill="#e2b964" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
-const zoomCls = () => $('map').classList.toggle('far', map.getZoom() < 6);
+const zoomCls = () => { $('map').classList.toggle('far', map.getZoom() < 6); $('map').classList.toggle('far5', map.getZoom() < 5); };
 map.on('zoomend', zoomCls); zoomCls();
 map.on('dragstart', () => { S.follow = false; $('recenter').style.display = 'block'; });
 $('recenter').onclick = () => { S.follow = true; $('recenter').style.display = 'none'; tick(); };
@@ -189,6 +198,101 @@ $('recenter').onclick = () => { S.follow = true; $('recenter').style.display = '
 /* ---------------- 机场数据库 ---------------- */
 const apReady = fetch('data/airports.json').then(r => r.json()).then(j => { S.AP = j; }).catch(() => {});
 const apPos = icao => { const a = S.AP[icao]; return a ? [a[3], a[4]] : null; };
+
+/* ---------------- 公司机场授权表（OMA 12.2.5） ---------------- */
+try { S.EK = JSON.parse(lsGet('ek') || 'null'); } catch (e) {}
+const ekReady = Promise.resolve();
+const TYPES = ['A319', 'A350', 'A380', '777-200LR', '777-300ER', '777-300ERSF', '777F'];
+const CATC = { D: '#14a04f', A1: '#8ff0a8', A2: '#f7dc2a', CA: '#ff8c1a', EA: '#ff3b30', X: '#6d0000', '-': '#4a5570' };
+const CATN = { D: '可作目的地', A1: '备降场', A2: '备降（只加油就走）', CA: 'CA 类', EA: '紧急情况才用', X: '暂停运行', '-': '本机型未评估' };
+const catCls = c => 'cat c' + ({ '-': 'N' }[c] || c || 'N');
+const catTag = c => '<span class="' + catCls(c) + '">' + (c === '-' || !c ? '—' : c) + '</span>';
+// 机型：设置里选的优先，否则看 OFP 第一行（B777F 等）
+function typeIdx() {
+  const v = lsGet('type'); if (v !== null && v !== '' && TYPES[+v]) return +v;
+  const t = ((S.ofp && S.ofp.flight.type) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (/77F|777F/.test(t)) return 6;
+  if (/SF/.test(t)) return 5;
+  if (/77W|300ER|7773/.test(t)) return 4;
+  if (/77L|200LR|7772/.test(t)) return 3;
+  if (/A38|388/.test(t)) return 2;
+  if (/A35|359/.test(t)) return 1;
+  if (/A319/.test(t)) return 0;
+  return 6;
+}
+// 某时刻（UTC）的类别：有些机场按时段变化（VILK、VTCC、KPHL）
+function catAt(e, t) {
+  if (!e) return null;
+  const base = e.c[typeIdx()];
+  const w = e.tw; if (!w || base === '-' || (w.only && base !== w.only) || t == null) return base;
+  const d = new Date(t), m = d.getUTCHours() * 60 + d.getUTCMinutes();
+  const inW = w.from <= w.to ? (m >= w.from && m < w.to) : (m >= w.from || m < w.to);
+  return inW ? w.in : (w.out || base);
+}
+// 备注是否适用于当前机型
+function remarkFor(r, ti) {
+  const T = TYPES[ti];
+  if (/^(A380|380)\b|for A380|A380 diversions/i.test(r)) return T === 'A380';
+  if (/^A319\b/.test(r)) return T === 'A319';
+  if (/^777W\b/.test(r)) return T === '777-300ER';
+  if (/^B?777F\/B?777-300ERSF/.test(r)) return ti >= 5;
+  if (/^777F\b|^B777F\b/.test(r)) return ti === 6;
+  if (/^B?777\b/.test(r)) return ti >= 3;
+  return true;
+}
+// 备注 → 简单中文提示
+const EKRULES = [
+  [/NOT FOR NORMAL OPS|Not for normal ops/i, 'red', '不用于正常运行'],
+  [/Apt not available as alternate|not avail(able)? as (planned )?alternate|not available as ALTN|not available as alternate during/i, 'red', '不能作备降场'],
+  [/unless in Emergency|except EMER/i, 'red', '只限紧急情况'],
+  [/not available for flight planning/i, 'amber', '不能计划使用（紧急或事先协调可以）'],
+  [/not avail(able)? as (DEST alternate|destination alternate|Dest Alt)/i, 'amber', '不能作目的地备降场'],
+  [/Not available for planned diversion/i, 'amber', '不能用于计划改航（如医疗）'],
+  [/Daylight Ops Only/i, 'amber', '只限白天运行'],
+  [/Fair ?weather/i, 'amber', '只能作好天气备降'],
+  [/ATS hours|O\/R|operational only/i, 'amber', '有开放时间（其他时间需申请）'],
+  [/restricted airspace/i, 'amber', '附近有限制空域'],
+  [/TEL AVIV FIR/i, 'amber', '经 TEL AVIV FIR 的航班不能用'],
+  [/uni-directional|180° turns/i, 'amber', '宽体机只能单向落地 RWY25（不能掉头）'],
+  [/Capt Only/i, 'amber', '只限机长起降'],
+  [/Low RFF/i, 'amber', '消防等级低'],
+  [/weather favours RWY ?33/i, 'amber', '风向利于 RWY33 时不能计划作备降'],
+  [/Available as Destination Alternate for (\w+)/i, 'amber', m => '只可作 ' + m[1] + ' 的目的地备降'],
+  [/can be used as alternate for ([\w\/]+)/i, 'amber', m => '只可作 ' + m[1] + ' 的备降'],
+  [/Extremely limited ground handling/i, 'amber', '地面服务极其有限'],
+  [/No Ground Handling/i, 'amber', '没有地面服务'],
+  [/Fuel and Go/i, 'info', '只能加油后继续（Fuel and Go）'],
+  [/Limited (Ground |PAX )?Handling|limited capability to handle wide|Limited wide-bodied/i, 'info', '地面服务有限'],
+  [/Limited Parking|parking space|limited parking/i, 'info', '停机位有限'],
+  [/PAX disembarkation not allowed|No PAX disembarkation/i, 'info', '旅客不能下机'],
+  [/Night stop.*not permitted/i, 'info', '不能过夜 / 终止航班'],
+  [/Customs and Immigration Not available/i, 'info', '海关移民不是 24 小时'],
+  [/Dest in China.*PAX ops only/i, 'info', '目的地在中国时按 A2（仅客运）'],
+  [/Dest Japan\/Korea\/Taiwan/i, 'info', '目的地在日/韩/台时按 A2（旅客不能下机）'],
+  [/Dest is PAKISTAN/i, 'info', '目的地在巴基斯坦时按 A2（旅客不能下机）'],
+  [/DEST is in Saudi Arabia/i, 'info', '目的地在沙特时作 A1 备降，其他按 A2（加油就走）'],
+  [/de-icing|anti-icing/i, 'info', '除冰能力有限'],
+  [/during winter/i, 'info', '冬季有限制'],
+  [/RFF/i, 'info', '消防等级有条件'],
+  [/PCN|MTOW|Max\. Weight|Weight Limitation|MLW/i, 'info', '有重量限制'],
+  [/ETOPS/i, 'info', 'ETOPS 有条件'],
+  [/Ferry Maintenance|deliveries|test\/delivery/i, 'info', '调机 / 维修 / 交付用'],
+  [/Dest Altn for A319\/777/i, 'amber', '777 不能作目的地备降（非目的地时按 CA）']
+];
+function ekHints(e, t) {
+  if (!e) return [];
+  const ti = typeIdx(), out = [], seen = {};
+  const add = (lv, zh) => { if (!seen[zh]) { seen[zh] = 1; out.push({ lv, zh }); } };
+  if (e.tw) { const c = catAt(e, t); if (c !== e.c[ti] || (e.tw.only === e.c[ti] || !e.tw.only)) add(c !== e.c[ti] ? 'amber' : 'info', e.tw.txt + (t ? '（' + hmZ(t) + ' 时是 ' + c + '）' : '')); }
+  e.m.filter(r => remarkFor(r, ti)).forEach(r => EKRULES.forEach(([re, lv, zh]) => { const m = re.exec(r); if (m) add(lv, typeof zh === 'function' ? zh(m) : zh); }));
+  if (e.f && ti >= 3) add('info', e.f === 'SS' ? 'FMC 里没有 SID/STAR（OMC 10.1.2.1.1）' : 'FMC 里没有 SID（OMC 10.1.2.1.1）');
+  const o = { red: 0, amber: 1, info: 2 }; return out.sort((a, b) => o[a.lv] - o[b.lv]);
+}
+function drawLegend() {
+  if (!S.EK) { $('legend').innerHTML = '<span class="t-amber">还没导入公司机场授权表</span><br><span style="font-size:10px">OFP → 设置 → 粘贴 OMA 12.2.5</span>'; return; }
+  $('legend').innerHTML = '<b style="color:var(--text)">' + TYPES[typeIdx()] + '</b><br>' +
+    ['D', 'A1', 'A2', 'CA', 'EA'].map(c => catTag(c) + CATN[c]).join('<br>') + '<br>' + catTag('-') + '未评估 / 不在表里<br><span style="font-size:10px">外圈颜色 = 到达时天气</span>';
+}
 
 /* ---------------- 航路点：坐标 + 计划时间（缺坐标的按距离插值） ---------------- */
 function buildPts() {
@@ -225,7 +329,9 @@ function posAt(m) {
 function drawRoute() {
   [L_route, L_done, L_plane].concat(L_wps, L_aps).forEach(l => l && map.removeLayer(l));
   L_wps = []; L_aps = [];
+  drawLegend();
   if (!S.ofp) return;
+  const o = S.ofp;
   S.pts = buildPts();
   // 经度连续（跨 180° 不断开）
   const line = []; let prev = null;
@@ -236,10 +342,13 @@ function drawRoute() {
     if (p.interp || /^(TOC|TOD)$/.test(p.id)) return;
     L_wps.push(L.circleMarker(line[k], { radius: 2, color: '#9fb0cc', weight: 1, fillOpacity: 1, interactive: false }).bindTooltip(p.id, { permanent: true, direction: 'right', className: 'wp', offset: [4, 0] }).addTo(map));
   });
-  candidates().forEach(c => {
-    const col = { green: '#3fcf7f', amber: '#f3b13c', red: '#ff5d55', none: '#5b6680' }[c.rate || 'none'];
-    L_aps.push(L.circleMarker(c.pos, { radius: 5, color: col, weight: 2, fillColor: '#0b1220', fillOpacity: 1 })
-      .bindTooltip(c.icao, { permanent: true, direction: 'top', className: 'apl', offset: [0, -4] }).on('click', () => openSheet(c.icao)).addTo(map));
+  const tEta = (S.atd || o.times.std || Date.now()) + (o.times.trip || 0) * MIN;
+  candidates().sort((a, b) => (a.ofp ? 1 : 0) - (b.ofp ? 1 : 0)).forEach(c => {
+    const cat = catAt(c.ek, tEta) || '-';
+    const big = c.icao === o.flight.arr || c.icao === o.flight.dep;
+    const ring = c.ofp ? { green: '#3fcf7f', amber: '#f3b13c', red: '#ff5d55', none: '#0b1220' }[assess(c, tEta).rate] : '#0b1220';
+    L_aps.push(L.circleMarker(c.pos, { radius: big ? 9 : c.ofp ? 7 : 5, color: ring, weight: c.ofp ? 3 : 1.5, fillColor: CATC[cat] || CATC['-'], fillOpacity: c.ek ? 1 : .35 })
+      .bindTooltip(c.icao, { permanent: true, direction: 'top', className: 'apl' + (c.ofp ? '' : ' x5'), offset: [0, -6] }).on('click', () => openSheet(c.icao)).addTo(map));
   });
   L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div id="plane">' + PLANE + '</div>', iconSize: [34, 34], iconAnchor: [17, 17] }), interactive: false, zIndexOffset: 1000 }).addTo(map);
   map.fitBounds(L_route.getBounds(), { padding: [30, 30] });
@@ -247,15 +356,21 @@ function drawRoute() {
 
 /* ---------------- 候选机场：OFP 里有天气的 + 分类表里的 ---------------- */
 const ROLE = { dep: '起飞', dest: '目的地', destAltn: '目的地备降', fuelEnroute: '加油', enroute: '航路' };
+let CAND = null, CANDK = '';
 function candidates() {
   const o = S.ofp; if (!o) return [];
-  const set = {};
-  Object.values(o.airports).forEach(a => { set[a.icao] = a; });
-  Object.keys(S.cats).forEach(k => { if (!set[k] && S.AP[k]) set[k] = { icao: k, iata: S.AP[k][0], name: S.AP[k][1], roles: [], metar: [], taf: [] }; });
-  return Object.values(set).map(a => {
+  const key = o.flight.no + o.flight.date + typeIdx() + (S.EK ? S.EK.n + (S.EK.at || '') : 0);
+  if (CAND && CANDK === key) return CAND;
+  if (!S.AP.OMDB) return [];                                             // 机场坐标还没载入，先不缓存
+  const set = {}, ti = typeIdx(), EK = (S.EK && S.EK.ap) || {};
+  Object.values(o.airports).forEach(a => { set[a.icao] = Object.assign({ ofp: true }, a); });
+  Object.keys(EK).forEach(k => { if (!set[k] && EK[k].c[ti] !== '-' && S.AP[k]) set[k] = { icao: k, iata: EK[k].i, name: EK[k].n, roles: [], metar: [], taf: [] }; });
+  CAND = Object.values(set).map(a => {
     const db = S.AP[a.icao];
-    return Object.assign({}, a, { pos: db ? [db[3], db[4]] : null, db, cat: S.cats[a.icao] || null });
+    return Object.assign(a, { pos: db ? [db[3], db[4]] : null, db, ek: EK[a.icao] || null });
   }).filter(a => a.pos);
+  CANDK = key;
+  return CAND;
 }
 
 /* ---------------- 某机场在时间 t 的天气 / 跑道 / NOTAM ---------------- */
@@ -302,20 +417,23 @@ function tick() {
 }
 
 /* ---------------- 列表 ---------------- */
-const CATZ = { 1: '一类', 2: '二类', 3: '三类' };
 function card(c, t, d, mins) {
   const a = assess(c, t);
   const dotc = { green: 'g', amber: 'a', red: 'r', none: 'x' }[a.rate];
   let ws = a.w ? WX.say(a.w) : ['OFP 里没有这个机场的天气'];
   if (a.w && a.src === 'none') ws = ['<span class="t-amber">OFP 里的预报没有覆盖 ' + hmZ(t) + '</span>'];
-  const tags = (c.cat ? '<span class="tag c' + c.cat + '">' + (CATZ[c.cat] || c.cat) + '</span>' : '') + (c.roles || []).map(r => '<span class="tag">' + (ROLE[r] || r) + '</span>').join('');
+  const cat = c.ek ? catAt(c.ek, t) : null;
+  const tags = (c.ek && c.ek.a ? '<span class="tag">' + c.ek.a + ' 类</span>' : '') + (c.roles || []).map(r => '<span class="tag">' + (ROLE[r] || r) + '</span>').join('');
+  const hs = ekHints(c.ek, t).filter(h => h.lv !== 'info' || /Fuel and Go|地面服务|停机位/.test(h.zh)).slice(0, 3);
   const pk = a.rw && a.rw.pick;
   const rw = pk ? '<b>预计跑道 ' + esc(pk.id) + '</b>' + (pk.head == null ? '（没有风的资料）' : (a.rw.calm ? '（风小）' : '') + ' · 逆风 ' + pk.head + ' / 侧风 ' + pk.cross + (pk.tail ? ' / <span class="t-amber">顺风 ' + pk.tail + '</span>' : '')) + (a.rw.allLimited ? ' <span class="t-red">所有跑道都有限制</span>' : '') : '';
   const nt = a.notes.filter(n => n.lv !== 'info').slice(0, 3).map(n => '<span class="t-' + n.lv + '">● ' + esc(n.zh) + '</span>').join('<br>');
-  return '<div class="ap" onclick="openSheet(\'' + c.icao + '\')"><div class="h"><span class="dot ' + dotc + '"></span><span class="id">' + c.icao + '</span>' +
+  return '<div class="ap" onclick="openSheet(\'' + c.icao + '\')" style="border-left:5px solid ' + (CATC[cat] || '#22304a') + '"><div class="h">' + catTag(cat) + '<span class="dot ' + dotc + '"></span><span class="id">' + c.icao + '</span>' +
     '<span class="nm">' + esc(c.iata || '') + ' ' + esc((c.db && c.db[2]) || c.name || '') + tags + '</span>' +
     '<span class="d num">' + (d != null ? Math.round(d) + ' nm · ' + Math.round(mins) + ' 分' : '') + '</span></div>' +
     '<div class="w">' + (/^<span/.test(ws[0]) ? ws[0] : esc(ws[0])) + (ws.length > 1 ? '<br><span class="t-amber">' + esc(ws.slice(1).join('；')) + '</span>' : '') + '</div>' +
+    (c.ek || !S.EK ? '' : '<div class="hint t-amber">不在公司机场授权表里</div>') +
+    (hs.length ? '<div class="hint">' + hs.map(h => '<span class="t-' + h.lv + '">◆ ' + esc(h.zh) + '</span>').join('　') + '</div>' : '') +
     (rw ? '<div class="n">' + rw + '</div>' : '') + (nt ? '<div class="n">' + nt + '</div>' : '') +
     '<div class="n t-info">按 ' + hmZ(t) + ' 到达估算</div></div>';
 }
@@ -328,13 +446,14 @@ function renderList(force) {
   const gs = p.gs > 250 ? p.gs : 450;                                   // 改航按大约这个地速算
   let arr = candidates().map(c => { const d = distNm(p.pos, c.pos); return { c, d, mins: d / gs * 60 + (d > 40 ? 12 : 0) }; });
   let title = '';
-  if (S.tab === 'near') { arr = arr.filter(x => !(x.c.roles || []).includes('dep') || x.d < 300).sort((a, b) => a.d - b.d).slice(0, 8); title = '离现在位置最近（按到达时间看天气）'; }
-  else if (S.tab === 'hour') { arr = arr.filter(x => x.mins <= 60).sort((a, b) => a.mins - b.mins); title = '60 分钟内能到的机场：' + arr.length + ' 个'; }
+  const usable = x => x.c.ek ? (catAt(x.c.ek, t0 + x.mins * MIN) || '-') !== '-' : x.c.ofp;
+  if (S.tab === 'near') { arr = arr.filter(x => usable(x) && (!(x.c.roles || []).includes('dep') || x.d < 300)).sort((a, b) => a.d - b.d).slice(0, 10); title = '离现在位置最近（' + TYPES[typeIdx()] + ' · 按到达时间看天气和类别）'; }
+  else if (S.tab === 'hour') { arr = arr.filter(x => usable(x) && x.mins <= 60).sort((a, b) => a.mins - b.mins); title = '60 分钟内能到的机场：' + arr.length + ' 个'; }
   else if (S.tab === 'plan') {
     const keep = ['dest', 'destAltn', 'fuelEnroute'];
     arr = arr.filter(x => (x.c.roles || []).some(r => keep.includes(r))).sort((a, b) => keep.indexOf((a.c.roles || [])[0]) - keep.indexOf((b.c.roles || [])[0]));
     title = '目的地和备降场（按计划时间）';
-  } else { arr = arr.sort((a, b) => a.d - b.d); title = '全部 ' + arr.length + ' 个机场'; }
+  } else { arr = arr.filter(x => x.c.ofp).sort((a, b) => a.d - b.d); title = 'OFP 里有天气的机场 ' + arr.length + ' 个'; }
   const html = arr.map(x => {
     let t = t0 + x.mins * MIN;
     if (S.tab === 'plan' && S.ofp) {                                    // 目的地/备降：按计划到达时间
@@ -360,8 +479,9 @@ function openSheet(icao) {
   const ws = a.w ? WX.say(a.w) : ['没有天气资料'];
   let h = '<button class="btn sm" style="float:right" onclick="closeSheet()">关闭</button>' +
     '<h2>' + c.icao + ' <span style="color:var(--dim);font-size:16px">' + esc(c.iata || '') + '</span></h2>' +
-    '<div style="color:var(--dim);font-size:13px">' + esc((c.db && c.db[1]) || c.name || '') + (c.db ? ' · 标高 ' + c.db[5] + ' ft' : '') + (c.cat ? ' · <b>' + (CATZ[c.cat] || c.cat) + '备降场</b>' : '') + '</div>' +
+    '<div style="color:var(--dim);font-size:13px">' + esc((c.db && c.db[1]) || c.name || '') + (c.db ? ' · 标高 ' + c.db[5] + ' ft' : '') + '</div>' +
     (d != null ? '<div style="margin-top:6px">距离 <b>' + Math.round(d) + ' nm</b> · 方位 ' + Math.round(brg(p.pos, c.pos)) + '°T · 预计 <b>' + hmZ(t) + '</b> 到达</div>' : '') +
+    ekSection(c, t) +
     '<h3>' + hmZ(t) + ' 的天气（' + (a.src === 'taf' ? '按 TAF' : a.src === 'metar' ? '按 METAR' : '无资料') + '）</h3>' +
     '<div><span class="dot ' + ({ green: 'g', amber: 'a', red: 'r', none: 'x' }[a.rate]) + '"></span>' + ws.map(esc).join('<br>') + '</div>' +
     (c.metar && c.metar.length ? '<div class="raw">METAR ' + esc(c.metar.join('\n')) + '</div>' : '') +
@@ -376,6 +496,17 @@ function openSheet(icao) {
     '<details style="margin-top:10px"><summary>全部 NOTAM 原文</summary>' + (S.ofp.notams[c.icao] || []).map(n => '<div class="raw"><b>' + esc(n.id) + '</b> ' + hmZ(n.from) + '–' + (n.to ? hmZ(n.to) : 'UFN') + ' ' + esc(n.cat) + '\n' + esc(n.text) + '</div>').join('') + '</details>';
   $('sheet-in').innerHTML = h;
   $('sheet').classList.add('open');
+}
+function ekSection(c, t) {
+  const e = c.ek, ti = typeIdx();
+  if (!e) return '<h3>公司机场授权</h3><div class="t-amber">这个机场不在公司机场授权表（OMA 12.2.5）里</div>';
+  const cat = catAt(e, t);
+  return '<h3>公司机场授权（OMA 12.2.5）</h3>' +
+    '<div style="font-size:16px">' + catTag(cat) + ' <b>' + TYPES[ti] + '：' + esc(CATN[cat] || cat) + '</b>' + (cat !== e.c[ti] ? '（平时 ' + e.c[ti] + '，' + hmZ(t) + ' 时是 ' + cat + '）' : '') + '</div>' +
+    '<div style="color:var(--dim);font-size:12px;margin-top:3px">地区 ' + esc(e.r) + (e.a ? ' · 机场类别 ' + e.a : '') + '</div>' +
+    ekHints(e, t).map(h => '<div class="hint t-' + h.lv + '">◆ ' + esc(h.zh) + '</div>').join('') +
+    '<table style="margin-top:6px"><tr>' + TYPES.map((x, i) => '<th style="font-size:10.5px' + (i === ti ? ';color:var(--gold)' : '') + '">' + x + '</th>').join('') + '</tr><tr>' + e.c.map(x => '<td>' + catTag(x) + '</td>').join('') + '</tr></table>' +
+    (e.m.length || e.f ? '<details><summary>备注原文</summary><div class="raw">' + esc(e.m.concat(e.f ? ['SIDs' + (e.f === 'SS' ? ' and STARs' : '') + ' for this airport are not available in B777 FMC due to capacity limitations, refer to OMC 10.1.2.1.1'] : []).join('\n')) + '</div></details>' : '');
 }
 function closeSheet() { $('sheet').classList.remove('open'); }
 $('sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
@@ -397,7 +528,20 @@ $('atd').onchange = () => {
 $('b-now').onclick = () => setATD(Math.floor(now() / MIN) * MIN);
 
 /* ---------------- 载入 OFP ---------------- */
-function openLoad() { $('load').classList.add('open'); $('s-clock').value = lsGet('clock') || ''; $('s-key').value = lsGet('key') || ''; $('s-cats').value = Object.entries(S.cats).map(([k, v]) => k + ',' + v).join('\n'); }
+TYPES.forEach((x, i) => { const op = document.createElement('option'); op.value = i; op.textContent = x; $('s-type').appendChild(op); });
+const ekStatus = () => { $('ek-st').innerHTML = S.EK ? '<br>✅ 已导入 ' + S.EK.n + ' 个机场（' + (S.EK.at || '') + '）' : '<br><span class="t-amber">还没导入</span>'; };
+$('b-ek').onclick = () => {
+  const r = EKP.parseRaw($('s-ek').value);
+  if (r.n < 20) { $('msg').style.color = 'var(--amber)'; $('msg').textContent = '没读出授权表（只找到 ' + r.n + ' 个机场）。请整张复制，每格一行。'; return; }
+  const d = new Date(); r.at = d.getUTCFullYear() + '-' + z2(d.getUTCMonth() + 1) + '-' + z2(d.getUTCDate()) + ' 导入';
+  S.EK = r; lsSet('ek', JSON.stringify(r)); $('s-ek').value = ''; ekStatus();
+  const cnt = {}; Object.values(r.ap).forEach(e => { const c = e.c[typeIdx()]; cnt[c] = (cnt[c] || 0) + 1; });
+  $('msg').style.color = 'var(--green)';
+  $('msg').textContent = '✅ 导入 ' + r.n + ' 个机场。' + TYPES[typeIdx()] + '：' + ['D', 'A1', 'A2', 'CA', 'EA', '-'].map(c => (c === '-' ? '未评估' : c) + ' ' + (cnt[c] || 0)).join('，') + (r.bad.length ? '\n⚠️ 有 ' + r.bad.length + ' 行没读懂：' + r.bad.join(' ') : '');
+  drawRoute(); lastList = 0; tick();
+};
+$('b-ekclr').onclick = () => { if (!confirm('删除这台 iPad 上的机场授权表？')) return; S.EK = null; try { localStorage.removeItem('fa.ek'); } catch (e) {} ekStatus(); drawRoute(); lastList = 0; tick(); };
+function openLoad() { ekStatus(); $('load').classList.add('open'); $('s-clock').value = lsGet('clock') || ''; $('s-key').value = lsGet('key') || ''; $('s-type').value = lsGet('type') || ''; }
 $('b-load').onclick = openLoad;
 $('b-close').onclick = () => $('load').classList.remove('open');
 function useText(txt) {
@@ -455,10 +599,8 @@ async function pdfText(buf) {
 /* ---------------- 设置 / 发给时钟 ---------------- */
 $('b-save').onclick = () => {
   lsSet('clock', $('s-clock').value.trim()); lsSet('key', $('s-key').value.trim());
-  const cats = {};
-  $('s-cats').value.split(/\n/).forEach(l => { const m = /([A-Z]{4})\s*[,\t; ]\s*(\d|一|二|三)/i.exec(l.trim().toUpperCase()); if (m) cats[m[1]] = { '一': 1, '二': 2, '三': 3 }[m[2]] || +m[2]; });
-  S.cats = cats; lsSet('cats', JSON.stringify(cats));
-  $('msg').style.color = 'var(--green)'; $('msg').textContent = '✅ 已保存（分类 ' + Object.keys(cats).length + ' 个机场）';
+  lsSet('type', $('s-type').value);
+  $('msg').style.color = 'var(--green)'; $('msg').textContent = '✅ 已保存（机型 ' + TYPES[typeIdx()] + '）';
   drawRoute(); lastList = 0; tick();
 };
 $('b-clock').onclick = async () => {
@@ -476,7 +618,7 @@ $('b-clock').onclick = async () => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 /* ---------------- 开始 ---------------- */
-apReady.then(() => {
+Promise.all([apReady, ekReady]).then(() => {
   if (S.ofp) {
     $('t-fl').textContent = S.ofp.flight.no + ' · ' + S.ofp.flight.date;
     $('t-rt').textContent = S.ofp.flight.dep + ' → ' + S.ofp.flight.arr + ' · ' + S.ofp.flight.reg + ' · STD ' + hmZ(S.ofp.times.std) + ' · TRIP ' + dur(S.ofp.times.trip);
