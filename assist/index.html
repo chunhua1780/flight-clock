@@ -306,14 +306,16 @@ const CATZ = { 1: '一类', 2: '二类', 3: '三类' };
 function card(c, t, d, mins) {
   const a = assess(c, t);
   const dotc = { green: 'g', amber: 'a', red: 'r', none: 'x' }[a.rate];
-  const ws = a.w ? WX.say(a.w) : ['OFP 里没有这个机场的天气'];
+  let ws = a.w ? WX.say(a.w) : ['OFP 里没有这个机场的天气'];
+  if (a.w && a.src === 'none') ws = ['<span class="t-amber">OFP 里的预报没有覆盖 ' + hmZ(t) + '</span>'];
   const tags = (c.cat ? '<span class="tag c' + c.cat + '">' + (CATZ[c.cat] || c.cat) + '</span>' : '') + (c.roles || []).map(r => '<span class="tag">' + (ROLE[r] || r) + '</span>').join('');
-  const rw = a.rw && a.rw.pick ? '<b>预计跑道 ' + esc(a.rw.pick.id) + '</b>' + (a.rw.calm ? '（风小）' : '') + ' · 逆风 ' + a.rw.pick.head + ' / 侧风 ' + a.rw.pick.cross + (a.rw.pick.tail ? ' / <span class="t-amber">顺风 ' + a.rw.pick.tail + '</span>' : '') + (a.rw.allLimited ? ' <span class="t-red">所有跑道都有限制</span>' : '') : '';
+  const pk = a.rw && a.rw.pick;
+  const rw = pk ? '<b>预计跑道 ' + esc(pk.id) + '</b>' + (pk.head == null ? '（没有风的资料）' : (a.rw.calm ? '（风小）' : '') + ' · 逆风 ' + pk.head + ' / 侧风 ' + pk.cross + (pk.tail ? ' / <span class="t-amber">顺风 ' + pk.tail + '</span>' : '')) + (a.rw.allLimited ? ' <span class="t-red">所有跑道都有限制</span>' : '') : '';
   const nt = a.notes.filter(n => n.lv !== 'info').slice(0, 3).map(n => '<span class="t-' + n.lv + '">● ' + esc(n.zh) + '</span>').join('<br>');
   return '<div class="ap" onclick="openSheet(\'' + c.icao + '\')"><div class="h"><span class="dot ' + dotc + '"></span><span class="id">' + c.icao + '</span>' +
     '<span class="nm">' + esc(c.iata || '') + ' ' + esc((c.db && c.db[2]) || c.name || '') + tags + '</span>' +
     '<span class="d num">' + (d != null ? Math.round(d) + ' nm · ' + Math.round(mins) + ' 分' : '') + '</span></div>' +
-    '<div class="w">' + esc(ws[0]) + (ws.length > 1 ? '<br><span class="t-amber">' + esc(ws.slice(1).join('；')) + '</span>' : '') + '</div>' +
+    '<div class="w">' + (/^<span/.test(ws[0]) ? ws[0] : esc(ws[0])) + (ws.length > 1 ? '<br><span class="t-amber">' + esc(ws.slice(1).join('；')) + '</span>' : '') + '</div>' +
     (rw ? '<div class="n">' + rw + '</div>' : '') + (nt ? '<div class="n">' + nt + '</div>' : '') +
     '<div class="n t-info">按 ' + hmZ(t) + ' 到达估算</div></div>';
 }

@@ -188,7 +188,7 @@
     let open = ends.filter(e => !(closed || []).some(c => c === e.id));
     let allLimited = false;
     if (!open.length) { open = ends; allLimited = true; }            // 每条跑道都有限制：照样按风推荐，但提醒看 NOTAM
-    if (!wind || wind.spd == null) return { pick: preferred && open.find(e => e.id === preferred) || open[0], note: '没有风的资料' };
+    if (!wind || wind.spd == null) return { pick: preferred && open.find(e => e.id === preferred) || open.slice().sort((a, b) => b.len - a.len)[0], all: open, note: '没有风的资料', allLimited };
     const comp = e => {
       if (wind.dir == null) return { head: 0, cross: wind.spd, tail: 0 };
       const a = (wind.dir - e.hdg) * Math.PI / 180, s = Math.max(wind.spd, wind.gust || 0);
