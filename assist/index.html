@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1220">
+<title>Flight Assist</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
+<style>
+:root{--bg:#0b1220;--panel:#111a2b;--line:#22304a;--text:#e9eef7;--dim:#8d9ab3;--gold:#e2b964;--green:#3fcf7f;--amber:#f3b13c;--red:#ff5d55;--blue:#6fb4ff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;overflow:hidden;-webkit-text-size-adjust:100%}
+.num{font-variant-numeric:tabular-nums}
+button{font-family:inherit}
+#app{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,1fr);grid-template-rows:auto minmax(0,1fr)}
+@media (orientation:portrait){#app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) minmax(0,1fr)}}
+/* 顶栏 */
+#top{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;background:#0e1626;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#top .fl{font-size:20px;font-weight:700;color:var(--gold)}
+#top .rt{font-size:15px;color:var(--dim)}
+#top .sp{flex:1}
+#utc{font-size:22px;font-weight:600}
+#utc small{font-size:12px;color:var(--dim);margin-left:4px}
+.btn{border:1px solid var(--line);background:#16223a;color:var(--text);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
+.btn.pri{background:var(--gold);border-color:var(--gold);color:#1a1204;font-weight:700}
+.btn.sm{padding:5px 9px;font-size:12px}
+.pill{display:inline-block;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;letter-spacing:.03em;vertical-align:1px}
+/* 地图 */
+#mapwrap{position:relative;min-height:0}
+#map{position:absolute;inset:0;background:#0b1220}
+.leaflet-container{background:#0b1220;font-family:inherit}
+.wp{color:#9fb0cc;font-size:10px;font-weight:600;background:none;border:none;box-shadow:none;padding:0;text-shadow:0 0 3px #000}
+.wp:before{display:none}
+#map.far .wp{display:none}
+.apl{background:rgba(10,16,30,.85);border:1px solid var(--line);color:var(--text);font-size:11px;font-weight:700;padding:1px 4px;border-radius:4px;box-shadow:none}
+.apl:before{display:none}
+#hud{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;z-index:500;pointer-events:none}
+#hud .c{background:rgba(10,16,30,.88);border:1px solid var(--line);border-radius:10px;padding:6px 10px;pointer-events:auto}
+#hud .k{font-size:10px;color:var(--dim);letter-spacing:.06em}
+#hud .v{font-size:17px;font-weight:600}
+#recenter{position:absolute;right:10px;top:10px;z-index:500;display:none}
+/* 右侧面板 */
+#side{min-height:0;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel)}
+@media (orientation:portrait){#side{border-left:none;border-top:1px solid var(--line)}}
+#tabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+#tabs .btn.on{background:#24375a;border-color:#3a5584}
+#list{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px 8px 20px}
+.ap{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:6px 0;background:#0f182a;cursor:pointer}
+.ap .h{display:flex;align-items:baseline;gap:8px}
+.ap .id{font-size:17px;font-weight:700}
+.ap .nm{font-size:12px;color:var(--dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap .d{font-size:13px;color:var(--text);white-space:nowrap}
+.ap .w{font-size:13px;margin-top:4px;line-height:1.45}
+.ap .n{font-size:12px;margin-top:3px;line-height:1.45}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.g{background:var(--green)}.a{background:var(--amber)}.r{background:var(--red)}.x{background:#5b6680}
+.t-red{color:var(--red)}.t-amber{color:var(--amber)}.t-info{color:var(--dim)}
+.tag{border:1px solid #3a4b6c;color:#bcd0f0;border-radius:5px;font-size:10.5px;padding:0 5px;margin-left:4px;white-space:nowrap}
+.tag.c1{border-color:#3fcf7f;color:#8ef0b6}.tag.c2{border-color:#f3b13c;color:#ffd58a}.tag.c3{border-color:#ff8a7a;color:#ffb3a8}
+/* 详情 */
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:2000}
+#sheet.open{display:block}
+#sheet .in{position:absolute;right:0;top:0;bottom:0;width:min(560px,100%);background:#0f182a;border-left:1px solid var(--line);overflow:auto;padding:16px 16px 40px;-webkit-overflow-scrolling:touch}
+#sheet h2{margin:0 0 2px;font-size:22px}
+#sheet h3{margin:16px 0 6px;font-size:13px;color:var(--dim);letter-spacing:.08em;font-weight:600}
+#sheet .raw{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#9fb0cc;white-space:pre-wrap;background:#0b1220;border-radius:8px;padding:8px;margin-top:4px}
+#sheet table{border-collapse:collapse;width:100%;font-size:13px}
+#sheet td,#sheet th{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left}
+details summary{cursor:pointer;color:var(--blue);font-size:12px;margin-top:3px}
+/* 载入 */
+#load{position:fixed;inset:0;z-index:3000;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}
+#load.open{display:flex}
+#load .in{width:min(640px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
+#load h1{margin:0 0 6px;font-size:22px}
+#load p{color:var(--dim);font-size:14px;line-height:1.55;margin:6px 0}
+#load textarea{width:100%;height:150px;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+#load input[type=text]{background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:15px;width:100%}
+#load .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center}
+#msg{font-size:13px;color:var(--amber);margin-top:8px;white-space:pre-wrap}
+#atdbox{display:flex;align-items:center;gap:6px}
+#atd{width:86px;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;text-align:center}
+.disc{font-size:10.5px;color:#6f7d98;padding:6px 10px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <span class="fl" id="t-fl">Flight Assist</span>
+    <span class="rt" id="t-rt">载入 OFP 开始</span>
+    <span class="sp"></span>
+    <span id="atdbox"><span style="font-size:12px;color:var(--dim)">ATD</span><input id="atd" inputmode="numeric" maxlength="4" placeholder="HHMM"><span style="font-size:12px;color:var(--dim)">Z</span><button class="btn sm" id="b-now">现在起飞</button></span>
+    <span id="utc" class="num">--:--<small>UTC</small></span>
+    <button class="btn sm" id="b-load">OFP</button>
+  </div>
+  <div id="mapwrap">
+    <div id="map"></div>
+    <button class="btn sm" id="recenter">◎ 回到飞机</button>
+    <div id="hud"></div>
+  </div>
+  <div id="side">
+    <div id="tabs">
+      <button class="btn sm on" data-tab="near">最近备降场</button>
+      <button class="btn sm" data-tab="hour">1 小时内</button>
+      <button class="btn sm" data-tab="plan">目的地/备降</button>
+      <button class="btn sm" data-tab="all">全部</button>
+    </div>
+    <div id="list"></div>
+    <div class="disc">仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC</div>
+  </div>
+</div>
+
+<div id="sheet"><div class="in" id="sheet-in"></div></div>
+
+<div id="load">
+  <div class="in">
+    <h1>载入 OFP</h1>
+    <p>选择 OFP 的 PDF 文件（推荐），或者把 OFP 文字全部复制粘贴到下面。读出来的内容只保存在这台 iPad 上，飞行中不需要网络。</p>
+    <div class="row"><input type="file" id="f-pdf" accept="application/pdf,.pdf"></div>
+    <p style="margin-top:12px">或者粘贴文字：</p>
+    <textarea id="f-txt" placeholder="EK9873 11NOV ZGGG/CAN-OMDW/DWC ..."></textarea>
+    <div class="row">
+      <button class="btn pri" id="b-parse">读取</button>
+      <button class="btn" id="b-close">关闭</button>
+      <span class="sp" style="flex:1"></span>
+      <button class="btn sm" id="b-clock">发给时钟</button>
+    </div>
+    <div id="msg"></div>
+    <details style="margin-top:12px"><summary>设置（时钟、备降场分类）</summary>
+      <p>时钟网址（Apps Script /exec）和口令：</p>
+      <input type="text" id="s-clock" placeholder="https://script.google.com/macros/s/…/exec">
+      <div class="row"><input type="text" id="s-key" placeholder="口令" style="max-width:220px"></div>
+      <p>备降场分类（每行一个：机场代码,类别，例如 <code>VECC,2</code>；也可以直接粘贴 Excel 两列）：</p>
+      <textarea id="s-cats" style="height:110px" placeholder="OMAA,1&#10;VECC,2"></textarea>
+      <div class="row"><button class="btn" id="b-save">保存设置</button></div>
+    </details>
+  </div>
+</div>
+
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="ofp.js"></script>
+<script src="wx.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const lsGet = k => { try { return localStorage.getItem('fa.' + k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem('fa.' + k, v); } catch (e) {} };
+const MIN = 6e4, NM = 1.852;
+const z2 = n => String(n).padStart(2, '0');
+const hmZ = t => { if (t == null) return '--'; const d = new Date(t); return z2(d.getUTCHours()) + z2(d.getUTCMinutes()) + 'Z'; };
+const dur = m => Math.floor(m / 60) + 'h' + z2(Math.round(m % 60));
+
+// 大圆距离（海里）、方位
+function distNm(a, b) {
+  const r = Math.PI / 180, h = Math.sin((b[0] - a[0]) * r / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin((b[1] - a[1]) * r / 2) ** 2;
+  return 2 * 3440.065 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function brg(a, b) {
+  const r = Math.PI / 180, y = Math.sin((b[1] - a[1]) * r) * Math.cos(b[0] * r);
+  const x = Math.cos(a[0] * r) * Math.sin(b[0] * r) - Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+
+/* ---------------- 状态 ---------------- */
+const S = { ofp: null, atd: null, AP: {}, cats: {}, tab: 'near', follow: true, pts: [] };
+try { S.cats = JSON.parse(lsGet('cats') || '{}'); } catch (e) {}
+try { S.ofp = JSON.parse(lsGet('ofp') || 'null'); } catch (e) {}
+S.atd = +lsGet('atd') || null;
+
+/* ---------------- 地图（离线：内置世界地图） ---------------- */
+const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 2, maxZoom: 10, zoomSnap: .5, worldCopyJump: true }).setView([24, 80], 4);
+fetch('data/countries.json').then(r => r.json()).then(topo => {
+  L.geoJSON(topojson.feature(topo, topo.objects.countries), { style: { color: '#33425f', weight: .8, fillColor: '#18233a', fillOpacity: 1 }, interactive: false }).addTo(map);
+  drawRoute();
+}).catch(() => {});
+let L_route, L_done, L_plane, L_wps = [], L_aps = [];
+const PLANE = '<svg viewBox="0 0 64 64" width="34" height="34"><path fill="#e2b964" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
+const zoomCls = () => $('map').classList.toggle('far', map.getZoom() < 6);
+map.on('zoomend', zoomCls); zoomCls();
+map.on('dragstart', () => { S.follow = false; $('recenter').style.display = 'block'; });
+$('recenter').onclick = () => { S.follow = true; $('recenter').style.display = 'none'; tick(); };
+
+/* ---------------- 机场数据库 ---------------- */
+const apReady = fetch('data/airports.json').then(r => r.json()).then(j => { S.AP = j; }).catch(() => {});
+const apPos = icao => { const a = S.AP[icao]; return a ? [a[3], a[4]] : null; };
+
+/* ---------------- 航路点：坐标 + 计划时间（缺坐标的按距离插值） ---------------- */
+function buildPts() {
+  const o = S.ofp; if (!o) return [];
+  const raw = o.navlog.map(w => ({ id: w.id, t: w.t, dist: w.dist, pos: w.id === o.flight.dep ? apPos(o.flight.dep) : w.id === o.flight.arr ? apPos(o.flight.arr) : (o.fixes[w.id] || null) }));
+  if (raw.length && !raw[0].pos) raw[0].pos = apPos(o.flight.dep);
+  if (raw.length && !raw[raw.length - 1].pos) raw[raw.length - 1].pos = apPos(o.flight.arr);
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i].pos) continue;
+    let a = i - 1; while (a >= 0 && !raw[a].pos) a--;
+    let b = i + 1; while (b < raw.length && !raw[b].pos) b++;
+    if (a < 0 || b >= raw.length) continue;
+    const f = (raw[i].dist - raw[a].dist) / Math.max(1, raw[b].dist - raw[a].dist);
+    raw[i].pos = [raw[a].pos[0] + (raw[b].pos[0] - raw[a].pos[0]) * f, raw[a].pos[1] + (raw[b].pos[1] - raw[a].pos[1]) * f];
+    raw[i].interp = true;
+  }
+  return raw.filter(p => p.pos);
+}
+// 起飞后 m 分钟的位置（按导航日志的计划时间插值）
+function posAt(m) {
+  const P = S.pts; if (!P.length) return null;
+  if (m <= 0) return { pos: P[0].pos, i: 0, hdg: brg(P[0].pos, P[1].pos), gs: 0, dist: 0 };
+  for (let i = 1; i < P.length; i++) {
+    if (m <= P[i].t) {
+      const a = P[i - 1], b = P[i], f = (m - a.t) / Math.max(1, b.t - a.t);
+      const gs = (b.dist - a.dist) / Math.max(1, b.t - a.t) * 60;
+      return { pos: [a.pos[0] + (b.pos[0] - a.pos[0]) * f, a.pos[1] + (b.pos[1] - a.pos[1]) * f], i, hdg: brg(a.pos, b.pos), gs, dist: a.dist + (b.dist - a.dist) * f, next: b };
+    }
+  }
+  const e = P[P.length - 1];
+  return { pos: e.pos, i: P.length - 1, hdg: 0, gs: 0, dist: e.dist, landed: true };
+}
+
+function drawRoute() {
+  [L_route, L_done, L_plane].concat(L_wps, L_aps).forEach(l => l && map.removeLayer(l));
+  L_wps = []; L_aps = [];
+  if (!S.ofp) return;
+  S.pts = buildPts();
+  // 经度连续（跨 180° 不断开）
+  const line = []; let prev = null;
+  S.pts.forEach(p => { let lo = p.pos[1]; if (prev != null) { while (lo - prev > 180) lo -= 360; while (lo - prev < -180) lo += 360; } prev = lo; line.push([p.pos[0], lo]); });
+  L_route = L.polyline(line, { color: '#6f87b3', weight: 2, dashArray: '6 6' }).addTo(map);
+  L_done = L.polyline([], { color: '#e2b964', weight: 3 }).addTo(map);
+  S.pts.forEach((p, k) => {
+    if (p.interp || /^(TOC|TOD)$/.test(p.id)) return;
+    L_wps.push(L.circleMarker(line[k], { radius: 2, color: '#9fb0cc', weight: 1, fillOpacity: 1, interactive: false }).bindTooltip(p.id, { permanent: true, direction: 'right', className: 'wp', offset: [4, 0] }).addTo(map));
+  });
+  candidates().forEach(c => {
+    const col = { green: '#3fcf7f', amber: '#f3b13c', red: '#ff5d55', none: '#5b6680' }[c.rate || 'none'];
+    L_aps.push(L.circleMarker(c.pos, { radius: 5, color: col, weight: 2, fillColor: '#0b1220', fillOpacity: 1 })
+      .bindTooltip(c.icao, { permanent: true, direction: 'top', className: 'apl', offset: [0, -4] }).on('click', () => openSheet(c.icao)).addTo(map));
+  });
+  L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div id="plane">' + PLANE + '</div>', iconSize: [34, 34], iconAnchor: [17, 17] }), interactive: false, zIndexOffset: 1000 }).addTo(map);
+  map.fitBounds(L_route.getBounds(), { padding: [30, 30] });
+}
+
+/* ---------------- 候选机场：OFP 里有天气的 + 分类表里的 ---------------- */
+const ROLE = { dep: '起飞', dest: '目的地', destAltn: '目的地备降', fuelEnroute: '加油', enroute: '航路' };
+function candidates() {
+  const o = S.ofp; if (!o) return [];
+  const set = {};
+  Object.values(o.airports).forEach(a => { set[a.icao] = a; });
+  Object.keys(S.cats).forEach(k => { if (!set[k] && S.AP[k]) set[k] = { icao: k, iata: S.AP[k][0], name: S.AP[k][1], roles: [], metar: [], taf: [] }; });
+  return Object.values(set).map(a => {
+    const db = S.AP[a.icao];
+    return Object.assign({}, a, { pos: db ? [db[3], db[4]] : null, db, cat: S.cats[a.icao] || null });
+  }).filter(a => a.pos);
+}
+
+/* ---------------- 某机场在时间 t 的天气 / 跑道 / NOTAM ---------------- */
+function assess(c, t) {
+  const ref = S.ofp.flight.dateUTC + 12 * 3600e3;
+  const M = c.metar && c.metar.length ? WX.metar(c.metar[c.metar.length - 1], ref) : null;
+  const T = c.taf && c.taf.length ? WX.taf(c.taf[c.taf.length - 1], ref) : null;
+  const w = (M || T) ? WX.at(T, M, t) : null;
+  const notes = WX.notams(S.ofp.notams[c.icao], t);
+  const closed = WX.closedRwys(S.ofp.notams[c.icao], t);
+  const plannedRwy = (S.ofp.alternates.find(a => a.icao === c.icao) || {}).rwy || (c.icao === S.ofp.flight.arr ? (S.ofp.navlog[S.ofp.navlog.length - 1] || {}).rwy : null);
+  const rw = c.db ? WX.runway(c.db[6], w && w.main.wind, closed, plannedRwy) : null;
+  let rate = w ? WX.rate(w) : 'none';
+  if (notes.some(n => n.lv === 'red' && /机场关闭|不能用作备降/.test(n.zh))) rate = 'red';
+  else if (rw && rw.allLimited && rate === 'green') rate = 'amber';      // 每条跑道都有 NOTAM 限制
+  return { w, rate, notes, rw, closed, src: w ? w.src : 'none' };
+}
+
+/* ---------------- 主循环 ---------------- */
+function now() { return Date.now() + (S.sim || 0); }
+function tick() {
+  const t = now();
+  $('utc').innerHTML = z2(new Date(t).getUTCHours()) + ':' + z2(new Date(t).getUTCMinutes()) + '<small>UTC</small>';
+  if (!S.ofp) return;
+  const o = S.ofp;
+  const el = S.atd ? (t - S.atd) / MIN : 0;
+  const p = posAt(el) || { pos: apPos(o.flight.dep), gs: 0, dist: 0 };
+  S.cur = p;
+  if (L_plane && p.pos) {
+    L_plane.setLatLng(p.pos);
+    const pe = document.getElementById('plane'); if (pe) pe.style.transform = 'rotate(' + Math.round(p.hdg || 0) + 'deg)';
+    if (S.atd && p.i) L_done.setLatLngs(S.pts.slice(0, p.i).map(x => x.pos).concat([p.pos]));
+    if (S.follow && S.atd) map.setView(p.pos, Math.max(map.getZoom(), 6), { animate: false });
+  }
+  const eta = S.atd ? S.atd + o.times.trip * MIN : null;
+  const remain = S.atd ? Math.max(0, o.times.trip - el) : o.times.trip;
+  $('hud').innerHTML =
+    '<div class="c"><div class="k">ATD</div><div class="v num">' + (S.atd ? hmZ(S.atd) : '—') + '</div></div>' +
+    '<div class="c"><div class="k">ETA ' + o.flight.arr + '</div><div class="v num">' + (eta ? hmZ(eta) : '计划 ' + hmZ(o.times.sta)) + '</div></div>' +
+    '<div class="c"><div class="k">已飞 / 剩余</div><div class="v num">' + (S.atd ? dur(Math.max(0, el)) + ' / ' + dur(remain) : '— / ' + dur(o.times.trip)) + '</div></div>' +
+    '<div class="c"><div class="k">下一点</div><div class="v num">' + (p.next ? p.next.id + ' ' + hmZ(S.atd + p.next.t * MIN) : '—') + '</div></div>' +
+    '<div class="c"><div class="k">GS 约</div><div class="v num">' + (p.gs ? Math.round(p.gs) + ' kt' : '—') + '</div></div>';
+  renderList();
+}
+
+/* ---------------- 列表 ---------------- */
+const CATZ = { 1: '一类', 2: '二类', 3: '三类' };
+function card(c, t, d, mins) {
+  const a = assess(c, t);
+  const dotc = { green: 'g', amber: 'a', red: 'r', none: 'x' }[a.rate];
+  const ws = a.w ? WX.say(a.w) : ['OFP 里没有这个机场的天气'];
+  const tags = (c.cat ? '<span class="tag c' + c.cat + '">' + (CATZ[c.cat] || c.cat) + '</span>' : '') + (c.roles || []).map(r => '<span class="tag">' + (ROLE[r] || r) + '</span>').join('');
+  const rw = a.rw && a.rw.pick ? '<b>预计跑道 ' + esc(a.rw.pick.id) + '</b>' + (a.rw.calm ? '（风小）' : '') + ' · 逆风 ' + a.rw.pick.head + ' / 侧风 ' + a.rw.pick.cross + (a.rw.pick.tail ? ' / <span class="t-amber">顺风 ' + a.rw.pick.tail + '</span>' : '') + (a.rw.allLimited ? ' <span class="t-red">所有跑道都有限制</span>' : '') : '';
+  const nt = a.notes.filter(n => n.lv !== 'info').slice(0, 3).map(n => '<span class="t-' + n.lv + '">● ' + esc(n.zh) + '</span>').join('<br>');
+  return '<div class="ap" onclick="openSheet(\'' + c.icao + '\')"><div class="h"><span class="dot ' + dotc + '"></span><span class="id">' + c.icao + '</span>' +
+    '<span class="nm">' + esc(c.iata || '') + ' ' + esc((c.db && c.db[2]) || c.name || '') + tags + '</span>' +
+    '<span class="d num">' + (d != null ? Math.round(d) + ' nm · ' + Math.round(mins) + ' 分' : '') + '</span></div>' +
+    '<div class="w">' + esc(ws[0]) + (ws.length > 1 ? '<br><span class="t-amber">' + esc(ws.slice(1).join('；')) + '</span>' : '') + '</div>' +
+    (rw ? '<div class="n">' + rw + '</div>' : '') + (nt ? '<div class="n">' + nt + '</div>' : '') +
+    '<div class="n t-info">按 ' + hmZ(t) + ' 到达估算</div></div>';
+}
+let lastList = 0;
+function renderList(force) {
+  if (!force && Date.now() - lastList < 15000) return;
+  lastList = Date.now();
+  const t0 = now(), p = S.cur;
+  if (!p || !p.pos) return;
+  const gs = p.gs > 250 ? p.gs : 450;                                   // 改航按大约这个地速算
+  let arr = candidates().map(c => { const d = distNm(p.pos, c.pos); return { c, d, mins: d / gs * 60 + (d > 40 ? 12 : 0) }; });
+  let title = '';
+  if (S.tab === 'near') { arr = arr.filter(x => !(x.c.roles || []).includes('dep') || x.d < 300).sort((a, b) => a.d - b.d).slice(0, 8); title = '离现在位置最近（按到达时间看天气）'; }
+  else if (S.tab === 'hour') { arr = arr.filter(x => x.mins <= 60).sort((a, b) => a.mins - b.mins); title = '60 分钟内能到的机场：' + arr.length + ' 个'; }
+  else if (S.tab === 'plan') {
+    const keep = ['dest', 'destAltn', 'fuelEnroute'];
+    arr = arr.filter(x => (x.c.roles || []).some(r => keep.includes(r))).sort((a, b) => keep.indexOf((a.c.roles || [])[0]) - keep.indexOf((b.c.roles || [])[0]));
+    title = '目的地和备降场（按计划时间）';
+  } else { arr = arr.sort((a, b) => a.d - b.d); title = '全部 ' + arr.length + ' 个机场'; }
+  const html = arr.map(x => {
+    let t = t0 + x.mins * MIN;
+    if (S.tab === 'plan' && S.ofp) {                                    // 目的地/备降：按计划到达时间
+      const base = S.atd ? S.atd + S.ofp.times.trip * MIN : S.ofp.times.sta;
+      const alt = S.ofp.alternates.find(a => a.icao === x.c.icao);
+      t = base + (alt && x.c.icao !== S.ofp.flight.arr ? alt.time * MIN : 0);
+    }
+    return card(x.c, t, x.d, x.mins);
+  }).join('');
+  $('list').innerHTML = '<div style="font-size:12px;color:var(--dim);padding:4px 4px 0">' + title + '</div>' + (html || '<p style="color:var(--dim);padding:10px">没有符合的机场</p>');
+}
+document.querySelectorAll('#tabs .btn').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs .btn').forEach(x => x.classList.toggle('on', x === b));
+  S.tab = b.dataset.tab; renderList(true);
+});
+
+/* ---------------- 详情 ---------------- */
+function openSheet(icao) {
+  const c = candidates().find(x => x.icao === icao); if (!c) return;
+  const p = S.cur, d = p && p.pos ? distNm(p.pos, c.pos) : null;
+  const t = now() + (d != null ? (d / (p.gs > 250 ? p.gs : 450) * 60 + 12) * MIN : 0);
+  const a = assess(c, t);
+  const ws = a.w ? WX.say(a.w) : ['没有天气资料'];
+  let h = '<button class="btn sm" style="float:right" onclick="closeSheet()">关闭</button>' +
+    '<h2>' + c.icao + ' <span style="color:var(--dim);font-size:16px">' + esc(c.iata || '') + '</span></h2>' +
+    '<div style="color:var(--dim);font-size:13px">' + esc((c.db && c.db[1]) || c.name || '') + (c.db ? ' · 标高 ' + c.db[5] + ' ft' : '') + (c.cat ? ' · <b>' + (CATZ[c.cat] || c.cat) + '备降场</b>' : '') + '</div>' +
+    (d != null ? '<div style="margin-top:6px">距离 <b>' + Math.round(d) + ' nm</b> · 方位 ' + Math.round(brg(p.pos, c.pos)) + '°T · 预计 <b>' + hmZ(t) + '</b> 到达</div>' : '') +
+    '<h3>' + hmZ(t) + ' 的天气（' + (a.src === 'taf' ? '按 TAF' : a.src === 'metar' ? '按 METAR' : '无资料') + '）</h3>' +
+    '<div><span class="dot ' + ({ green: 'g', amber: 'a', red: 'r', none: 'x' }[a.rate]) + '"></span>' + ws.map(esc).join('<br>') + '</div>' +
+    (c.metar && c.metar.length ? '<div class="raw">METAR ' + esc(c.metar.join('\n')) + '</div>' : '') +
+    (c.taf && c.taf.length ? '<div class="raw">TAF ' + esc(c.taf.join('\n')) + '</div>' : '');
+  if (a.rw && a.rw.all) {
+    h += '<h3>跑道（风 ' + (a.w && a.w.main.wind ? (a.w.main.wind.dir == null ? 'VRB' : z2(a.w.main.wind.dir).padStart(3, '0')) + '/' + a.w.main.wind.spd + (a.w.main.wind.gust ? 'G' + a.w.main.wind.gust : '') + ' kt' : '无') + '）</h3><table><tr><th>跑道</th><th>长度 ft</th><th>逆风</th><th>侧风</th><th>顺风</th><th></th></tr>' +
+      a.rw.all.map(e => '<tr' + (e === a.rw.pick ? ' style="background:#1a2944"' : '') + '><td><b>' + esc(e.id) + '</b></td><td>' + e.len + '</td><td>' + e.head + '</td><td>' + e.cross + '</td><td class="' + (e.tail ? 't-amber' : '') + '">' + e.tail + '</td><td>' + (e === a.rw.pick ? '推荐' : '') + '</td></tr>').join('') + '</table>' +
+      (a.closed.length ? '<div class="t-red" style="font-size:12px;margin-top:4px">NOTAM 限制：' + a.closed.join(', ') + '</div>' : '');
+  }
+  h += '<h3>NOTAM 要点（' + (S.ofp.notams[c.icao] || []).length + ' 条中挑出）</h3>' +
+    (a.notes.length ? a.notes.map(n => '<div style="margin:6px 0"><span class="t-' + n.lv + '">● ' + esc(n.zh) + '</span> <span style="color:var(--dim);font-size:11px">' + n.ids.join(', ') + '</span><details><summary>原文</summary><div class="raw">' + esc(n.raw) + '</div></details></div>').join('') : '<div style="color:var(--dim)">没有发现影响落地的 NOTAM</div>') +
+    '<details style="margin-top:10px"><summary>全部 NOTAM 原文</summary>' + (S.ofp.notams[c.icao] || []).map(n => '<div class="raw"><b>' + esc(n.id) + '</b> ' + hmZ(n.from) + '–' + (n.to ? hmZ(n.to) : 'UFN') + ' ' + esc(n.cat) + '\n' + esc(n.text) + '</div>').join('') + '</details>';
+  $('sheet-in').innerHTML = h;
+  $('sheet').classList.add('open');
+}
+function closeSheet() { $('sheet').classList.remove('open'); }
+$('sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
+
+/* ---------------- ATD 输入 ---------------- */
+function setATD(t) {
+  S.atd = t; lsSet('atd', t || ''); $('atd').value = t ? hmZ(t).slice(0, 4) : '';
+  S.follow = true; $('recenter').style.display = 'none'; lastList = 0; tick();
+}
+$('atd').onchange = () => {
+  const v = $('atd').value.trim();
+  if (!/^\d{4}$/.test(v) || !S.ofp) { setATD(null); return; }
+  // 以计划撤轮挡那天为准；若输入时间比 STD 早很多，就算第二天
+  const std = S.ofp.times.std || S.ofp.flight.dateUTC;
+  const d0 = new Date(std); let t = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate(), +v.slice(0, 2), +v.slice(2));
+  if (t < std - 6 * 3600e3) t += 864e5;
+  setATD(t);
+};
+$('b-now').onclick = () => setATD(Math.floor(now() / MIN) * MIN);
+
+/* ---------------- 载入 OFP ---------------- */
+function openLoad() { $('load').classList.add('open'); $('s-clock').value = lsGet('clock') || ''; $('s-key').value = lsGet('key') || ''; $('s-cats').value = Object.entries(S.cats).map(([k, v]) => k + ',' + v).join('\n'); }
+$('b-load').onclick = openLoad;
+$('b-close').onclick = () => $('load').classList.remove('open');
+function useText(txt) {
+  const r = OFP.parse(txt);
+  if (!r.ok) { $('msg').textContent = '没读出来：' + r.warnings.join('；'); return false; }
+  S.ofp = r; lsSet('ofp', JSON.stringify(r)); lsSet('ofptext1', txt.slice(0, 6000));
+  if (S.atd && Math.abs(S.atd - (r.times.std || 0)) > 18 * 3600e3) setATD(null);
+  $('t-fl').textContent = r.flight.no + ' · ' + r.flight.date;
+  $('t-rt').textContent = r.flight.dep + '/' + r.flight.depIata + ' → ' + r.flight.arr + '/' + r.flight.arrIata + ' · ' + r.flight.reg + ' · STD ' + hmZ(r.times.std) + ' · TRIP ' + dur(r.times.trip);
+  const nA = Object.keys(r.airports).length, nN = Object.values(r.notams).reduce((s, x) => s + x.length, 0);
+  $('msg').style.color = 'var(--green)';
+  $('msg').textContent = '✅ ' + r.flight.no + ' ' + r.flight.dep + '→' + r.flight.arr + '：' + r.navlog.length + ' 个航路点（' + Object.keys(r.fixes).length + ' 个有坐标），' + nA + ' 个机场天气，' + nN + ' 条 NOTAM' + (r.warnings.length ? '\n⚠️ ' + r.warnings.join('；') : '');
+  drawRoute(); lastList = 0; tick();
+  setTimeout(() => $('load').classList.remove('open'), 1200);
+  return true;
+}
+$('b-parse').onclick = () => { const t = $('f-txt').value; if (t.trim()) useText(t); };
+$('f-pdf').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $('msg').style.color = 'var(--amber)'; $('msg').textContent = '正在读取 PDF…';
+  try { useText(await pdfText(await f.arrayBuffer())); }
+  catch (err) { $('msg').textContent = 'PDF 读取失败：' + err.message; }
+};
+// PDF → 按行还原文字（等宽排版，按 x 位置补空格）
+async function pdfText(buf) {
+  if (!window.pdfjsLib) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'vendor/pdf.min.js'; s.onload = ok; s.onerror = () => no(new Error('PDF 组件没载入')); document.head.appendChild(s); });
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const pg = await doc.getPage(n), tc = await pg.getTextContent();
+    const rows = {};
+    let cw = 0, cn = 0;
+    tc.items.forEach(it => { if (!it.str) return; const y = Math.round(it.transform[5] / 2) * 2; (rows[y] = rows[y] || []).push(it); if (it.str.trim().length > 2) { cw += it.width / it.str.length; cn++; } });
+    cw = cn ? cw / cn : 6;
+    const ys = Object.keys(rows).map(Number).sort((a, b) => b - a);
+    const plines = [];
+    ys.forEach(y => {
+      let line = '';
+      rows[y].sort((a, b) => a.transform[4] - b.transform[4]).forEach(it => {
+        const col = Math.round(it.transform[4] / cw);
+        if (col > line.length) line += ' '.repeat(col - line.length); else if (line && !/\s$/.test(line)) line += ' ';
+        line += it.str;
+      });
+      plines.push(line);
+    });
+    // 去掉页面左边距（和电脑上复制出来的文字对齐）
+    const ind = Math.min(...plines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
+    plines.forEach(l => pages.push(isFinite(ind) ? l.slice(ind) : l));
+    $('msg').textContent = '正在读取 PDF… ' + n + '/' + doc.numPages;
+  }
+  return pages.join('\n');
+}
+
+/* ---------------- 设置 / 发给时钟 ---------------- */
+$('b-save').onclick = () => {
+  lsSet('clock', $('s-clock').value.trim()); lsSet('key', $('s-key').value.trim());
+  const cats = {};
+  $('s-cats').value.split(/\n/).forEach(l => { const m = /([A-Z]{4})\s*[,\t; ]\s*(\d|一|二|三)/i.exec(l.trim().toUpperCase()); if (m) cats[m[1]] = { '一': 1, '二': 2, '三': 3 }[m[2]] || +m[2]; });
+  S.cats = cats; lsSet('cats', JSON.stringify(cats));
+  $('msg').style.color = 'var(--green)'; $('msg').textContent = '✅ 已保存（分类 ' + Object.keys(cats).length + ' 个机场）';
+  drawRoute(); lastList = 0; tick();
+};
+$('b-clock').onclick = async () => {
+  const url = lsGet('clock'), key = lsGet('key'), txt = lsGet('ofptext1');
+  if (!url || !key) { $('msg').textContent = '先在「设置」里填时钟网址和口令'; return; }
+  if (!txt) { $('msg').textContent = '先载入 OFP'; return; }
+  $('msg').textContent = '发送中…（需要网络）';
+  try {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(key), { method: 'POST', body: txt });
+    $('msg').textContent = await r.text();
+  } catch (e) { $('msg').textContent = '发送失败（没有网络？）：' + e.message; }
+};
+
+/* ---------------- 离线：Service Worker ---------------- */
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* ---------------- 开始 ---------------- */
+apReady.then(() => {
+  if (S.ofp) {
+    $('t-fl').textContent = S.ofp.flight.no + ' · ' + S.ofp.flight.date;
+    $('t-rt').textContent = S.ofp.flight.dep + ' → ' + S.ofp.flight.arr + ' · ' + S.ofp.flight.reg + ' · STD ' + hmZ(S.ofp.times.std) + ' · TRIP ' + dur(S.ofp.times.trip);
+    if (S.atd) $('atd').value = hmZ(S.atd).slice(0, 4);
+    drawRoute();
+  } else openLoad();
+  tick(); setInterval(tick, 5000);
+});
+// 测试用：?sim=分钟 把时间设到起飞后多少分钟
+const SIM = new URLSearchParams(location.search).get('sim');
+if (SIM != null) setTimeout(() => { if (S.ofp) { const at = (S.ofp.times.std || 0) + 20 * MIN; S.sim = at + (+SIM) * MIN - Date.now(); setATD(at); } }, 800);
+</script>
+</body>
+</html>
