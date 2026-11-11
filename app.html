@@ -586,7 +586,15 @@ function normFlights(j) {
 const S = { flights: [], duties: [], routes: [], routeLines: {}, apiVer: 0, legacy: false, sync: null, wx: {}, track: {}, view: null, status: {} };
 try { S.status = JSON.parse(lsGet('fc.status') || '{}'); } catch (e) {}
 // 实际动态（Apps Script 根据 ADS-B 判断）：{taxi, off, on, reg}
-const stOf = f => S.status[f.id] || {};
+// 已起飞但一直没检测到落地（快落地时信号断了）：过了预计落地 1 小时，就按「实际起飞 + 计划飞行时间」估算落地
+const stOf = f => {
+  const s = S.status[f.id] || {};
+  if (s.off && !s.on) {
+    const est = s.off + (f.sta - f.std) - 23 * MIN;
+    if (Date.now() > est + HOUR) return Object.assign({}, s, { on: est, onEst: true });
+  }
+  return s;
+};
 function setStatus(id, st) {
   if (!st) return;
   const old = S.status[id] || {};
@@ -1201,7 +1209,7 @@ function renderFlight(st, light) {
     : '<div class="kv"><span class="lbl">计划起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
       (pos.phase === 'waiting' ? '<span style="color:var(--red)">尚未起飞 · 已过 ' + hmDur(now - f.std) + '</span>' : '当地 · ' + dayWord(f.std, oTz)) + '</span></div>';
   const arrCell = fs.on
-    ? '<div class="kv"><span class="lbl" style="color:var(--green)">实际落地 ' + f.dest + '</span><span class="v num">' + hmDual(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + dualNote(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">' + (fs.onEst ? '落地（约）' : '实际落地 ') + f.dest + '</span><span class="v num">' + hmDual(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + dualNote(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
     : '<div class="kv"><span class="lbl">预计到达 ' + f.dest + '</span><span class="v num">' + hmDual(pos.eta, dTz) + '</span><span class="s">' + dayLbl(pos.eta, dTz) + (dualNote(pos.eta, dTz) || ' 当地') + (fs.off ? ' · ' + diffTxt(pos.eta, f.sta) : '') + '</span></div>';
   const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
   const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
