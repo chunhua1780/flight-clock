@@ -1223,7 +1223,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v22';
+const APPV = 'v23';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1443,11 +1443,15 @@ function learnedHtml(word, text) {
 const aiLang = () => LANG === 'en' ? 'en' : 'zh';
 function aiBlock() { const ix = [...document.querySelectorAll('#dec-body .ln.sel')].map(e => +e.dataset.i).sort((a, b) => a - b); if (!ix.length) return null;
   const a = ix[0], b = Math.min(ix[ix.length - 1], a + 60); return { a, b, text: DL.slice(a, b + 1).filter(l => l.trim() && !/^\s*(?:UAE|EK)\d+\/\d{2}[A-Za-z]{3}/.test(l)).join('\n') }; }
+// 发给 AI 的内容：表头 + 程序已经核对过的逐栏解读（以此为准）+ 原文，避免 AI 把栏位读错
+function aiHdr(a, sec) { if (!/^(nav|navalt)$/.test(sec)) return ''; const h = DEC.navHdr(DL, a); return h ? h.join('\n') : ''; }
+const aiText = d => (d.hint ? (d.lang === 'en' ? '[Verified column-by-column decode by the app — treat as correct]\n' : '【程序已按栏位核对过的解读，以此为准，不要和它矛盾】\n') + d.hint + '\n\n' : '') + (d.hdr ? (d.lang === 'en' ? '[Column headers]\n' : '【表头】\n') + d.hdr + '\n' : '') + (d.hint || d.hdr ? (d.lang === 'en' ? '[OFP text]\n' : '【OFP 原文】\n') : '') + d.text;
+const plain = h => String(h || '').replace(/<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
 const aiFmt = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[*-]\s+/gm, '• ').replace(/\n/g, '<br>');
-function aiHtml(word, sec) {
+function aiHtml(word, sec, hint) {
   const B = aiBlock(); if (!B) return '';
   const k = aiLang() + '-' + hash(kbNorm(B.text)), hit = AI[k] || (KB.ai[k] && { out: KB.ai[k].o });
-  $('dec-pop').dataset.ai = JSON.stringify({ k, text: B.text, word, sec });
+  $('dec-pop').dataset.ai = JSON.stringify({ k, text: B.text, word, sec, hint: hint || '', hdr: aiHdr(B.a, sec) });
   const lh = learnedHtml(word, B.text);
   if (hit) return lh + '<div class="ai">🌐 <b>' + tt('联网解读', 'Online explanation') + '</b><br>' + aiFmt(hit.out) + '</div>';
   if (!navigator.onLine) return lh;
@@ -1459,7 +1463,7 @@ async function aiAsk() {
   box.innerHTML = '⏳ ' + tt('正在联网查找、整理…（10–30 秒）', 'Searching and writing… (10–30 s)');
   try {
     const SECN = { head: 'OFP front page (fuel/times/weights)', altn: 'destination alternates', disp: 'dispatch briefing', nav: 'navigation log', navalt: 'navlog to alternate', winds: 'winds/temperatures aloft table', wx: 'weather METAR/TAF', notam: 'NOTAM', crew: 'crew info', conotam: 'company NOTAM', etops: 'ETOPS info' };
-    const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'explain', key: d.k, text: d.text, word: d.word || '', section: SECN[d.sec] || d.sec, lang: aiLang() }) });
+    const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'explain', key: d.k, text: aiText(Object.assign({ lang: aiLang() }, d)), word: d.word || '', section: SECN[d.sec] || d.sec, lang: aiLang() }) });
     const raw = await r.text(); let j; try { j = JSON.parse(raw); } catch (e) { j = { ok: false, error: raw.slice(0, 120) }; }
     if (!j.ok) {
       box.innerHTML = /GEMINI_KEY/.test(j.error) ? tt('还没设置 AI Key：在 aistudio.google.com/apikey 免费申请一个 Key，放到 Apps Script「项目设置 → 脚本属性」，名字 GEMINI_KEY。', 'No AI key yet: get a free key at aistudio.google.com/apikey and add it in Apps Script → Project settings → Script properties as GEMINI_KEY.')
@@ -1554,7 +1558,7 @@ function decShow(i, word) {
   const pick = x => x ? (LANG === 'en' ? x.en : LANG === 'zh' ? x.zh : x.zh + '<div style="color:var(--dim);font-size:13px;margin-top:6px;border-top:1px dashed var(--line);padding-top:6px">' + x.en + '</div>') : '';
   const SECN = { head: ['飞行计划首页（油量、时间、重量）', 'OFP front page (fuel, times, weights)'], altn: ['目的地备降场表', 'Destination alternates'], disp: ['签派提示', 'Dispatch notes'], nav: ['导航日志（每个航路点）', 'Navigation log'], navalt: ['去备降场的导航日志', 'Navlog to alternate'], winds: ['高空风温表', 'Winds aloft'], wx: ['天气（METAR / TAF）', 'Weather'], notam: ['航行通告', 'NOTAMs'], crew: ['机组信息', 'Crew info'], conotam: ['公司通告 / 机组须知', 'Company NOTAMs / crew info'], etops: ['ETOPS 信息', 'ETOPS information'] }[sec] || ['', ''];
   $('dec-pop').innerHTML = '<span class="x" onclick="document.getElementById(\'dec-pop\').style.display=\'none\'">✕</span><span class="rf" id="dec-rf" onclick="decRefresh()">⟳ ' + tt('刷新', 'Refresh') + '</span><div class="w">' + tt(SECN[0], SECN[1]) + (word ? ' · <b style="color:var(--text)">' + esc(word) + '</b>' : '') + '</div>' +
-    (W1 ? '<div style="margin-bottom:8px;color:var(--dim);font-size:13.5px">' + tt('你点的', 'You tapped') + ' · ' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0)) + aiHtml(word, sec);
+    (W1 ? '<div style="margin-bottom:8px;color:var(--dim);font-size:13.5px">' + tt('你点的', 'You tapped') + ' · ' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0)) + aiHtml(word, sec, L1 && !L1.para && /^(nav|navalt|winds|head|altn|wx)$/.test(sec) ? plain(aiLang() === 'en' ? L1.en : L1.zh) : '');
   $('dec-pop').style.display = 'block';
 }
 // ⟳ 刷新：有网 → 马上把这一段翻成中文 + 联网 AI 解读，存在 iPad 上；没网 → 保留原来的离线内容
@@ -1578,7 +1582,7 @@ async function decRefresh() {
     const d = JSON.parse($('dec-pop').dataset.ai || '{}');
     if (d.k) { b.textContent = '⟳ ' + tt('AI 解读中…（10–30 秒）', 'AI explaining… (10–30 s)');
       const SECN = { head: 'OFP front page (fuel/times/weights)', altn: 'destination alternates', disp: 'dispatch briefing', nav: 'navigation log', navalt: 'navlog to alternate', winds: 'winds/temperatures aloft table', wx: 'weather METAR/TAF', notam: 'NOTAM', crew: 'crew info', conotam: 'company NOTAM', etops: 'ETOPS info' };
-      try { const j = await post({ action: 'explain', key: d.k, text: d.text, word: d.word || '', section: SECN[d.sec] || d.sec, lang: aiLang() });
+      try { const j = await post({ action: 'explain', key: d.k, text: aiText(Object.assign({ lang: aiLang() }, d)), word: d.word || '', section: SECN[d.sec] || d.sec, lang: aiLang() });
         if (j.ok && j.out) { AI[d.k] = { out: j.out, t: Date.now() }; lsSet('ai', JSON.stringify(AI)); kbLearn(j.learn); ok = true; } } catch (e) {} }
     await kbSync();
   } catch (e) {}
