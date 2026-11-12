@@ -36,6 +36,7 @@
       LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date));
       if (j.set && +j.setU && (first || +j.setU > (SY.setU || 0))) { SET = Object.assign(SET, j.set); if (!SET.bf) SET.bf = {}; sv(SKEY, SET); }
       SY = { h: {}, setH: hsh(SET), setU: +j.setU || SY.setU, at: now, url: j.url || SY.url, del: dels }; LB.forEach(e => { SY.h[e.k] = hsh(strip(e)); });
+      if (!+j.setU) { SY.setH = ''; cloudSoon(); }   // 云端还没有设置：下一次把本机的设置传上去
       sv(KEY, LB); sv('fa.lbsync', SY); cloudMsg = 'ok'; chip();
       if ($('lb').classList.contains('open') && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#lb-pg'))) render();
       if (!quiet) toast('☁️ ' + T('已保存到云端', 'Saved to the cloud') + '（' + LB.length + '）', 2500);
