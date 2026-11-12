@@ -82,9 +82,11 @@
   // 计算：总时间、空中时间、夜航、起降昼夜
   function calc(e) {
     const ok = e.offB && e.to && e.ldg && e.onB && e.onB > e.offB;
-    const r = { block: ok ? Math.round((e.onB - e.offB) / MINms) : 0, air: e.to && e.ldg && e.ldg > e.to ? Math.round((e.ldg - e.to) / MINms) : 0, night: 0, toN: false, ldN: false };
+    const r = { blk: ok ? Math.round((e.onB - e.offB) / MINms) : 0, air: e.to && e.ldg && e.ldg > e.to ? Math.round((e.ldg - e.to) / MINms) : 0, night: 0, toN: false, ldN: false };
+    r.block = SET.ftime === 'air' ? r.air : r.blk;   // 飞行时间：按规章 = 撤轮挡到挡轮挡；公司要求的话可改成起飞到落地
     if (!ok) return r;
-    for (let t = e.offB + 30e3; t < e.onB; t += MINms) { const p = posAt(e, t); if (p && isNight(p[0], p[1], t)) r.night++; }
+    const t0 = SET.ftime === 'air' ? e.to : e.offB, t1 = SET.ftime === 'air' ? e.ldg : e.onB;
+    for (let t = t0 + 30e3; t < t1; t += MINms) { const p = posAt(e, t); if (p && isNight(p[0], p[1], t)) r.night++; }
     if (e.dp) r.toN = isNight(e.dp[0], e.dp[1], e.to);
     if (e.ap) r.ldN = isNight(e.ap[0], e.ap[1], e.ldg);
     const pt = pfTo(e), pl = pfLdg(e), cap = (e.role || SET.role) === 'CAPT';
@@ -104,7 +106,7 @@
     const o = S.ofp, f = o.flight, k = keyOf(o);
     let e = LB.find(x => x.k === k);
     if (!e && (SY.del || []).indexOf(k) >= 0) return null;   // 删掉过的不要自动再建
-    const std = o.times.std || f.dateUTC, taxi = (o.times.taxi || 15) * MINms, trip = (o.times.trip || 0) * MINms;
+    const std = o.times.std || f.dateUTC, taxi = Math.min(30, o.times.taxi || 15) * MINms, trip = (o.times.trip || 0) * MINms;   // 滑出时间按 OFP 的 TAXI，最多 30 分钟
     const ap = c => (S.AP && S.AP[c]) ? [S.AP[c][3], S.AP[c][4]] : null;
     const dp = (S.pts && S.pts[0] && S.pts[0].pos) || (typeof apPos === 'function' ? apPos(f.dep) : null) || ap(f.dep);
     const aq = (S.pts && S.pts.length && S.pts[S.pts.length - 1].pos) || (typeof apPos === 'function' ? apPos(f.arr) : null) || ap(f.arr);
@@ -112,10 +114,10 @@
       e = { k, flt: f.no, cs: 'UAE' + f.digits, date: std, dep: f.dep, arr: f.arr, depI: f.depIata, arrI: f.arrIata, type: f.type || '', reg: (f.reg || '').replace(/-/g, ''), role: SET.role, pf: false, pic: '', rmk: '', src: {} };
       LB.push(e); LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date));
     }
-    e.dp = dp; e.ap = aq; e.std = std;
+    e.dp = dp; e.ap = aq; e.std = std; e.taxiP = Math.min(30, o.times.taxi || 15);
     e.pts = (S.pts || []).filter((p, i, A) => i === 0 || i === A.length - 1 || i % Math.ceil(A.length / 120) === 0).map(p => [+p.pos[0].toFixed(3), +p.pos[1].toFixed(3), p.t]);
     // 时间：手改 > ADS-B > Flight Assist 确认的起飞时间 > 计划
-    const put = (f2, v, src) => { const rank = { man: 3, adsb: 2, fa: 1, plan: 0 }; if (v && (!e[f2] || (rank[src] >= (rank[e.src[f2]] || 0)))) { e[f2] = v; e.src[f2] = src; } };
+    const put = (f2, v, src) => { const rank = { man: 3, adsb: 2, est: 1.5, fa: 1, plan: 0 }; if (v && (!e[f2] || (rank[src] >= (rank[e.src[f2]] || 0)))) { e[f2] = v; e.src[f2] = src; } };
     const to0 = S.atd || null;
     put('to', to0 || std + taxi, to0 ? 'fa' : 'plan');
     put('offB', (to0 || std + taxi) - taxi, to0 ? 'fa' : 'plan');
@@ -133,10 +135,13 @@
       const j = await (await fetch(u, { cache: 'no-store' })).json();
       if (!j.ok) { if (!quiet) toast(/bad|action/.test(j.error || '') ? T('时钟后台是旧版：请更新 Code.gs 并重新部署', 'Backend is old — update Code.gs') : '⚠️ ' + (j.error || 'error')); return false; }
       if (!j.found || !j.status || !(j.status.off || j.status.on)) { if (!quiet) toast(T('时钟还没有这一班的 ADS-B 起降时间', 'No ADS-B times for this flight yet'), 4000); return false; }
-      const st = j.status, put = (f, v) => { if (v && e.src[f] !== 'man') { e[f] = v; e.src[f] = 'adsb'; } };
-      put('offB', st.taxi ? st.taxi - 2 * MINms : null);   // 开始滑行前大约 2 分钟推出（撤轮挡）
+      const st = j.status, put = (f, v, src) => { if (v && e.src[f] !== 'man' && !(src === 'est' && e.src[f] === 'adsb')) { e[f] = v; e.src[f] = src || 'adsb'; } };
       put('to', st.off); put('ldg', st.on);
-      if (st.on && e.src.onB !== 'man') { e.onB = st.on + 6 * MINms; e.src.onB = 'adsb'; }   // 落地后大约 6 分钟挡轮挡（可手改）
+      // 撤轮挡：ADS-B 看到开始滑行（往前推 2 分钟算推出）；看不到（地面信号常常收不到）→ 起飞时间 − OFP 滑行时间，最多 30 分钟
+      const tx = st.taxi && st.off && st.off - st.taxi > 0 && st.off - st.taxi < 90 * MINms ? st.taxi - 2 * MINms : null;
+      if (tx) put('offB', tx, 'adsb'); else if (st.off) put('offB', st.off - Math.min(30, e.taxiP || 15) * MINms, 'est');
+      // 挡轮挡：落地后大约 6 分钟（估算，可手改）
+      if (st.on) put('onB', st.on + 6 * MINms, 'est');
       if (st.reg && !e.reg) e.reg = st.reg;
       save(); if (!quiet) toast('✅ ' + T('已读取 ADS-B 起降时间', 'ADS-B times loaded'), 2500); return true;
     } catch (err) { if (!quiet) toast('⚠️ ' + T('没连上时钟后台', 'Could not reach the backend')); return false; }
@@ -146,7 +151,7 @@
   // ---------- 页面 ----------
   let editK = null;
   const roleN = r => ({ CAPT: T('机长', 'Captain'), FO: T('副驾驶', 'First Officer'), SO: T('第二副驾驶', 'Second Officer') }[r] || r);
-  const srcTag = s => s === 'adsb' ? '<span class="lsrc a">ADS-B</span>' : s === 'man' ? '<span class="lsrc m">' + T('手改', 'edited') + '</span>' : s === 'fa' ? '<span class="lsrc f">ATD</span>' : '<span class="lsrc p">' + T('计划', 'plan') + '</span>';
+  const srcTag = s => s === 'est' ? '<span class="lsrc e">' + T('估算', 'est.') + '</span>' : s === 'adsb' ? '<span class="lsrc a">ADS-B</span>' : s === 'man' ? '<span class="lsrc m">' + T('手改', 'edited') + '</span>' : s === 'fa' ? '<span class="lsrc f">ATD</span>' : '<span class="lsrc p">' + T('计划', 'plan') + '</span>';
   function editor(e) {
     if (!e) return '<div class="lcard"><b>' + T('还没有这一班', 'No flight yet') + '</b><div class="ldim">' + (curKey() ? T('这一班的记录删掉了。', 'This flight was deleted.') + ' <button class="btn sm" onclick="LBK.redo()">' + T('重新建立', 'Re-create') + '</button>' : T('先在「载入 OFP」里读入飞行计划，这里会自动建一条记录。', 'Load an OFP first — a record is created automatically.')) + '</div></div>';
     const r = calc(e), fld = (f, lab) => '<label class="lt"><span>' + lab + '</span><input class="num" data-f="' + f + '" value="' + hhmm(e[f]) + '" inputmode="numeric" maxlength="4">' + srcTag(e.src[f]) + '</label>';
@@ -169,6 +174,7 @@
       '<label class="lt"><span>' + T('我的职务', 'My role') + '</span><select data-s="role">' + ['CAPT', 'FO', 'SO'].map(x => '<option value="' + x + '"' + (SET.role === x ? ' selected' : '') + '>' + roleN(x) + '</option>').join('') + '</select></label>' +
       '<label class="lt"><span>' + T('姓名', 'Name') + '</span><input data-s="name" value="' + esc(SET.name) + '" style="width:150px"></label>' +
       '<label class="lt"><span>' + T('执照号 / 员工号', 'Licence / staff no.') + '</span><input data-s="lic" value="' + esc(SET.lic) + '" style="width:130px"></label>' +
+      '<label class="lt"><span>' + T('飞行时间记法', 'Flight time') + '</span><select data-s="ftime">' + [['block', T('撤轮挡→挡轮挡（ICAO / 民航局 / GCAA 规定）', 'Block: off-block → on-block (ICAO/EASA/GCAA)')], ['air', T('起飞→落地（空中时间）', 'Airborne: take-off → landing')]].map(x => '<option value="' + x[0] + '"' + ((SET.ftime || 'block') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
       '<label class="lt"><span>' + T('夜间定义', 'Night') + '</span><select data-s="night">' + [['auto', T('按格式（民航：日落-日出；Jeppesen：昏影-晨光）', 'By format')], ['sun', T('日落到日出', 'Sunset–sunrise')], ['civil', T('昏影终到晨光始（太阳 −6°）', 'Civil twilight (−6°)')]].map(x => '<option value="' + x[0] + '"' + (SET.night === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
       '</div><div style="margin-top:12px"><b>' + T('以前累计的飞行经历（承前）', 'Previous experience (brought forward)') + '</b> <span class="ldim">' + T('时间写「小时:分钟」，例如 8520:35', 'Times as h:mm, e.g. 8520:35') + '</span></div><div class="lrow">' +
       BF.map(([k, zh, en, n]) => '<label class="lt"><span>' + T(zh, en) + '</span><input data-bf="' + k + '" value="' + esc(n ? (SET.bf[k] || '') : hm(SET.bf[k] || 0)) + '" style="width:' + (n ? 70 : 100) + 'px" inputmode="decimal"></label>').join('') + '</div>' +
