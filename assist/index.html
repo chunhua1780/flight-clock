@@ -199,6 +199,25 @@ div.en,.wl .en{display:block;margin-left:0}
 .firrow{font-size:11.5px;color:#f2b8ff;padding:3px 4px;border-bottom:1px dashed #5a3a6a}
 .disc a{color:var(--gold);font-weight:700;text-decoration:none;font-size:13px;float:right;margin-left:8px}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:4000;background:var(--btn);border:1px solid #3a5584;border-radius:10px;padding:8px 14px;font-size:14px;display:none}
+/* OFP 解读 */
+#dec{position:fixed;inset:0;z-index:3400;background:var(--bg);display:none;flex-direction:column}
+#dec.open{display:flex}
+#dec .bar{display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:var(--top);border-bottom:1px solid var(--line)}
+#dec-q{width:150px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:14px;text-transform:uppercase}
+#dec-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:10px 14px 45vh;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55;white-space:pre;color:var(--text)}
+#dec-body .ln{cursor:pointer;border-radius:3px}
+#dec-body .ln.sel{background:rgba(226,185,100,.22)}
+#dec-body .ln.hit{background:rgba(111,180,255,.22)}
+#dec-body .ln.sec{color:var(--gold);font-weight:700}
+#dec-pop{position:absolute;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;background:var(--card);border-top:2px solid var(--gold);padding:12px 16px 20px;display:none;box-shadow:0 -6px 24px rgba(0,0,0,.35);font-size:15px;line-height:1.6}
+#dec-pop .w{font-size:14px;color:var(--dim);margin-bottom:6px}
+#dec-pop .l{font-size:16px}
+#dec-pop .x{float:right;cursor:pointer;color:var(--dim);font-size:20px;margin-left:10px}
+.nseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle;margin-left:8px}
+.nseg span{padding:3px 10px;font-size:12px;cursor:pointer;color:var(--dim)}
+.nseg span.on{background:var(--on);color:var(--text);font-weight:700}
+.ndec{font-size:13.5px;line-height:1.55;background:var(--input);border-radius:8px;padding:8px;margin-top:4px}
+.ndec .en2{color:var(--dim);font-size:12.5px;margin-top:4px}
 /* Today Brief */
 #brief{position:fixed;inset:0;z-index:3500;background:#5b6474;display:none;overflow:auto;-webkit-overflow-scrolling:touch}
 #brief.open{display:block}
@@ -294,13 +313,16 @@ div.en,.wl .en{display:block;margin-left:0}
       <button class="btn sm" data-tab="all" data-i="OFP 天气|OFP WX"></button>
     </div>
     <div id="list"></div>
-    <div class="disc"><a href="#" id="b-brief">📋 Today Brief</a><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
+    <div class="disc"><a href="#" id="b-brief">📋 Today Brief</a><a href="#" id="b-dec">📄 OFP <span data-i="解读|Decode"></span></a><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
   </div>
 </div>
 
 <div id="sheet"><div class="in" id="sheet-in"></div></div>
 <div id="brief"><div class="bar"><button class="btn sm" id="b-full" data-i="一页版 / 详细版|1-page / full"></button><button class="btn pri" id="b-print" data-i="🖨 打印 / 存 PDF|🖨 Print / Save PDF"></button><button class="btn" id="b-bclose" data-i="关闭|Close"></button></div><div class="pg" id="brief-pg"></div></div>
 <div id="toast"></div>
+<div id="dec"><div class="bar"><b style="font-size:16px">📄 OFP <span data-i="解读|Decode"></span></b><span style="color:var(--dim);font-size:12px" data-i="点任何字看解释|Tap anything for an explanation"></span><span style="flex:1"></span>
+  <input id="dec-q" placeholder="🔍" autocomplete="off"><button class="btn sm" id="dec-x" data-i="关闭|Close"></button></div>
+  <div id="dec-body"></div><div id="dec-pop"></div></div>
 
 <div id="load">
   <div class="in">
@@ -339,6 +361,8 @@ div.en,.wl .en{display:block;margin-left:0}
 <script src="wx.js"></script>
 <script src="ekparse.js"></script>
 <script src="brief.js"></script>
+<script src="notamx.js"></script>
+<script src="decode.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -348,6 +372,7 @@ const lsSet = (k, v) => { try { localStorage.setItem('fa.' + k, v); } catch (e) 
 const MIN = 6e4, NM = 1.852;
 const z2 = n => String(n).padStart(2, '0');
 const hmZ = t => { if (t == null) return '--'; const d = new Date(t); return z2(d.getUTCHours()) + z2(d.getUTCMinutes()) + 'Z'; };
+const dZ = t => { if (t == null) return '--'; const d = new Date(t); return z2(d.getUTCDate()) + ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getUTCMonth()] + ' ' + z2(d.getUTCHours()) + z2(d.getUTCMinutes()) + 'Z'; };
 const dur = m => Math.floor(m / 60) + 'h' + z2(Math.round(m % 60));
 
 /* ---------------- 语言：中文 / English / 中英 ---------------- */
@@ -716,13 +741,14 @@ function openFir(code) {
   hideFirPop();
   const leg = firLegs().find(x => x.code === code) || { code, name: (S.ofp.firNames && S.ofp.firNames[code]) || code, tIn: null, tOut: null, wp: '' };
   const all = firNotams(code, leg.tIn, leg.tOut), sig = all.filter(x => x.lv !== 'info'), oth = all.filter(x => x.lv === 'info');
-  const it = x => '<div style="margin:8px 0"><span class="t-' + x.lv + '">● ' + th(x.zh, x.en) + '</span> <span style="color:var(--dim);font-size:11px">' + esc(x.n.id) + ' · ' + hmZ(x.n.from) + '–' + (x.n.to ? hmZ(x.n.to) : 'UFN') + '</span><div style="font-size:12px;color:var(--dim);margin-top:2px">' + esc(x.n.text.slice(0, 140)) + (x.n.text.length > 140 ? '…' : '') + '</div>' + (x.n.text.length > 140 ? '<details><summary>' + th('原文', 'Full text') + '</summary><div class="raw">' + esc(x.n.text) + '</div></details>' : '') + '</div>';
+  const it = x => '<div style="margin:9px 0"><span class="t-' + x.lv + '">● ' + th(x.zh, x.en) + '</span> <span style="color:var(--dim);font-size:11px">' + esc(x.n.id) + ' · ' + dZ(x.n.from) + ' – ' + (x.n.to ? dZ(x.n.to) : 'UFN') + '</span>' + notamHtml(x.n) + '</div>';
   $('sheet-in').innerHTML = '<button class="btn sm" style="float:right" onclick="closeSheet()">' + th('关闭', 'Close') + '</button>' +
     '<h2>📻 ' + esc(leg.name) + ' <span style="color:var(--dim);font-size:16px">' + code + '</span></h2>' +
     (leg.tIn ? '<div style="color:var(--dim);font-size:13px">' + th('进入', 'Enter') + ' ' + (leg.wp || '') + ' ' + hmZ(leg.tIn) + ' · ' + th('离开', 'Exit') + ' ' + hmZ(leg.tOut) + '</div>' : '<div style="color:var(--dim);font-size:13px">' + th('航路不经过（附近）', 'Not crossed (nearby)') + '</div>') +
-    '<h3>' + th('重大影响', 'Significant') + '（' + sig.length + '）</h3>' + (sig.length ? sig.map(it).join('') : '<div style="color:var(--dim)">' + th('没有', 'None') + '</div>') +
+    '<h3>' + th('重大影响', 'Significant') + '（' + sig.length + '）' + nseg() + '</h3>' + (sig.length ? sig.map(it).join('') : '<div style="color:var(--dim)">' + th('没有', 'None') + '</div>') +
     (oth.length ? '<details style="margin-top:10px"><summary>' + th('其他通告', 'Other NOTAMs') + '（' + oth.length + '）</summary>' + oth.map(it).join('') + '</details>' : '') +
     ((S.ofp.notams[code] || []).length ? '' : '<div style="color:var(--dim);margin-top:8px">' + th('OFP 里没有这个管制区的通告', 'No NOTAMs for this FIR in the OFP') + '</div>');
+  $('sheet-in').dataset.re = 'fir|' + code;
   $('sheet').classList.add('open');
 }
 
@@ -954,10 +980,10 @@ function openSheet(icao) {
       (a.closed.length ? '<div class="t-red" style="font-size:12px;margin-top:4px">' + th('NOTAM 限制', 'NOTAM restricted') + '：' + a.closed.join(', ') + '</div>' : '');
   }
   const nN = (S.ofp.notams[c.icao] || []).length;
-  h += '<h3>' + th('NOTAM 要点（' + nN + ' 条中挑出）', 'NOTAM highlights (from ' + nN + ')') + '</h3>' +
-    (a.notes.length ? a.notes.map(n => '<div style="margin:6px 0"><span class="t-' + n.lv + '">● ' + th(esc(n.zh), esc(n.en || n.zh)) + '</span> <span style="color:var(--dim);font-size:11px">' + n.ids.join(', ') + '</span><details><summary>' + th('原文', 'Original') + '</summary><div class="raw">' + esc(n.raw) + '</div></details></div>').join('') : '<div style="color:var(--dim)">' + th('没有发现影响落地的 NOTAM', 'No landing-relevant NOTAM found') + '</div>') +
-    '<details style="margin-top:10px"><summary>' + th('全部 NOTAM 原文', 'All NOTAMs (original)') + '</summary>' + (S.ofp.notams[c.icao] || []).map(n => '<div class="raw"><b>' + esc(n.id) + '</b> ' + hmZ(n.from) + '–' + (n.to ? hmZ(n.to) : 'UFN') + ' ' + esc(n.cat) + '\n' + esc(n.text) + '</div>').join('') + '</details>';
-  $('sheet-in').innerHTML = h;
+  h += '<h3>' + th('NOTAM 要点（' + nN + ' 条中挑出）', 'NOTAM highlights (from ' + nN + ')') + nseg() + '</h3>' +
+    (a.notes.length ? a.notes.map(n => { const nn = (S.ofp.notams[c.icao] || []).find(x => x.id === n.ids[0]) || { id: n.ids[0], text: n.raw }; return '<div style="margin:8px 0"><span class="t-' + n.lv + '">● ' + th(esc(n.zh), esc(n.en || n.zh)) + '</span> <span style="color:var(--dim);font-size:11px">' + n.ids.join(', ') + '</span>' + notamHtml(nn) + '</div>'; }).join('') : '<div style="color:var(--dim)">' + th('没有发现影响落地的 NOTAM', 'No landing-relevant NOTAM found') + '</div>') +
+    '<details style="margin-top:10px"><summary>' + th('全部 NOTAM', 'All NOTAMs') + '（' + (S.ofp.notams[c.icao] || []).length + '）</summary>' + (S.ofp.notams[c.icao] || []).map(n => '<div style="margin:8px 0"><b>' + esc(n.id) + '</b> <span style="color:var(--dim);font-size:11px">' + dZ(n.from) + ' – ' + (n.to ? dZ(n.to) : 'UFN') + ' · ' + esc(n.cat) + '</span>' + notamHtml(n) + '</div>').join('') + '</details>';
+  $('sheet-in').innerHTML = h; $('sheet-in').dataset.re = 'ap|' + icao;
   $('sheet').classList.add('open');
 }
 function ekSection(c, t) {
@@ -1028,7 +1054,7 @@ function useText(txt) {
   const nA = Object.keys(r.airports).length, nN = Object.values(r.notams).reduce((s, x) => s + x.length, 0);
   $('msg').style.color = 'var(--green)';
   $('msg').textContent = '✅ ' + r.flight.no + ' ' + r.flight.dep + '→' + r.flight.arr + '：' + tt(r.navlog.length + ' 个航路点（' + Object.keys(r.fixes).length + ' 个有坐标），' + nA + ' 个机场天气，' + nN + ' 条 NOTAM', r.navlog.length + ' waypoints (' + Object.keys(r.fixes).length + ' with coords), WX for ' + nA + ' airports, ' + nN + ' NOTAMs') + (r.warnings.length ? '\n⚠️ ' + r.warnings.join('; ') : '');
-  drawRoute(); lastList = 0; tick(); syncClock();
+  drawRoute(); lastList = 0; tick(); syncClock(); setTimeout(() => translateNotams(), 2500);
   setTimeout(() => $('load').classList.remove('open'), 1200);
   return true;
 }
@@ -1128,7 +1154,7 @@ $('b-upd').onclick = async () => {
   b.classList.add('busy'); $('b-upd-t').textContent = ' ' + tt('检查网络…', 'Checking…');
   if (!(await online())) { b.classList.remove('busy'); $('b-upd-t').textContent = ''; toast('📵 ' + th('当前无网络，继续使用离线版本', 'No network — using the offline version')); return; }
   $('b-upd-t').textContent = ' ' + tt('更新中…', 'Updating…');
-  flushClock(true);
+  flushClock(true); translateNotams(true);
   try { if (REG) await REG.update(); } catch (e) {}
   const c = navigator.serviceWorker && navigator.serviceWorker.controller;
   if (!c) { location.reload(); return; }
@@ -1180,7 +1206,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v12';
+const APPV = 'v13';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1269,6 +1295,81 @@ function renderWp(force) {
 }
 const FIRWPS = () => { const o = {}; ((S.ofp && S.ofp.firs) || []).forEach(f => { if (f.wp) o[f.wp] = f; }); return o; };
 
+/* ---------------- NOTAM：原文 / 解读 ---------------- */
+let NMODE = lsGet('nmode') || 'dec';
+let TR = {}; try { TR = JSON.parse(lsGet('tr') || '{}'); } catch (e) {}
+const nseg = () => '<span class="nseg"><span class="' + (NMODE === 'raw' ? 'on' : '') + '" onclick="setNmode(\'raw\')">' + tt('原文', 'Original') + '</span><span class="' + (NMODE === 'dec' ? 'on' : '') + '" onclick="setNmode(\'dec\')">' + tt('解读', 'Decoded') + '</span></span>';
+function setNmode(m) { NMODE = m; lsSet('nmode', m); const s = $('sheet-in'); if ($('sheet').classList.contains('open') && s.dataset.re) { const f = s.dataset.re.split('|'); if (f[0] === 'ap') openSheet(f[1]); else openFir(f[1]); } }
+// 一条 NOTAM 按当前设置显示：原文 / 中文白话 / 英文白话
+function notamHtml(n) {
+  if (NMODE === 'raw') return '<div class="raw">' + esc(n.text) + '</div>';
+  const z = NX.zh(n.text, n.id, TR), e = NX.en(n.text);
+  const zh = esc(z.s) + (z.full ? '' : ' <span style="color:var(--amber);font-size:11px">（' + tt('还没联网翻译，先显示对照版', 'not translated yet') + '）</span>');
+  if (LANG === 'en') return '<div class="ndec">' + esc(e) + '</div>';
+  if (LANG === 'zh') return '<div class="ndec">' + zh + '</div>';
+  return '<div class="ndec">' + zh + '<div class="en2">' + esc(e) + '</div></div>';
+}
+// 联网时把所有 NOTAM 翻成中文，存在 iPad 上（飞行中离线也能看）
+let trBusy = false;
+async function translateNotams(quiet) {
+  if (trBusy || !S.ofp || !lsGet('key') || !navigator.onLine) return;
+  const all = []; Object.values(S.ofp.notams).forEach(a => a.forEach(n => { if (!TR[n.id] && !all.some(x => x.id === n.id)) all.push(n); }));
+  if (!all.length) return;
+  trBusy = true; let done = 0;
+  try {
+    for (let i = 0; i < all.length; i += 40) {
+      const part = all.slice(i, i + 40);
+      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'translate', texts: part.map(n => NX.en(n.text)), to: 'zh-CN' }) });
+      const j = JSON.parse(await r.text());
+      if (!j.ok) break;
+      j.out.forEach((t, k) => { if (t) TR[part[k].id] = t; });
+      done += part.length; lsSet('tr', JSON.stringify(TR));
+      if (!quiet) toast('🈯 ' + tt('正在翻译通告', 'Translating NOTAMs') + ' ' + Math.min(done, all.length) + '/' + all.length, 4000);
+    }
+    if (!quiet && done) toast('✅ ' + tt('通告已翻译成中文，离线也能看', 'NOTAMs translated — available offline'), 3000);
+  } catch (e) { if (!quiet) toast(tt('翻译没完成（需要网络和新版时钟后台）', 'Translation incomplete (needs network and updated backend)'), 5000); }
+  trBusy = false;
+}
+window.addEventListener('online', () => translateNotams(true));
+
+/* ---------------- OFP 解读 ---------------- */
+let DL = null, DSEC = null, DNOT = null;
+function openDec() {
+  const raw = lsGet('ofptext');
+  if (!raw) { toast(th('先载入 OFP（载入后才有原文）', 'Load an OFP first')); return; }
+  DL = OFP.clean(raw); DSEC = DEC.sections(DL);
+  DNOT = []; let cur = null;
+  DL.forEach((l, i) => { const m = /^\s*([A-Z0-9]{1,3}\d{1,5}\/\d{2})\s/.exec(l); if (DSEC[i] === 'notam' && m) cur = m[1]; else if (DSEC[i] === 'notam' && (/^[A-Z]{4}\s*\/[A-Z0-9]{3}\s/.test(l) || /^\+{5,}/.test(l.trim()) || /^-{10,}/.test(l.trim()))) cur = null; DNOT[i] = DSEC[i] === 'notam' ? cur : null; });
+  $('dec-body').innerHTML = DL.map((l, i) => '<div class="ln' + (/^-{5,}.*(FIR|UIR)|^(Weather|NOTAM|DEPARTURE AIRPORT|DESTINATION|LIDO-NOTAM|=+$)/.test(l.trim()) ? ' sec' : '') + '" data-i="' + i + '">' + (esc(l) || ' ') + '</div>').join('');
+  $('dec').classList.add('open'); $('dec-pop').style.display = 'none';
+}
+const decCtx = () => ({ nav: S.ofp && S.ofp.navlog, WX, hmZ, ref: S.ofp ? S.ofp.flight.dateUTC + 12 * 3600e3 : Date.now(), AP: S.AP, firNames: S.ofp && S.ofp.firNames, NX, atP: t => hmZ(atP(t)),
+  notam: i => { const id = DNOT[i]; if (!id) return null; let n = null; Object.values(S.ofp.notams).some(a => (n = a.find(x => x.id === id))); if (!n) return null;
+    const r = FIRN.find(x => x[0].test(n.text)) || null;
+    const z = NX.zh(n.text, n.id, TR);
+    return { zh: '<b>' + id + '</b>（' + dZ(n.from) + ' – ' + (n.to ? dZ(n.to) : '直到另行通知') + '）' + (r ? ' <span class="t-' + r[1] + '">' + r[2] + '</span>' : '') + '<br>' + esc(z.s) + (z.full ? '' : ' <span style="color:var(--amber);font-size:12px">（还没联网翻译，先显示对照版）</span>'),
+      en: '<b>' + id + '</b> (' + dZ(n.from) + ' – ' + (n.to ? dZ(n.to) : 'UFN') + ')' + (r ? ' <span class="t-' + r[1] + '">' + r[3] + '</span>' : '') + '<br>' + esc(NX.en(n.text)) }; } });
+$('dec-body').onclick = e => {
+  const ln = e.target.closest('.ln'); if (!ln) return;
+  const i = +ln.dataset.i;
+  let word = '';
+  const r = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : (document.caretPositionFromPoint ? (p => { const x = document.createRange(); x.setStart(p.offsetNode, p.offset); return x; })(document.caretPositionFromPoint(e.clientX, e.clientY)) : null);
+  if (r && r.startContainer && r.startContainer.nodeType === 3) { const t = r.startContainer.textContent, o = r.startOffset; let a = o, b = o; while (a > 0 && /\S/.test(t[a - 1])) a--; while (b < t.length && /\S/.test(t[b])) b++; word = t.slice(a, b); }
+  document.querySelectorAll('#dec-body .ln.sel').forEach(x => x.classList.remove('sel')); ln.classList.add('sel');
+  const ctx = decCtx(), sec = DSEC[i];
+  const L1 = DEC.lineSay(DL, i, sec, ctx), W1 = word ? DEC.wordSay(DL, i, word.replace(/[,;:]$/, ''), sec, ctx) : null;
+  const pick = x => x ? (LANG === 'en' ? x.en : LANG === 'zh' ? x.zh : x.zh + '<div style="color:var(--dim);font-size:13px;margin-top:3px">' + x.en + '</div>') : '';
+  const SECN = { head: ['飞行计划首页（油量、时间、重量）', 'OFP front page (fuel, times, weights)'], altn: ['目的地备降场表', 'Destination alternates'], disp: ['签派提示', 'Dispatch notes'], nav: ['导航日志（每个航路点）', 'Navigation log'], navalt: ['去备降场的导航日志', 'Navlog to alternate'], winds: ['高空风温表', 'Winds aloft'], wx: ['天气（METAR / TAF）', 'Weather'], notam: ['航行通告', 'NOTAMs'], crew: ['机组信息', 'Crew info'] }[sec] || ['', ''];
+  $('dec-pop').innerHTML = '<span class="x" onclick="document.getElementById(\'dec-pop\').style.display=\'none\'">✕</span><div class="w">' + tt(SECN[0], SECN[1]) + (word ? ' · <b style="color:var(--text)">' + esc(word) + '</b>' : '') + '</div>' +
+    (W1 ? '<div style="margin-bottom:8px">' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>'));
+  $('dec-pop').style.display = 'block';
+};
+$('b-dec').onclick = e => { e.preventDefault(); openDec(); };
+$('dec-x').onclick = () => $('dec').classList.remove('open');
+$('dec-q').onkeydown = e => { if (e.key !== 'Enter') return; const q = $('dec-q').value.trim().toUpperCase(); if (!q || !DL) return;
+  const from = (+($('dec-body').dataset.hit || -1)) + 1; let k = DL.findIndex((l, i) => i >= from && l.toUpperCase().indexOf(q) >= 0); if (k < 0) k = DL.findIndex(l => l.toUpperCase().indexOf(q) >= 0); if (k < 0) { toast(tt('找不到', 'Not found')); return; }
+  $('dec-body').dataset.hit = k; document.querySelectorAll('#dec-body .ln.hit').forEach(x => x.classList.remove('hit')); const el = $('dec-body').querySelector('[data-i="' + k + '"]'); el.classList.add('hit'); el.scrollIntoView({ block: 'center' }); };
+
 /* ---------------- Today Brief ---------------- */
 let briefFullMode = false;
 const showBrief = () => { $('brief-pg').innerHTML = briefFullMode ? briefFull() : briefOne(); $('brief-pg').classList.toggle('one', !briefFullMode); };
@@ -1286,7 +1387,7 @@ Promise.all([apReady, ekReady]).then(() => {
     drawRoute();
   } else openLoad();
   applyUI(); tick(); setInterval(tick, 5000); fixBar();
-  flushClock(true);
+  flushClock(true); translateNotams(true);
   if (S.ofpOld) toast('⚠️ ' + th('这份 OFP 是用旧版本读入的，请重新载入一次 OFP，才会显示移交点、油量等新内容。', 'This OFP was read by an older version — please load it again to see FIR boundaries, fuel, etc.'), 20000);
 });
 // 测试用：?sim=分钟 把时间设到起飞后多少分钟

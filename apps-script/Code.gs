@@ -71,6 +71,11 @@ function doPost(e) {
 }
 function postJson_(text) {
   let j; try { j = JSON.parse(text); } catch (x) { return '❌ 数据格式不对'; }
+  // 翻译（飞行助手把 NOTAM 英文发来，翻成中文存在 iPad 上，飞行中离线也能看）
+  if (j.action === 'translate' && Array.isArray(j.texts)) {
+    const out = j.texts.slice(0, 80).map(function (t) { try { return LanguageApp.translate(String(t).slice(0, 4500), 'en', j.to || 'zh-CN'); } catch (e) { return null; } });
+    return JSON.stringify({ ok: true, out: out });
+  }
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
