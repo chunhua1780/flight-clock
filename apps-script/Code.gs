@@ -138,7 +138,6 @@ function setup() {
   });
   ScriptApp.newTrigger('poll').timeBased().everyMinutes(1).create();
   Logger.log('✅ 定时器已安装：每 1 分钟检查一次正在进行的航班');
-  try { const n = ofpMessages_().length; Logger.log('✅ 已允许读取 OFP 邮件（最近 4 天找到 ' + n + ' 封）'); } catch (e) { Logger.log('⚠️ 读邮件失败：' + e); }
   poll();
 }
 
