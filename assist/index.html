@@ -389,6 +389,8 @@ const dZ = t => { if (t == null) return '--'; const d = new Date(t); return z2(d
 const dur = m => Math.floor(m / 60) + 'h' + z2(Math.round(m % 60));
 
 /* ---------------- 语言：中文 / English / 中英 ---------------- */
+// 专用链接 …/assist/#k=口令：打开一次就把口令存在这台设备上（口令不写在网站代码里），然后从地址栏去掉
+(() => { const m = /[#&]k=([^&]+)/.exec(location.hash); if (!m) return; try { localStorage.setItem('fa.key', decodeURIComponent(m[1])); } catch (e) {} history.replaceState(null, '', location.pathname + location.search); })();
 let LANG = lsGet('lang') || 'both';
 const tt = (zh, en) => LANG === 'zh' ? zh : LANG === 'en' ? en : zh + ' · ' + en;          // 纯文字
 const th = (zh, en) => LANG === 'zh' ? zh : LANG === 'en' ? en : zh + '<span class="en">' + en + '</span>';   // HTML
@@ -1220,7 +1222,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v20';
+const APPV = 'v21';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
