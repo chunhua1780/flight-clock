@@ -356,10 +356,11 @@ function poll() {
     legsOf_(ev).forEach(function (leg) {
       const st = getStatus_(leg);
       const block = leg.sta - leg.std;
-      // 跟踪窗口：计划起飞前 45 分钟开始；没起飞的最多跟到计划起飞后 8 小时（延误）；起飞了就跟到落地后 30 分钟
-      const until = st && st.off ? st.off + block + 3 * HOUR : leg.std + 8 * HOUR;
-      if (now < leg.std - 45 * MIN || now > until) return;
-      if (st && st.on && now - st.on > 30 * MIN) return;                  // 已经落地很久了
+      // 跟踪窗口：计划起飞前 1 小时开始（抓推出）；没起飞的最多跟到计划起飞后 8 小时（延误）；
+      // 落地后一直跟，直到在停机位停稳 15 分钟（抓挡轮挡），最多落地后 2 小时（滑行可能很久）
+      const until = st && st.off ? st.off + block + 4 * HOUR : leg.std + 8 * HOUR;
+      if (now < leg.std - 60 * MIN || now > until) return;
+      if (st && st.on && (now - st.on > 2 * HOUR || (st.in && now - st.in > 15 * MIN))) return;
       track_(leg.callsign, leg);
     });
   });
@@ -376,7 +377,7 @@ function setStatus_(leg, st) {
   PropertiesService.getScriptProperties().setProperty(statusKey_(leg), JSON.stringify(st));
 }
 function publicStatus_(st) {
-  return { move: st.move || null, taxi: st.taxi || null, off: st.off || null, on: st.on || null, in: st.in || null, seen: st.seen || null, reg: st.reg || null };
+  return { move: st.move || null, taxi: st.taxi || null, off: st.off || null, on: st.on || null, in: st.in || null, lastGnd: st.lastGnd || null, seen: st.seen || null, reg: st.reg || null };
 }
 function cleanup_() {
   const props = PropertiesService.getScriptProperties();
@@ -404,7 +405,7 @@ function updateStatus_(leg, pos, now) {
       if (dO < 15 && !st.off && pos.gs != null && pos.gs >= 1.5 && !st.move) st.move = now;   // 第一次在地面动（推出）＝撤轮挡
       if (dO < 15 && !st.off && pos.gs >= 5 && !st.taxi) st.taxi = now;
       // 落地后在目的地滑行：最后一次停下来的时间＝挡轮挡（中途停下等待、再动，会重新算）
-      if (dD < 15 && st.on && pos.gs != null) { if (pos.gs >= 3) { st.inMove = now; st.in = null; } else if (pos.gs < 1 && !st.in && now - st.on > 2 * MIN) st.in = now; }
+      if (dD < 15 && st.on && pos.gs != null) { st.lastGnd = now; if (pos.gs >= 3) { st.inMove = now; st.in = null; } else if (pos.gs < 1 && !st.in && now - st.on > 2 * MIN) st.in = now; }
       if (dD < 15 && st.off && !st.on) {
         const la = st.lastAir;
         st.on = la ? Math.min(now, Math.round(la.t + (la.alt || 0) / 900 * MIN)) : now;

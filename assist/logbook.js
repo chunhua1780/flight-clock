@@ -141,12 +141,14 @@
       put('to', st.off); put('ldg', st.on);
       // 撤轮挡：ADS-B 看到开始滑行（往前推 2 分钟算推出）；看不到（地面信号常常收不到）→ 起飞时间 − OFP 滑行时间，最多 30 分钟
       // 撤轮挡：优先 ADS-B 看到的第一次移动（推出）→ 开始滑行前 2 分钟 → 都没有才估算
-      const ok1 = v => v && st.off && st.off - v > 0 && st.off - v < 90 * MINms;
+      const ok1 = v => v && st.off && st.off - v > 0 && st.off - v < 180 * MINms;   // 滑出可能很久：最多认 3 小时
       const tx = ok1(st.move) ? st.move : ok1(st.taxi) ? st.taxi - 2 * MINms : null;
       if (tx) put('offB', tx, 'adsb'); else if (st.off) put('offB', st.off - TXO(e.taxiP) * MINms, 'est');
       // 挡轮挡：优先 ADS-B 看到在目的地停稳；没有才按落地后 10 分钟估算
-      const ib = st.in && st.on && st.in - st.on > 0 && st.in - st.on < 90 * MINms ? st.in : null;
-      if (ib) put('onB', ib, 'adsb'); else if (st.on) put('onB', st.on + TXI * MINms, 'est');
+      const ib = st.in && st.on && st.in - st.on > 0 && st.in - st.on < 180 * MINms ? st.in : null;
+      // 没看到停稳：落地后至少 10 分钟；ADS-B 后来还看到在地面滑行，就至少到那个时候
+      const lg = st.lastGnd && st.on && st.lastGnd > st.on && st.lastGnd - st.on < 180 * MINms ? st.lastGnd + MINms : 0;
+      if (ib) put('onB', ib, 'adsb'); else if (st.on) put('onB', Math.max(st.on + TXI * MINms, lg), 'est');
       if (st.reg && !e.reg) e.reg = st.reg;
       save(); if (!quiet) toast('✅ ' + T('已读取 ADS-B 起降时间', 'ADS-B times loaded'), 2500); return true;
     } catch (err) { if (!quiet) toast('⚠️ ' + T('没连上时钟后台', 'Could not reach the backend')); return false; }
@@ -264,5 +266,5 @@
   window.addEventListener('online', () => cloud(true));
   setInterval(() => cloud(true), 15 * 60e3); setTimeout(() => cloud(true), 6000);
   // 有网时定期看看时钟有没有 ADS-B 时间（落地后自动补上）
-  setInterval(() => { if (typeof S === 'undefined' || !S.ofp || !navigator.onLine) return; const e = LB.find(x => x.k === curKey()); if (e && e.src.ldg !== 'adsb' && e.src.ldg !== 'man' && Date.now() > (e.to || 0)) adsb(e, true).then(ok => { if (ok && $('lb').classList.contains('open')) render(); }); }, 10 * 60e3);
+  setInterval(() => { if (typeof S === 'undefined' || !S.ofp || !navigator.onLine) return; const e = LB.find(x => x.k === curKey()); const need = f => e && e.src[f] !== 'adsb' && e.src[f] !== 'man'; if (e && Date.now() > (e.to || 0) && (need('ldg') || need('offB') || need('onB')) && Date.now() - (e.ldg || e.to || 0) < 6 * 36e5) adsb(e, true).then(ok => { if (ok && $('lb').classList.contains('open')) render(); }); }, 10 * 60e3);
 })();
