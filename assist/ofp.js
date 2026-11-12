@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const PV = 4;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
+  const PV = 5;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
   const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
   const hhmm = s => s ? (+s.slice(0, 2)) * 60 + (+s.slice(2, 4)) : null;      // "0752" → 472 分钟
   const ll = s => {                                                          // "N2151.5" / "E11232.8" → 度
@@ -103,7 +103,7 @@
     // ---------- 5. 导航日志：航路点 + 计划累计时间 + 航段距离 ----------
     const ns = L.findIndex(l => /^\s*AWY\s+TRM\s+DIST/.test(l));
     if (ns >= 0) {
-      let pendDist = 0, cumDist = 0, eq = false, sepSince = null;
+      let pendDist = 0, cumDist = 0, eq = false, sepSince = null, pendAwy = '', lastMt = null, pendMt = null;
       const pendSep = [];
       out.firs = [];
       for (let i = ns; i < L.length; i++) {
@@ -119,13 +119,13 @@
         if (w) {
           cumDist += pendDist; pendDist = 0;
           const mora = /\s(\d{2,3})\s+[PM]\d{3}\b/.exec(l);
-          out.navlog.push({ id: w[1], t: hhmm(w[2]), dist: cumDist, mora: mora ? +mora[1] : null, eq });
-          eq = false; sepSince = null;
+          out.navlog.push({ id: w[1], t: hhmm(w[2]), dist: cumDist, mora: mora ? +mora[1] : null, eq, awy: pendAwy || null, mt: pendMt != null ? pendMt : lastMt });
+          eq = false; sepSince = null; pendAwy = ''; pendMt = null;
           continue;
         }
         // 航路行：航路名 [=]? [航向]? 距离 风/
         const a = /^\s*(\S+)\s+(?:=\s*)?(?:(\d{3})\s+)?(\d{3})\s+(?:\d{2}\/\d{3}|\d{2}\/[PM]\d{2})/.exec(l);
-        if (a) { pendDist += +a[3]; eq = /^\s*\S+\s+=/.test(l); }
+        if (a) { pendDist += +a[3]; eq = /^\s*\S+\s+=/.test(l); pendAwy = a[1]; if (a[2]) { pendMt = +a[2]; lastMt = +a[2]; } }
       }
       // 最后一行是目的地机场（OMDW/30 … 0752）
       const last = out.navlog[out.navlog.length - 1];

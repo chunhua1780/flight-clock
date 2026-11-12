@@ -58,6 +58,11 @@ button{font-family:inherit}
 .wr.next .t{font-size:13px;color:var(--text)}
 .wr.next .cd{width:100%;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
 .wr.firw .n{color:var(--fir)}
+.wr{flex-wrap:wrap}
+.wr .lg{order:-1;width:100%;display:flex;align-items:center;gap:7px;font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;margin:-1px 0 2px;letter-spacing:.02em}
+.wr .lg i{font-style:normal;color:var(--blue);opacity:.8;width:10px;text-align:center}
+.wr .lg b{font-weight:700;color:var(--blue)}
+.wr.next .lg{font-size:11.5px;color:var(--text);opacity:.85;margin-bottom:4px}
 .wr.past{opacity:.38}
 .wr.past .n{font-weight:600}
 .wsep{font-size:10px;color:var(--dim);text-align:center;margin:6px 0 2px;letter-spacing:.1em;border-top:1px dashed var(--line);padding-top:4px}
@@ -628,7 +633,7 @@ function drawLegend() {
 /* ---------------- 航路点：坐标 + 计划时间（缺坐标的按距离插值） ---------------- */
 function buildPts() {
   const o = S.ofp; if (!o) return [];
-  const raw = o.navlog.map(w => ({ id: w.id, t: w.t, dist: w.dist, mora: w.mora, pos: w.id === o.flight.dep ? apPos(o.flight.dep) : w.id === o.flight.arr ? apPos(o.flight.arr) : (o.fixes[w.id] || null) }));
+  const raw = o.navlog.map(w => ({ id: w.id, t: w.t, dist: w.dist, mora: w.mora, awy: w.awy, mt: w.mt, pos: w.id === o.flight.dep ? apPos(o.flight.dep) : w.id === o.flight.arr ? apPos(o.flight.arr) : (o.fixes[w.id] || null) }));
   if (raw.length && !raw[0].pos) raw[0].pos = apPos(o.flight.dep);
   if (raw.length && !raw[raw.length - 1].pos) raw[raw.length - 1].pos = apPos(o.flight.arr);
   for (let i = 0; i < raw.length; i++) {
@@ -1316,7 +1321,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v28';
+const APPV = 'v29';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1386,7 +1391,11 @@ function renderWp(force) {
   const next = P.find(p => p.t > el + 0.01) || P[P.length - 1];
   const up = P.filter(p => p.t > el + 0.01), past = P.filter(p => p.t <= el + 0.01).reverse();
   const key = next.id + next.t;
-  const row = (p, cls) => '<div class="wr ' + cls + (firs[p.id] ? ' firw' : '') + '" data-k="' + p.id + '_' + p.t + '"><span class="n">' + (firs[p.id] ? '📻 ' : '') + p.id + '</span><span class="t">' + hmZ(atP(p.t)) + '</span>' + (p.mora != null ? '<span class="m mora ' + moraLv(p.mora) + '">' + p.mora + '</span>' : '') +
+  const prevOf = {}; P.forEach((p, j) => { prevOf[p.i] = j ? P[j - 1] : null; });
+  // 飞到这个点的那一段：航路 · 磁航迹 · 距离（像导航软件的下一段指引）
+  const leg = (p, first) => { const q = prevOf[p.i], sameAwy = !first && q && q.awy && q.awy === p.awy; if (!q || p.dist == null || q.dist == null) return ''; const d = Math.round(p.dist - q.dist); if (d <= 0) return '';
+    return '<span class="lg"><i>↓</i>' + (p.awy && !sameAwy ? '<b>' + (p.awy === 'DCT' ? th('直飞', 'DCT') : esc(p.awy)) + '</b>' : '') + (p.mt != null ? '<span>' + String(p.mt).padStart(3, '0') + '°</span>' : '') + '<span>' + d + ' nm</span></span>'; };
+  const row = (p, cls) => '<div class="wr ' + cls + (firs[p.id] ? ' firw' : '') + '" data-k="' + p.id + '_' + p.t + '">' + (cls === 'past' ? '' : leg(p, cls.indexOf('next') >= 0)) + '<span class="n">' + (firs[p.id] ? '📻 ' : '') + p.id + '</span><span class="t">' + hmZ(atP(p.t)) + '</span>' + (p.mora != null ? '<span class="m mora ' + moraLv(p.mora) + '">' + p.mora + '</span>' : '') +
     (cls.indexOf('next') >= 0 ? '<span class="cd">' + (S.atd ? th('还有 ', 'in ') + dur(Math.max(0, p.t - el)) : '+' + dur(p.t)) + (firs[p.id] ? ' · ▸ ' + firs[p.id].code : '') + '</span>' : '') + '</div>';
   if (!force && key === wpNextKey) {                          // 同一个下一点：只更新倒计时
     const cd = $('wplist').querySelector('.wr.next .cd'); if (cd) cd.innerHTML = (S.atd ? th('还有 ', 'in ') + dur(Math.max(0, next.t - el)) : '+' + dur(next.t)) + (firs[next.id] ? ' · ▸ ' + firs[next.id].code : '');
