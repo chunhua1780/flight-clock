@@ -715,7 +715,7 @@ function drawRoute() {
 function drawFirCircles() {
   if (S.L_firc) { map.removeLayer(S.L_firc); S.L_firc = null; }
   if (!S.ofp || !S.pts || !S.pts.length) return;
-  if (!map.getPane('firc')) { const pn = map.createPane('firc'); pn.style.zIndex = 390; }
+  if (!map.getPane('firc')) { const pn = map.createPane('firc'); pn.style.zIndex = 406; }
   const g = L.layerGroup(), trip = S.ofp.times.trip || 0, C = [];
   firLegs().forEach(f => {
     const a = posAt(f.from != null ? f.from : 0), b = posAt(f.to != null ? f.to : trip); if (!a || !b || !a.pos || !b.pos) return;
@@ -726,11 +726,9 @@ function drawFirCircles() {
     C.push({ f, r, all, col, c: [(A.lat + B.lat) / 2, (A.lng + lo) / 2] });
   });
   C.sort((x, y) => y.r - x.r).forEach(({ f, r, all, col, c }) => {   // 大圆先画，小圆在上面也点得到
-    L.circle(c, { radius: r, pane: 'firc', color: col, weight: 1.2, opacity: .55, dashArray: '5 7', fillColor: col, fillOpacity: .05, bubblingMouseEvents: false })
-      .bindTooltip(esc(f.name) + ' · ' + f.code + (all.length ? ' · ' + th(all.length + ' 条通告', all.length + ' NOTAMs') : ''), { sticky: true, direction: 'top', opacity: .9 })
+    L.circle(c, { radius: r, pane: 'firc', stroke: false, fillColor: col, fillOpacity: 0, bubblingMouseEvents: false })   // 看不见，只用来点
       .on('click', () => openFir(f.code)).addTo(g);
   });
-  firLegs().filter(f => f.ref && f.from > 0).forEach(f => { const q = posAt(f.from); if (q && q.pos) L.circleMarker(q.pos, { radius: 6, color: '#fff', weight: 1.5, fillColor: '#d63bff', fillOpacity: 1, pane: 'firc' }).bindTooltip('📻 ' + esc(f.name) + ' ' + hmZ(f.tIn), { direction: 'top' }).on('click', () => openFir(f.code)).addTo(g); });
   S.L_firc = g.addTo(map);
 }
 
@@ -845,9 +843,10 @@ function showFirPop(leg, auto) {
   clearTimeout(showFirPop.t); showFirPop.t = setTimeout(hideFirPop, auto ? 90000 : 30000);
 }
 function hideFirPop() { $('firpop').style.display = 'none'; }
-function openFir(code) {
+function openFir(code, nm) {
+  if (!S.ofp) { toast(th('先载入 OFP', 'Load an OFP first')); return; }
   hideFirPop();
-  const leg = firLegs().find(x => x.code === code) || { code, name: (S.ofp.firNames && S.ofp.firNames[code]) || code, tIn: null, tOut: null, wp: '' };
+  const leg = firLegs().find(x => x.code === code) || firLegs().find(x => (FIRALIAS[x.code] || x.code) === (FIRALIAS[code] || code)) || { code, name: nm || (S.ofp.firNames && S.ofp.firNames[code]) || code, tIn: null, tOut: null, wp: '' };
   const all = firNotams(code, leg.tIn, leg.tOut), sig = all.filter(x => x.lv !== 'info'), oth = all.filter(x => x.lv === 'info');
   const it = x => '<div style="margin:9px 0"><span class="t-' + x.lv + '">● ' + th(x.zh, x.en) + '</span> <span style="color:var(--dim);font-size:11px">' + esc(x.n.id) + ' · ' + dZ(x.n.from) + ' – ' + (x.n.to ? dZ(x.n.to) : 'UFN') + '</span>' + notamHtml(x.n) + '</div>';
   $('sheet-in').innerHTML = '<button class="btn sm" style="float:right" onclick="closeSheet()">' + th('关闭', 'Close') + '</button>' +
@@ -1317,7 +1316,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v27';
+const APPV = 'v28';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
