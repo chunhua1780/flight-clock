@@ -256,6 +256,11 @@ div.en,.wl .en{display:block;margin-left:0}
 #dec-pop{position:absolute;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;background:var(--card);border-top:2px solid var(--gold);padding:12px 16px 20px;display:none;box-shadow:0 -6px 24px rgba(0,0,0,.35);font-size:15px;line-height:1.6}
 #dec-pop .w{font-size:14px;color:var(--dim);margin-bottom:6px}
 #dec-pop .l{font-size:16px}
+.ldrop{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+.ltile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:110px;padding:12px;border:2px dashed var(--line);border-radius:14px;background:var(--input);cursor:pointer;text-align:center;outline:none;caret-color:transparent;user-select:none;-webkit-user-select:none}
+.ltile i{font-style:normal;font-size:30px}.ltile b{font-size:15px;color:var(--text)}.ltile span{font-size:11.5px;color:var(--dim)}
+.ltile:hover,.ltile:focus,.ltile.over{border-color:var(--gold);background:rgba(226,185,100,.08)}
+#f-paste{-webkit-user-select:text;user-select:text}
 #dec-pop .rf{float:right;margin-right:10px;padding:4px 10px;border:1px solid var(--line);border-radius:14px;font-size:13px;cursor:pointer;color:var(--blue);user-select:none}
 #dec-pop .rf.busy{color:var(--amber)}
 #dec-pop .kb{margin-top:10px;padding:8px 10px;border-left:3px solid var(--amber);background:var(--input);border-radius:6px;font-size:14px;line-height:1.55}
@@ -410,15 +415,18 @@ div.en,.wl .en{display:block;margin-left:0}
 <div id="load">
   <div class="in">
     <h1 data-i="载入 OFP|Load OFP"></h1>
-    <p data-i="选择 OFP 的 PDF 文件（推荐），或者把 OFP 文字全部复制粘贴到下面。读出来的内容只保存在这台 iPad 上，飞行中不需要网络。|Choose the OFP PDF (recommended) or paste the whole OFP text below. Everything stays on this iPad; no network needed in flight."></p>
-    <div class="row"><input type="file" id="f-pdf" accept="application/pdf,.pdf"></div>
+    <p data-i="在 Lido 里复制 OFP 的 PDF，到这里粘贴（或从「文件」选）。读完会同时发给家里的时钟（飞行时间 + 航路）。内容存在这台 iPad 上，飞行中不需要网络。|Copy the OFP PDF in Lido and paste it here (or choose it from Files). It is sent to the home clock at the same time. Everything stays on this iPad; no network needed in flight."></p>
+    <div class="ldrop">
+      <label class="ltile" for="f-pdf"><i>📄</i><b data-i="选择 PDF 文件|Choose PDF file"></b><span data-i="从「文件」里选|from Files"></span></label>
+      <div class="ltile" id="f-paste" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" inputmode="none"><i>📋</i><b data-i="粘贴 PDF|Paste PDF"></b><span data-i="在 Lido 里复制 PDF → 长按这里 → 粘贴|Copy the PDF in Lido → long-press here → Paste"></span></div>
+    </div>
+    <input type="file" id="f-pdf" accept="application/pdf,.pdf" style="display:none">
     <p style="margin-top:12px" data-i="或者粘贴文字：|Or paste text:"></p>
     <textarea id="f-txt" placeholder="EK9873 11NOV ZGGG/CAN-OMDW/DWC ..."></textarea>
     <div class="row">
       <button class="btn pri" id="b-parse" data-i="读取|Read"></button>
       <button class="btn" id="b-close" data-i="关闭|Close"></button>
-      <span class="sp" style="flex:1"></span>
-      <button class="btn sm" id="b-clock" data-i="发给时钟|Send to clock"></button>
+
     </div>
     <div id="msg"></div>
     <details style="margin-top:12px"><summary data-i="设置（语言、机型、时钟、授权表）|Settings (language, type, clock, table)"></summary>
@@ -1218,13 +1226,44 @@ function useText(txt) {
   const nA = Object.keys(r.airports).length, nN = Object.values(r.notams).reduce((s, x) => s + x.length, 0);
   $('msg').style.color = 'var(--green)';
   $('msg').textContent = '✅ ' + r.flight.no + ' ' + r.flight.dep + '→' + r.flight.arr + '：' + tt(r.navlog.length + ' 个航路点（' + Object.keys(r.fixes).length + ' 个有坐标），' + nA + ' 个机场天气，' + nN + ' 条 NOTAM', r.navlog.length + ' waypoints (' + Object.keys(r.fixes).length + ' with coords), WX for ' + nA + ' airports, ' + nN + ' NOTAMs') + (r.warnings.length ? '\n⚠️ ' + r.warnings.join('; ') : '');
-  drawRoute(); lastList = 0; tick(); syncClock(); setTimeout(() => { translateNotams(); translateParas(); }, 2500); setTimeout(() => { try { LBK.sync(); pfUI(); } catch (e) {} }, 1500);
-  setTimeout(() => $('load').classList.remove('open'), 1200);
+  drawRoute(); lastList = 0; tick();
+  // 同时发给家里的时钟（飞行时间 + 航路 + 注册号）：有网马上发，没网等有网自动发
+  syncClock(true).then(() => { const ok = +lsGet('syncok') || 0; $('msg').innerHTML += '<br>' + (!lsGet('key') ? '<span class="t-amber">' + th('还没填口令，没有发给时钟', 'No key — not sent to the clock') + '</span>' : lsGet('pending') ? '⏳ ' + th('没网：有网时自动发给时钟', 'Offline — will send to the clock automatically') : Date.now() - ok < 60000 ? '🏠 ' + th('已同时发给时钟（飞行时间 + 航路）', 'Sent to the clock (times + route)') : ''); });
+  setTimeout(() => { translateNotams(); translateParas(); }, 2500); setTimeout(() => { try { LBK.sync(); pfUI(); } catch (e) {} }, 1500);
+  setTimeout(() => $('load').classList.remove('open'), 2600);
   return true;
 }
 $('b-parse').onclick = () => { const t = $('f-txt').value; if (t.trim()) useText(t); };
+// 粘贴 PDF：Lido 里复制 PDF → 这里粘贴（也可以粘贴 OFP 文字，或者从「文件」拖进来）
+async function usePdfFile(f) {
+  $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('正在读取 PDF…', 'Reading PDF…');
+  try { useText(await pdfText(await f.arrayBuffer())); } catch (err) { $('msg').style.color = 'var(--red)'; $('msg').textContent = tt('PDF 读取失败', 'PDF read failed') + ': ' + err.message; }
+}
+function pdfFrom(dt) {
+  if (!dt) return null;
+  const fs = [...(dt.files || [])], it = [...(dt.items || [])].filter(x => x.kind === 'file').map(x => x.getAsFile()).filter(Boolean);
+  return fs.concat(it).find(f => /pdf/i.test(f.type) || /\.pdf$/i.test(f.name || '')) || null;
+}
+function onPaste(e) {
+  const dt = e.clipboardData; if (!dt) return;
+  const f = pdfFrom(dt);
+  if (f) { e.preventDefault(); usePdfFile(f); return; }
+  const t = dt.getData('text/plain') || '';
+  if (/OFP|EK\d{3,4}\s+\d{2}[A-Z]{3}|AWY\s+TRM/.test(t) && t.length > 500) { e.preventDefault(); $('f-txt').value = t; useText(t); return; }
+  if ([...(dt.items || [])].some(x => x.kind === 'file')) { e.preventDefault(); $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('粘贴的不是 PDF 文件', 'That is not a PDF'); return; }
+  if (e.target && e.target.id === 'f-paste') { e.preventDefault(); $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('剪贴板里没有 PDF。请先在 Lido 里「复制」PDF，再回来长按这里 → 粘贴。', 'No PDF on the clipboard. Copy the PDF in Lido first.'); }
+}
+$('f-paste').addEventListener('paste', onPaste);
+document.addEventListener('paste', e => { if ($('load').classList.contains('open') && !(e.target && /^(TEXTAREA|INPUT)$/.test(e.target.tagName))) onPaste(e); });
+$('f-paste').addEventListener('beforeinput', e => { if (e.inputType !== 'insertFromPaste') e.preventDefault(); });
+// 粘贴框只当接收器：粘进来的任何东西都清掉，只留原来的图标和文字
+[...$('f-paste').children].forEach(c => c.classList.add('keep'));
+$('f-paste').addEventListener('input', () => { [...$('f-paste').childNodes].forEach(n => { if (!(n.nodeType === 1 && n.classList.contains('keep'))) n.remove(); }); });
+['dragover', 'dragenter'].forEach(ev => $('load').addEventListener(ev, e => { e.preventDefault(); $('f-paste').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => $('load').addEventListener(ev, () => $('f-paste').classList.remove('over')));
+$('load').addEventListener('drop', e => { e.preventDefault(); const f = pdfFrom(e.dataTransfer); if (f) usePdfFile(f); });
 $('f-pdf').onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
+  const f = e.target.files[0]; if (!f) return; e.target.value = '';
   $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('正在读取 PDF…', 'Reading PDF…');
   try { useText(await pdfText(await f.arrayBuffer())); }
   catch (err) { $('msg').textContent = tt('PDF 读取失败', 'PDF read failed') + ': ' + err.message; }
@@ -1269,7 +1308,7 @@ $('b-save').onclick = () => {
   $('msg').style.color = 'var(--green)'; $('msg').textContent = '✅ ' + tt('已保存', 'Saved') + ' · ' + TYPES[typeIdx()];
   drawRoute(); lastList = 0; tick();
 };
-$('b-clock').onclick = async () => { if (!lsGet('key')) { $('msg').textContent = tt('先在「设置」里填口令', 'Enter the key in Settings first'); return; } if (!S.ofp) { $('msg').textContent = tt('先载入 OFP', 'Load an OFP first'); return; } if (!navigator.onLine) { lsSet('pending', planPayload()); syncStatus(); $('msg').textContent = tt('没有网络，有网时会自动发送', 'Offline — will send automatically'); return; } $('msg').textContent = tt('发送中…', 'Sending…'); await syncClock(); $('msg').textContent = $('syncst').textContent; };
+const _oldSend = async () => { if (!lsGet('key')) { $('msg').textContent = tt('先在「设置」里填口令', 'Enter the key in Settings first'); return; } if (!S.ofp) { $('msg').textContent = tt('先载入 OFP', 'Load an OFP first'); return; } if (!navigator.onLine) { lsSet('pending', planPayload()); syncStatus(); $('msg').textContent = tt('没有网络，有网时会自动发送', 'Offline — will send automatically'); return; } $('msg').textContent = tt('发送中…', 'Sending…'); await syncClock(); $('msg').textContent = $('syncst').textContent; };
 const oldClockSend = async () => {
   const url = lsGet('clock'), key = lsGet('key'), txt = lsGet('ofptext1');
   if (!url || !key) { $('msg').textContent = tt('先在「设置」里填时钟网址和口令', 'Enter the clock URL and key in Settings first'); return; }
@@ -1370,7 +1409,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v37';
+const APPV = 'v38';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
