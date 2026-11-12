@@ -8,7 +8,8 @@
   const z2 = n => String(n).padStart(2, '0');
   const ld = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || '') || d; } catch (e) { return d; } };
   const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-  let LB = ld(KEY, []), SET = Object.assign({ fmt: 'caac', role: 'CAPT', name: '', lic: '', night: 'auto' }, ld(SKEY, {}));
+  let LB = ld(KEY, []), SET = Object.assign({ fmt: 'caac', role: 'CAPT', name: '', lic: '', night: 'auto', bf: {} }, ld(SKEY, {}));
+  if (!SET.bf) SET.bf = {};
   const save = () => sv(KEY, LB), saveSet = () => sv(SKEY, SET);
   const T = (zh, en) => typeof tt === 'function' ? tt(zh, en) : zh;
 
@@ -33,6 +34,11 @@
     for (let i = 1; i < P.length; i++) if (P[i][2] >= m) { const a = P[i - 1], b = P[i], f = (m - a[2]) / Math.max(.01, b[2] - a[2]); return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
     return e.ap;
   }
+  // 起落是谁的：pfTo 起飞、pfLdg 落地（旧记录只有 pf = 两个都是）
+  const pfTo = e => e.pfTo != null ? !!e.pfTo : !!e.pf, pfLdg = e => e.pfLdg != null ? !!e.pfLdg : !!e.pf;
+  const pfMode = e => !e ? 'none' : pfTo(e) && pfLdg(e) ? 'both' : pfTo(e) ? 'to' : pfLdg(e) ? 'ldg' : 'none';
+  function setPf(e, m) { if (!e) return; e.pfTo = m === 'both' || m === 'to'; e.pfLdg = m === 'both' || m === 'ldg'; e.pf = e.pfTo || e.pfLdg; save(); }
+  const pfName = m => ({ both: T('起飞 + 落地', 'T/O + landing'), to: T('只起飞', 'T/O only'), ldg: T('只落地', 'Landing only'), none: T('不是我飞的', 'not mine') }[m]);
   // 计算：总时间、空中时间、夜航、起降昼夜
   function calc(e) {
     const ok = e.offB && e.to && e.ldg && e.onB && e.onB > e.offB;
@@ -41,8 +47,8 @@
     for (let t = e.offB + 30e3; t < e.onB; t += MINms) { const p = posAt(e, t); if (p && isNight(p[0], p[1], t)) r.night++; }
     if (e.dp) r.toN = isNight(e.dp[0], e.dp[1], e.to);
     if (e.ap) r.ldN = isNight(e.ap[0], e.ap[1], e.ldg);
-    const pf = !!e.pf, cap = (e.role || SET.role) === 'CAPT';
-    Object.assign(r, { pic: cap ? r.block : 0, cop: cap ? 0 : r.block, ifr: r.block, toD: pf && !r.toN ? 1 : 0, toNn: pf && r.toN ? 1 : 0, ldD: pf && !r.ldN ? 1 : 0, ldNn: pf && r.ldN ? 1 : 0 });
+    const pt = pfTo(e), pl = pfLdg(e), cap = (e.role || SET.role) === 'CAPT';
+    Object.assign(r, { pic: cap ? r.block : 0, cop: cap ? 0 : r.block, ifr: r.block, toD: pt && !r.toN ? 1 : 0, toNn: pt && r.toN ? 1 : 0, ldD: pl && !r.ldN ? 1 : 0, ldNn: pl && r.ldN ? 1 : 0 });
     return r;
   }
   const hm = m => m ? Math.floor(m / 60) + ':' + z2(m % 60) : '';
@@ -107,13 +113,14 @@
       '<span style="flex:1"></span><button class="btn sm" onclick="LBK.adsb()">⟳ ' + T('读取 ADS-B 时间', 'Load ADS-B times') + '</button></div>' +
       '<div class="lrow">' + fld('offB', T('撤轮挡', 'Off-block')) + fld('to', T('起飞', 'Take-off')) + fld('ldg', T('落地', 'Landing')) + fld('onB', T('挡轮挡', 'On-block')) + '<span class="ldim" style="align-self:center">UTC</span></div>' +
       '<div class="lrow">' +
-      '<span class="sw' + (e.pf ? ' on' : '') + '" onclick="LBK.pf()"><b></b>' + T('起落（这一段是我飞的）', 'T/O & landing (I flew this sector)') + '</span>' +
+      '<span class="pfx"><span class="sw' + (pfMode(e) !== 'none' ? ' on' : '') + '" onclick="LBK.pf()"><b></b>' + T('起落', 'T/O & landing') + '</span>' +
+      '<span class="pfopt">' + ['both', 'to', 'ldg'].map(m => '<span class="' + (pfMode(e) === m ? 'on' : '') + '" onclick="LBK.pfSet(\'' + m + '\')">' + pfName(m) + '</span>').join('') + '</span></span>' +
       '<label class="lt"><span>' + T('职务', 'Role') + '</span><select data-f="role">' + ['CAPT', 'FO', 'SO'].map(x => '<option value="' + x + '"' + ((e.role || SET.role) === x ? ' selected' : '') + '>' + roleN(x) + '</option>').join('') + '</select></label>' +
       ((e.role || SET.role) === 'CAPT' ? '' : '<label class="lt"><span>' + T('机长姓名', 'PIC name') + '</span><input data-f="pic" value="' + esc(e.pic || '') + '" style="width:140px"></label>') +
       '<label class="lt" style="flex:1"><span>' + T('备注', 'Remarks') + '</span><input data-f="rmk" value="' + esc(e.rmk || '') + '" style="width:100%"></label></div>' +
       '<div class="lsum">' + T('飞行时间', 'Block') + ' <b>' + hm(r.block) + '</b> · ' + T('空中', 'Air') + ' <b>' + hm(r.air) + '</b> · ' + T('夜航', 'Night') + ' <b>' + (hm(r.night) || '0:00') + '</b> · ' +
       T('起飞', 'T/O') + ' ' + (r.toN ? '🌙 ' + T('夜', 'night') : '☀️ ' + T('昼', 'day')) + ' · ' + T('落地', 'Ldg') + ' ' + (r.ldN ? '🌙 ' + T('夜', 'night') : '☀️ ' + T('昼', 'day')) +
-      (e.pf ? '' : ' <span class="ldim">（' + T('起落没打开：不计起落次数', 'T/O & landing off: not counted') + '）</span>') +
+      (pfMode(e) === 'none' ? ' <span class="ldim">（' + T('起落没打开：不计起落次数', 'T/O & landing off: not counted') + '）</span>' : ' <span class="ldim">（' + T('计入：', 'Counted: ') + pfName(pfMode(e)) + '）</span>') +
       (editK && editK !== curKey() ? ' <button class="btn sm" style="margin-left:8px" onclick="LBK.del()">🗑 ' + T('删除这条', 'Delete') + '</button> <button class="btn sm" onclick="LBK.edit(null)">' + T('完成', 'Done') + '</button>' : '') + '</div></div>';
   }
   function settings() {
@@ -122,24 +129,35 @@
       '<label class="lt"><span>' + T('姓名', 'Name') + '</span><input data-s="name" value="' + esc(SET.name) + '" style="width:150px"></label>' +
       '<label class="lt"><span>' + T('执照号 / 员工号', 'Licence / staff no.') + '</span><input data-s="lic" value="' + esc(SET.lic) + '" style="width:130px"></label>' +
       '<label class="lt"><span>' + T('夜间定义', 'Night') + '</span><select data-s="night">' + [['auto', T('按格式（民航：日落-日出；Jeppesen：昏影-晨光）', 'By format')], ['sun', T('日落到日出', 'Sunset–sunrise')], ['civil', T('昏影终到晨光始（太阳 −6°）', 'Civil twilight (−6°)')]].map(x => '<option value="' + x[0] + '"' + (SET.night === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
-      '</div><div class="ldim" style="margin-top:6px">' + T('记录只存在这台设备上，请定期点「备份」导出。', 'Records are stored on this device only — export a backup regularly.') + '</div></details>';
+      '</div><div style="margin-top:12px"><b>' + T('以前累计的飞行经历（承前）', 'Previous experience (brought forward)') + '</b> <span class="ldim">' + T('时间写「小时:分钟」，例如 8520:35', 'Times as h:mm, e.g. 8520:35') + '</span></div><div class="lrow">' +
+      BF.map(([k, zh, en, n]) => '<label class="lt"><span>' + T(zh, en) + '</span><input data-bf="' + k + '" value="' + esc(n ? (SET.bf[k] || '') : hm(SET.bf[k] || 0)) + '" style="width:' + (n ? 70 : 100) + 'px" inputmode="decimal"></label>').join('') + '</div>' +
+      grand() + '<div class="ldim" style="margin-top:6px">' + T('记录只存在这台设备上，请定期点「备份」导出。', 'Records are stored on this device only — export a backup regularly.') + '</div></details>';
   }
+  const BF = [['block', '总飞行时间', 'Total time'], ['pic', '机长时间', 'PIC'], ['cop', '副驾驶时间', 'Co-pilot'], ['night', '夜航时间', 'Night'], ['ifr', '仪表时间', 'IFR'], ['toD', '起飞 昼', 'T/O day', 1], ['toNn', '起飞 夜', 'T/O night', 1], ['ldD', '着陆 昼', 'Ldg day', 1], ['ldNn', '着陆 夜', 'Ldg night', 1]];
+  const pmin = v => { v = String(v || '').trim(); if (!v) return 0; let m; if ((m = /^(\d+)[:：h ](\d{1,2})$/.exec(v))) return +m[1] * 60 + +m[2]; if (/^\d+(\.\d+)?$/.test(v)) return Math.round(+v * 60); return null; };
+  const sumAll = () => { const o = {}; LB.forEach(e => { const r = calc(e); BF.forEach(([k]) => { o[k] = (o[k] || 0) + (r[k] || 0); }); }); return o; };
+  function grand() { const s0 = sumAll(), g = k => (SET.bf[k] || 0) + (s0[k] || 0);
+    return '<div class="lgrand">' + T('总计（承前 + 记录本）', 'Grand total (b/f + logbook)') + '：' + T('总时间', 'Total') + ' <b>' + (hm(g('block')) || '0:00') + '</b> · ' + T('机长', 'PIC') + ' <b>' + (hm(g('pic')) || '0:00') + '</b> · ' + T('副驾驶', 'Co-pilot') + ' <b>' + (hm(g('cop')) || '0:00') + '</b> · ' + T('夜航', 'Night') + ' <b>' + (hm(g('night')) || '0:00') + '</b> · ' + T('起飞', 'T/O') + ' <b>' + (g('toD') + g('toNn')) + '</b> · ' + T('着陆', 'Ldg') + ' <b>' + (g('ldD') + g('ldNn')) + '</b>（' + T('夜', 'night') + ' ' + g('ldNn') + '）</div>'; }
   function table() {
     const rows = LB.slice().sort((a, b) => (a.offB || a.date) - (b.offB || b.date)), R = rows.map(e => [e, calc(e)]);
     const tot = k => R.reduce((s, x) => s + (x[1][k] || 0), 0);
     if (!rows.length) return '<div class="ldim" style="padding:12px">' + T('还没有记录。', 'No records yet.') + '</div>';
     const ed = e => ' onclick="LBK.edit(\'' + e.k.replace(/'/g, '') + '\')"';
     if (SET.fmt === 'caac') {
-      const H = '<tr><th rowspan="2">日期</th><th rowspan="2">航班号</th><th rowspan="2">航空器型别</th><th rowspan="2">登记号</th><th colspan="2">航段</th><th colspan="4">时刻（UTC）</th><th colspan="2">飞行时间</th><th colspan="2">驾驶员资格时间</th><th rowspan="2">夜航</th><th rowspan="2">仪表</th><th colspan="2">起落</th><th rowspan="2">备注</th></tr>' +
-        '<tr><th>起飞地点</th><th>着陆地点</th><th>撤轮挡</th><th>起飞</th><th>着陆</th><th>挡轮挡</th><th>总时间</th><th>空中</th><th>机长</th><th>副驾驶</th><th>昼</th><th>夜</th></tr>';
-      const B = R.map(([e, r]) => '<tr' + ed(e) + '><td>' + dstr(e.offB || e.date) + '</td><td>' + esc(e.flt) + '</td><td>' + esc(e.type) + '</td><td>' + esc(e.reg) + '</td><td>' + esc(e.dep) + '</td><td>' + esc(e.arr) + '</td><td>' + hcol(e.offB) + '</td><td>' + hcol(e.to) + '</td><td>' + hcol(e.ldg) + '</td><td>' + hcol(e.onB) + '</td><td class="b">' + hm(r.block) + '</td><td>' + hm(r.air) + '</td><td>' + hm(r.pic) + '</td><td>' + hm(r.cop) + '</td><td>' + hm(r.night) + '</td><td>' + hm(r.ifr) + '</td><td>' + (r.ldD || '') + '</td><td>' + (r.ldNn || '') + '</td><td>' + esc([e.role !== 'CAPT' && e.pic ? '机长 ' + e.pic : '', e.rmk].filter(Boolean).join(' · ')) + '</td></tr>').join('');
-      const F = '<tr class="tot"><td colspan="10">合计（' + rows.length + ' 段）</td><td class="b">' + hm(tot('block')) + '</td><td>' + hm(tot('air')) + '</td><td>' + hm(tot('pic')) + '</td><td>' + hm(tot('cop')) + '</td><td>' + hm(tot('night')) + '</td><td>' + hm(tot('ifr')) + '</td><td>' + tot('ldD') + '</td><td>' + tot('ldNn') + '</td><td></td></tr>';
+      const H = '<tr><th rowspan="2">日期</th><th rowspan="2">航班号</th><th rowspan="2">航空器型别</th><th rowspan="2">登记号</th><th colspan="2">航段</th><th colspan="4">时刻（UTC）</th><th colspan="2">飞行时间</th><th colspan="2">驾驶员资格时间</th><th rowspan="2">夜航</th><th rowspan="2">仪表</th><th colspan="2">起飞</th><th colspan="2">着陆</th><th rowspan="2">备注</th></tr>' +
+        '<tr><th>起飞地点</th><th>着陆地点</th><th>撤轮挡</th><th>起飞</th><th>着陆</th><th>挡轮挡</th><th>总时间</th><th>空中</th><th>机长</th><th>副驾驶</th><th>昼</th><th>夜</th><th>昼</th><th>夜</th></tr>';
+      const B = R.map(([e, r]) => '<tr' + ed(e) + '><td>' + dstr(e.offB || e.date) + '</td><td>' + esc(e.flt) + '</td><td>' + esc(e.type) + '</td><td>' + esc(e.reg) + '</td><td>' + esc(e.dep) + '</td><td>' + esc(e.arr) + '</td><td>' + hcol(e.offB) + '</td><td>' + hcol(e.to) + '</td><td>' + hcol(e.ldg) + '</td><td>' + hcol(e.onB) + '</td><td class="b">' + hm(r.block) + '</td><td>' + hm(r.air) + '</td><td>' + hm(r.pic) + '</td><td>' + hm(r.cop) + '</td><td>' + hm(r.night) + '</td><td>' + hm(r.ifr) + '</td><td>' + (r.toD || '') + '</td><td>' + (r.toNn || '') + '</td><td>' + (r.ldD || '') + '</td><td>' + (r.ldNn || '') + '</td><td>' + esc([e.role !== 'CAPT' && e.pic ? '机长 ' + e.pic : '', e.rmk].filter(Boolean).join(' · ')) + '</td></tr>').join('');
+      const fr = (lab, g, cls) => '<tr class="' + cls + '"><td colspan="10">' + lab + '</td><td class="b">' + hm(g('block')) + '</td><td>' + hm(g('air')) + '</td><td>' + hm(g('pic')) + '</td><td>' + hm(g('cop')) + '</td><td>' + hm(g('night')) + '</td><td>' + hm(g('ifr')) + '</td><td>' + g('toD') + '</td><td>' + g('toNn') + '</td><td>' + g('ldD') + '</td><td>' + g('ldNn') + '</td><td></td></tr>';
+      const bfk = k => k === 'air' ? 0 : (SET.bf[k] || 0);
+      const F = fr('本册合计（' + rows.length + ' 段）', tot, 'tot') + (BF.some(([k]) => SET.bf[k]) ? fr('以前累计（承前）', bfk, 'bf') + fr('总计', k => tot(k) + bfk(k), 'tot') : '');
       return '<h1>飞行经历记录本</h1><div class="lmeta">驾驶员：' + esc(SET.name || '—') + ' · 执照号：' + esc(SET.lic || '—') + ' · 时间为 UTC · 夜间：' + (thr() < -3 ? '昏影终至晨光始' : '日落至日出') + '</div><table class="lbt">' + H + B + F + '</table>';
     }
     const H = '<tr><th rowspan="2">DATE<br><small>dd/mm/yy</small></th><th colspan="2">DEPARTURE</th><th colspan="2">ARRIVAL</th><th colspan="2">AIRCRAFT</th><th colspan="2">SINGLE PILOT TIME</th><th rowspan="2">MULTI-PILOT TIME</th><th rowspan="2">TOTAL TIME OF FLIGHT</th><th rowspan="2">NAME PIC</th><th colspan="2">LANDINGS</th><th colspan="2">OPERATIONAL CONDITION TIME</th><th colspan="4">PILOT FUNCTION TIME</th><th rowspan="2">REMARKS AND ENDORSEMENTS</th></tr>' +
       '<tr><th>PLACE</th><th>TIME</th><th>PLACE</th><th>TIME</th><th>MAKE, MODEL</th><th>REGISTRATION</th><th>SE</th><th>ME</th><th>DAY</th><th>NIGHT</th><th>NIGHT</th><th>IFR</th><th>PILOT IN COMMAND</th><th>CO-PILOT</th><th>DUAL</th><th>INSTRUCTOR</th></tr>';
-    const B = R.map(([e, r]) => '<tr' + ed(e) + '><td>' + dshort(e.offB || e.date) + '</td><td>' + esc(e.dep) + '</td><td>' + hcol(e.offB) + '</td><td>' + esc(e.arr) + '</td><td>' + hcol(e.onB) + '</td><td>' + esc(e.type) + '</td><td>' + esc(e.reg) + '</td><td></td><td></td><td>' + hm(r.block) + '</td><td class="b">' + hm(r.block) + '</td><td>' + esc((e.role || SET.role) === 'CAPT' ? 'SELF' : (e.pic || '')) + '</td><td>' + (r.ldD || '') + '</td><td>' + (r.ldNn || '') + '</td><td>' + hm(r.night) + '</td><td>' + hm(r.ifr) + '</td><td>' + hm(r.pic) + '</td><td>' + hm(r.cop) + '</td><td></td><td></td><td>' + esc([e.flt, e.rmk].filter(Boolean).join(' · ')) + '</td></tr>').join('');
-    const F = '<tr class="tot"><td colspan="9">TOTAL (' + rows.length + ')</td><td>' + hm(tot('block')) + '</td><td class="b">' + hm(tot('block')) + '</td><td></td><td>' + tot('ldD') + '</td><td>' + tot('ldNn') + '</td><td>' + hm(tot('night')) + '</td><td>' + hm(tot('ifr')) + '</td><td>' + hm(tot('pic')) + '</td><td>' + hm(tot('cop')) + '</td><td></td><td></td><td></td></tr>';
+    const B = R.map(([e, r]) => '<tr' + ed(e) + '><td>' + dshort(e.offB || e.date) + '</td><td>' + esc(e.dep) + '</td><td>' + hcol(e.offB) + '</td><td>' + esc(e.arr) + '</td><td>' + hcol(e.onB) + '</td><td>' + esc(e.type) + '</td><td>' + esc(e.reg) + '</td><td></td><td></td><td>' + hm(r.block) + '</td><td class="b">' + hm(r.block) + '</td><td>' + esc((e.role || SET.role) === 'CAPT' ? 'SELF' : (e.pic || '')) + '</td><td>' + (r.ldD || '') + '</td><td>' + (r.ldNn || '') + '</td><td>' + hm(r.night) + '</td><td>' + hm(r.ifr) + '</td><td>' + hm(r.pic) + '</td><td>' + hm(r.cop) + '</td><td></td><td></td><td>' + esc([e.flt, pfMode(e) === 'to' ? 'T/O only' : pfMode(e) === 'ldg' ? 'LDG only' : '', e.rmk].filter(Boolean).join(' · ')) + '</td></tr>').join('');
+    const fr = (lab, g, cls) => '<tr class="' + cls + '"><td colspan="9">' + lab + '</td><td>' + hm(g('block')) + '</td><td class="b">' + hm(g('block')) + '</td><td></td><td>' + g('ldD') + '</td><td>' + g('ldNn') + '</td><td>' + hm(g('night')) + '</td><td>' + hm(g('ifr')) + '</td><td>' + hm(g('pic')) + '</td><td>' + hm(g('cop')) + '</td><td></td><td></td><td></td></tr>';
+    const bfk = k => SET.bf[k] || 0;
+    const F = fr('TOTAL THIS BOOK (' + rows.length + ')', tot, 'tot') + (BF.some(([k]) => SET.bf[k]) ? fr('TOTAL FROM PREVIOUS PAGES', bfk, 'bf') + fr('TOTAL TIME', k => tot(k) + bfk(k), 'tot') : '');
     return '<h1>PILOT LOGBOOK</h1><div class="lmeta">' + esc(SET.name || '—') + ' · ' + esc(SET.lic || '') + ' · times UTC · night: ' + (thr() < -3 ? 'end of evening to beginning of morning civil twilight' : 'sunset to sunrise') + '</div><table class="lbt">' + H + B + F + '</table>';
   }
   const curKey = () => (typeof S !== 'undefined' && S.ofp) ? keyOf(S.ofp) : null;
@@ -155,6 +173,9 @@
       else x[f] = inp.value.trim();
       save(); render();
     });
+    $('lb-pg').querySelectorAll('[data-bf]').forEach(inp => inp.onchange = () => { const k = inp.dataset.bf, n = BF.find(x => x[0] === k)[3];
+      const v = n ? (inp.value.trim() === '' ? 0 : parseInt(inp.value, 10)) : pmin(inp.value); if (v == null || isNaN(v) || v < 0) { toast(T('格式不对：时间写 8520:35，次数写整数', 'Use h:mm for times, whole numbers for counts')); inp.value = ''; return; }
+      SET.bf[k] = v; saveSet(); render(); });
     $('lb-pg').querySelectorAll('[data-s]').forEach(inp => inp.onchange = () => { SET[inp.dataset.s] = inp.value.trim(); saveSet(); if (inp.dataset.s === 'role' && e && !e.src.roleSet) { e.role = SET.role; save(); } render(); });
   }
   function csv() {
@@ -170,9 +191,13 @@
 
   window.LBK = {
     open() { editK = null; fromOfp(); render(); $('lb').classList.add('open'); $('lb').scrollTop = 0; const e = LB.find(x => x.k === curKey()); if (e) adsb(e, true).then(ok => { if (ok) render(); }); },
-    close() { $('lb').classList.remove('open'); },
+    close() { $('lb').classList.remove('open'); try { pfUI(); } catch (e) {} },
     fmt(v) { SET.fmt = v; saveSet(); render(); },
-    pf() { const e = LB.find(x => x.k === (editK || curKey())); if (!e) return; e.pf = !e.pf; save(); render(); },
+    pf() { const e = LB.find(x => x.k === (editK || curKey())); if (!e) return; setPf(e, pfMode(e) === 'none' ? 'both' : 'none'); render(); },
+    pfSet(m) { const e = LB.find(x => x.k === (editK || curKey())); if (!e) return; setPf(e, pfMode(e) === m ? 'none' : m); render(); },
+    // 主页面上的「起落」开关用
+    cur() { if (typeof S === 'undefined' || !S.ofp) return null; return LB.find(x => x.k === curKey()) || fromOfp(); },
+    mode() { return pfMode(this.cur()); }, setMode(m) { const e = this.cur(); if (!e) return false; setPf(e, m); if ($('lb').classList.contains('open')) render(); return true; }, pfName,
     async adsb() { const e = LB.find(x => x.k === (editK || curKey())); if (await adsb(e, false)) render(); },
     edit(k) { editK = k; render(); if (k) $('lb').scrollTop = 0; },
     del() { if (!editK || !confirm(T('删除这条记录？', 'Delete this record?'))) return; LB = LB.filter(x => x.k !== editK); save(); editK = null; render(); },
