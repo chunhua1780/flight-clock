@@ -217,6 +217,7 @@ div.en,.wl .en{display:block;margin-left:0}
 #dec-pop{position:absolute;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;background:var(--card);border-top:2px solid var(--gold);padding:12px 16px 20px;display:none;box-shadow:0 -6px 24px rgba(0,0,0,.35);font-size:15px;line-height:1.6}
 #dec-pop .w{font-size:14px;color:var(--dim);margin-bottom:6px}
 #dec-pop .l{font-size:16px}
+#dec-pop .ai{margin-top:10px;padding:8px 10px;border-left:3px solid var(--green);background:var(--input);border-radius:6px;font-size:14px;line-height:1.55}
 #dec-pop .om{margin-top:10px;padding:8px 10px;border-left:3px solid var(--blue);background:var(--input);border-radius:6px;font-size:14px}
 #dec-pop .x{float:right;cursor:pointer;color:var(--dim);font-size:20px;margin-left:10px}
 .nseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle;margin-left:8px}
@@ -1217,7 +1218,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v16';
+const APPV = 'v17';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1402,6 +1403,38 @@ function omFor(word, i, pos) {
 }
 const omHtml = list => list.map(x => '<div class="om">📘 ' + tt('公司手册 OM 10.1.7 第 ' + x.no + ' 条', 'OM 10.1.7 item ' + x.no) + '：' + (LANG === 'en' || !x.zh ? esc(x.en) : esc(x.zh) + (LANG === 'both' ? '<div style="color:var(--dim);font-size:12.5px;margin-top:3px">' + esc(x.en) + '</div>' : '')).replace(/\n/g, '<br>') + '</div>').join('');
 
+/* ---------------- 联网解读（Gemini + Google 搜索，经自己的 Apps Script）：有网时点一下，结果存在 iPad 上，离线也能看 ---------------- */
+let AI = {}; try { AI = JSON.parse(lsGet('ai') || '{}'); } catch (e) {}
+const aiLang = () => LANG === 'en' ? 'en' : 'zh';
+function aiBlock() { const ix = [...document.querySelectorAll('#dec-body .ln.sel')].map(e => +e.dataset.i).sort((a, b) => a - b); if (!ix.length) return null;
+  const a = ix[0], b = Math.min(ix[ix.length - 1], a + 60); return { a, b, text: DL.slice(a, b + 1).filter(l => l.trim() && !/^\s*(?:UAE|EK)\d+\/\d{2}[A-Za-z]{3}/.test(l)).join('\n') }; }
+const aiFmt = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[*-]\s+/gm, '• ').replace(/\n/g, '<br>');
+function aiHtml(word, sec) {
+  const B = aiBlock(); if (!B) return '';
+  const k = hash(aiLang() + '|' + B.text), hit = AI[k];
+  $('dec-pop').dataset.ai = JSON.stringify({ k, text: B.text, word, sec });
+  if (hit) return '<div class="ai">🌐 <b>' + tt('联网解读', 'Online explanation') + '</b><br>' + aiFmt(hit.out) + '</div>';
+  if (!navigator.onLine || !lsGet('key')) return '';
+  return '<div class="ai" id="ai-box"><button class="btn sm" onclick="aiAsk()">🌐 ' + tt('联网解读这一段（Google 搜索 + AI）', 'Explain online (Google search + AI)') + '</button></div>';
+}
+async function aiAsk() {
+  const box = $('ai-box'), d = JSON.parse($('dec-pop').dataset.ai || '{}'); if (!box || !d.k) return;
+  box.innerHTML = '⏳ ' + tt('正在联网查找、整理…（10–30 秒）', 'Searching and writing… (10–30 s)');
+  try {
+    const SECN = { head: 'OFP front page (fuel/times/weights)', altn: 'destination alternates', disp: 'dispatch briefing', nav: 'navigation log', navalt: 'navlog to alternate', winds: 'winds/temperatures aloft table', wx: 'weather METAR/TAF', notam: 'NOTAM', crew: 'crew info', conotam: 'company NOTAM', etops: 'ETOPS info' };
+    const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'explain', text: d.text, word: d.word || '', section: SECN[d.sec] || d.sec, lang: aiLang() }) });
+    const raw = await r.text(); let j; try { j = JSON.parse(raw); } catch (e) { j = { ok: false, error: raw.slice(0, 120) }; }
+    if (!j.ok) {
+      box.innerHTML = /GEMINI_KEY/.test(j.error) ? tt('还没设置 AI Key：在 aistudio.google.com/apikey 免费申请一个 Key，放到 Apps Script「项目设置 → 脚本属性」，名字 GEMINI_KEY。', 'No AI key yet: get a free key at aistudio.google.com/apikey and add it in Apps Script → Project settings → Script properties as GEMINI_KEY.')
+        : /缺少航班|数据格式|口令/.test(j.error || raw) ? tt('时钟后台是旧版：请把新的 Code.gs 粘贴进 Apps Script 并重新部署。', 'Backend is old: paste the new Code.gs into Apps Script and redeploy.')
+        : '⚠️ ' + esc(j.error || 'error'); return; }
+    AI[d.k] = { out: j.out, t: Date.now() };
+    const ks = Object.keys(AI); if (ks.length > 300) ks.sort((a, b) => AI[a].t - AI[b].t).slice(0, 100).forEach(x => delete AI[x]);
+    lsSet('ai', JSON.stringify(AI));
+    box.innerHTML = '🌐 <b>' + tt('联网解读', 'Online explanation') + '</b><br>' + aiFmt(j.out);
+  } catch (e) { box.innerHTML = '⚠️ ' + tt('没连上（检查网络）', 'Could not connect'); }
+}
+
 /* ---------------- OFP 解读 ---------------- */
 let DL = null, DSEC = null, DNOT = null;
 function buildDL() {
@@ -1478,7 +1511,7 @@ $('dec-body').onclick = e => {
   const pick = x => x ? (LANG === 'en' ? x.en : LANG === 'zh' ? x.zh : x.zh + '<div style="color:var(--dim);font-size:13px;margin-top:6px;border-top:1px dashed var(--line);padding-top:6px">' + x.en + '</div>') : '';
   const SECN = { head: ['飞行计划首页（油量、时间、重量）', 'OFP front page (fuel, times, weights)'], altn: ['目的地备降场表', 'Destination alternates'], disp: ['签派提示', 'Dispatch notes'], nav: ['导航日志（每个航路点）', 'Navigation log'], navalt: ['去备降场的导航日志', 'Navlog to alternate'], winds: ['高空风温表', 'Winds aloft'], wx: ['天气（METAR / TAF）', 'Weather'], notam: ['航行通告', 'NOTAMs'], crew: ['机组信息', 'Crew info'], conotam: ['公司通告 / 机组须知', 'Company NOTAMs / crew info'], etops: ['ETOPS 信息', 'ETOPS information'] }[sec] || ['', ''];
   $('dec-pop').innerHTML = '<span class="x" onclick="document.getElementById(\'dec-pop\').style.display=\'none\'">✕</span><div class="w">' + tt(SECN[0], SECN[1]) + (word ? ' · <b style="color:var(--text)">' + esc(word) + '</b>' : '') + '</div>' +
-    (W1 ? '<div style="margin-bottom:8px;color:var(--dim);font-size:13.5px">' + tt('你点的', 'You tapped') + ' · ' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0));
+    (W1 ? '<div style="margin-bottom:8px;color:var(--dim);font-size:13.5px">' + tt('你点的', 'You tapped') + ' · ' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0)) + aiHtml(word, sec);
   $('dec-pop').style.display = 'block';
 };
 $('b-dec').onclick = e => { e.preventDefault(); openDec(); };

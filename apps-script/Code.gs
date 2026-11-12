@@ -76,6 +76,8 @@ function postJson_(text) {
     const out = j.texts.slice(0, 80).map(function (t) { try { return LanguageApp.translate(String(t).slice(0, 4500), 'en', j.to || 'zh-CN'); } catch (e) { return null; } });
     return JSON.stringify({ ok: true, out: out });
   }
+  // 联网解读：用 Google Gemini（打开 Google 搜索）把 OFP 里的一段用白话讲清楚。Key 放在「项目设置 → 脚本属性」GEMINI_KEY
+  if (j.action === 'explain') return JSON.stringify(explain_(j));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -699,4 +701,43 @@ function resolveFixes_(r) {
 function testOfp() {
   Logger.log(JSON.stringify(ofpCheck_(), null, 1));
   Logger.log(JSON.stringify(ofpRoutes_(), null, 1));
+}
+
+// ======== 联网解读（Gemini + Google 搜索） ========
+// 申请免费 Key：https://aistudio.google.com/apikey → 复制 → Apps Script「项目设置 → 脚本属性」添加 GEMINI_KEY
+function explain_(j) {
+  const props = PropertiesService.getScriptProperties();
+  const key = props.getProperty('GEMINI_KEY');
+  if (!key) return { ok: false, error: 'no GEMINI_KEY' };
+  const text = String(j.text || '').slice(0, 6000), lang = j.lang === 'en' ? 'en' : 'zh';
+  if (!text.trim()) return { ok: false, error: 'empty' };
+  const cache = CacheService.getScriptCache(), ck = 'ex_' + lang + '_' + hash_(text + '|' + (j.word || ''));
+  const hit = cache.get(ck); if (hit) return { ok: true, out: hit, cached: true };
+  const prompt = (lang === 'zh'
+    ? '你是一位经验丰富的波音 777 机长兼签派员。下面是阿联酋航空 LIDO 格式 OFP（运行飞行计划）里的一段，所在部分：' + (j.section || '未知') + '。\n'
+      + '请先联网搜索确认不认识的缩写、航路点、机场、空域和规定，然后用简体中文「说人话」把这一整段讲清楚：它在说什么、对机组意味着什么、要注意什么。'
+      + '数字要读对（例如 236/063 是风向 236° 风速 63 节，-37 是气温零下 37°C，321 这类是高度层）。不要逐字翻译，不要中英混杂，专有名词第一次出现时可以括号注英文。'
+      + (j.word ? '机长点的是「' + j.word + '」，先用一句话解释它，再讲整段。' : '') + '只输出解读本身，简洁，分短段。\n\n'
+    : 'You are an experienced Boeing 777 captain and dispatcher. Below is part of an Emirates LIDO-format OFP (section: ' + (j.section || 'unknown') + ').\n'
+      + 'Search the web to confirm any abbreviation, waypoint, airport, airspace or rule you are unsure of, then explain the whole passage in plain English: what it says, what it means for the crew, and what to watch out for. '
+      + 'Read numbers correctly (e.g. 236/063 = wind 236° at 63 kt, -37 = minus 37 °C, 321 = flight level). Do not translate word by word. '
+      + (j.word ? 'The captain tapped "' + j.word + '": explain that in one sentence first, then the whole passage. ' : '') + 'Output only the explanation, concise, short paragraphs.\n\n')
+    + '---\n' + text + '\n---';
+  const models = [props.getProperty('GEMINI_MODEL') || 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+  let last = '';
+  for (let m = 0; m < models.length; m++) {
+    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent', {
+      method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true,
+      payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2 } })
+    });
+    const code = r.getResponseCode();
+    if (code === 404 || code === 400 && /not found|not supported/i.test(r.getContentText())) { last = models[m] + ' ' + code; continue; }
+    if (code !== 200) return { ok: false, error: 'Gemini ' + code + ' ' + r.getContentText().slice(0, 160) };
+    const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0];
+    const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
+    if (!out) return { ok: false, error: 'empty answer' };
+    try { cache.put(ck, out, 21600); } catch (e) {}
+    return { ok: true, out: out, model: models[m] };
+  }
+  return { ok: false, error: 'no model: ' + last };
 }
