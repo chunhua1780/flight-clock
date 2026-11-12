@@ -619,7 +619,7 @@ function ekHints(e, t) {
   const o = { red: 0, amber: 1, info: 2 }; return out.sort((a, b) => o[a.lv] - o[b.lv]);
 }
 function drawLegend() {
-  const rings = '<br><span class="rlab">- - 1h · 410 nm</span><br><span class="rlab r2">- - 2h · 820 nm</span><br><span style="font-size:10px">' + th('圈内机场变大、标签按类别上色', 'Inside rings: enlarged, label in category colour') + '<br><span style="color:var(--fir)">●</span> ' + th('紫色航路点 = FIR 移交点（换频率）', 'Purple waypoint = FIR boundary (change freq.)') + '<br>' + th('航段 MORA', 'Leg MORA') + ' <span style="color:' + MAPC().safe + '">━</span> &lt;10000 <span style="color:' + MAPC().hi + '">━</span> ≥10000 <span style="color:' + MAPC().xh + '">━</span> ≥15000 ft' + '</span>';
+  const rings = '<br><span class="rlab">- - 1h · 410 nm</span><br><span class="rlab r2">- - 2h · 820 nm</span><br><span style="font-size:10px">' + th('圈内机场变大、标签按类别上色', 'Inside rings: enlarged, label in category colour') + '<br><span style="color:var(--fir)">●</span> ' + th('紫色航路点 = FIR 移交点（换频率）', 'Purple waypoint = FIR boundary (change freq.)') + '<br>' + th('「参考」管制区 = OFP 没印的边界，按 VATSpy 公开数据（CC BY-SA 4.0）估算', '“ref.” areas: boundaries not printed in the OFP, estimated from VATSpy data (CC BY-SA 4.0)') + '<br>' + th('航段 MORA', 'Leg MORA') + ' <span style="color:' + MAPC().safe + '">━</span> &lt;10000 <span style="color:' + MAPC().hi + '">━</span> ≥10000 <span style="color:' + MAPC().xh + '">━</span> ≥15000 ft' + '</span>';
   if (!S.EK) { $('legend').innerHTML = '<span class="t-amber">' + th('还没导入公司机场授权表', 'Authorisation table not imported') + '</span><br><span style="font-size:10px">OFP → ' + th('设置', 'Settings') + ' → OMA 12.2.5</span>' + rings; return; }
   $('legend').innerHTML = '<b style="color:var(--text)">' + TYPES[typeIdx()] + '</b><br>' +
     ['D', 'A1', 'A2', 'CA', 'EA'].map(c => catTag(c) + (c === 'CA' ? '' : catName(c))).join('<br>') + '<br>' + catTag('-') + th('未评估 / 不在表里', 'not evaluated / not listed') + '<br><span style="font-size:10px">' + th('外圈颜色 = 到达时天气', 'Outline = WX at arrival') + '</span>' + rings;
@@ -665,7 +665,7 @@ function drawRoute() {
   drawLegend();
   if (!S.ofp) return;
   const o = S.ofp;
-  S.pts = buildPts();
+  S.pts = buildPts(); S.xlegs = null;
   // 经度连续（跨 180° 不断开）
   const line = []; let prev = null;
   S.pts.forEach(p => { let lo = p.pos[1]; if (prev != null) { while (lo - prev > 180) lo -= 360; while (lo - prev < -180) lo += 360; } prev = lo; line.push([p.pos[0], lo]); });
@@ -730,6 +730,7 @@ function drawFirCircles() {
       .bindTooltip(esc(f.name) + ' · ' + f.code + (all.length ? ' · ' + th(all.length + ' 条通告', all.length + ' NOTAMs') : ''), { sticky: true, direction: 'top', opacity: .9 })
       .on('click', () => openFir(f.code)).addTo(g);
   });
+  firLegs().filter(f => f.ref && f.from > 0).forEach(f => { const q = posAt(f.from); if (q && q.pos) L.circleMarker(q.pos, { radius: 6, color: '#fff', weight: 1.5, fillColor: '#d63bff', fillOpacity: 1, pane: 'firc' }).bindTooltip('📻 ' + esc(f.name) + ' ' + hmZ(f.tIn), { direction: 'top' }).on('click', () => openFir(f.code)).addTo(g); });
   S.L_firc = g.addTo(map);
 }
 
@@ -786,7 +787,7 @@ const FIRN = [
 ];
 // 某 FIR 在时间段 [t1, t2] 内有效的通告，按影响分级
 function firNotams(code, t1, t2) {
-  const out = [];
+  const out = []; code = FIRALIAS[code] || code;   // 参考区（ZGNN 等）用它所属 FIR 的代码，不要拿成机场的通告
   ((S.ofp && S.ofp.notams[code]) || []).forEach(n => {
     if (t1 != null && ((n.to != null && n.to < t1 - 30 * MIN) || (n.from != null && n.from > (t2 || t1) + 30 * MIN))) return;
     const r = FIRN.find(x => x[0].test(n.text));
@@ -796,9 +797,37 @@ function firNotams(code, t1, t2) {
   return out.sort((a, b) => o[a.lv] - o[b.lv]);
 }
 // 航路上经过的 FIR：进入 / 离开时间
+// OFP 在中国境内等地方不印管制区分界（例如广州 → 三亚 → 南宁 → 昆明）：用离线的参考边界（VATSpy）补上第一条分界线之前的那一段
+const FIRALIAS = { ZGGG: 'ZGZU', ZGNN: 'ZGZU', ZJSY: 'ZJSA', ZPPP: 'ZPKM', ZBAA: 'ZBPE', ZSSS: 'ZSHA', ZHHH: 'ZHWH', ZLLL: 'ZLHW', ZWWW: 'ZWUQ', ZUUU: 'ZUUU' };
+let FIRB = null;
+fetch('fir.json').then(r => r.json()).then(j => { FIRB = j.f.map(f => { const rings = f.r.map(a => { const pts = []; for (let k = 0; k < a.length; k += 2) pts.push([a[k], a[k + 1]]); return pts; });
+  const bb = [180, 90, -180, -90]; rings.forEach(r => r.forEach(([x, y]) => { bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y); bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y); })); return { id: f.id, n: f.n, a: f.a, rings, bb }; });
+  if (S.ofp && S.pts) { S.xlegs = null; drawRoute(); tick(); } }).catch(() => {});
+function inRing(x, y, r) { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
+// 重叠时：优先和当前不同的管制区（FIR），再按面积小的（更具体）
+function firAtPos(lat, lon, curId) { if (!FIRB) return null; const C = FIRB.filter(f => !(lon < f.bb[0] || lon > f.bb[2] || lat < f.bb[1] || lat > f.bb[3]) && f.rings.some(r => inRing(lon, lat, r))); if (!C.length) return null;
+  if (curId) { const same = C.find(f => f.id === curId); if (same) return same;   // 还在原来的区里：不变
+    const cf = FIRALIAS[curId] || curId, other = C.filter(f => (FIRALIAS[f.id] || f.id) !== cf); if (other.length) return other.sort((a, b) => a.a - b.a)[0]; }
+  return C.sort((a, b) => a.a - b.a)[0]; }
+function xLegs() {
+  if (S.xlegs) return S.xlegs;
+  const F = (S.ofp && S.ofp.firs) || [], trip = S.ofp ? S.ofp.times.trip : 0;
+  if (!FIRB || !S.pts || !S.pts.length) return [];
+  const end = F.length && F[0].t != null ? F[0].t : 0; if (end < 3) return (S.xlegs = []);
+  const segs = []; let cur = null;
+  for (let m = 0; m <= end; m++) { const p = posAt(m); if (!p || !p.pos) continue; const f = firAtPos(p.pos[0], p.pos[1], cur && cur.id); if (!f) continue;
+    if (!cur || cur.id !== f.id) { if (cur) cur.to = m; cur = { id: f.id, n: f.n, from: m }; segs.push(cur); } }
+  if (cur) cur.to = end;
+  const near = m => { let b = null; S.pts.forEach(q => { if (!b || Math.abs(q.t - m) < Math.abs(b.t - m)) b = q; }); return b ? b.id : ''; };
+  const ofp0 = F.length ? (FIRALIAS[F[0].code] || F[0].code) : null;
+  S.xlegs = segs.filter(x => x.to - x.from >= 2 && !(x === segs[segs.length - 1] && (FIRALIAS[x.id] || x.id) === ofp0 && false))
+    .map((x, i) => ({ code: x.id, nc: FIRALIAS[x.id] || x.id, name: (x.n || x.id).split(' - ')[0] + ' · ' + tt('参考', 'ref.'), wp: i ? '≈' + near(x.from) : '', from: x.from, to: x.to, tIn: atP(x.from), tOut: atP(x.to), ref: true }));
+  return S.xlegs;
+}
 function firLegs() {
   const F = (S.ofp && S.ofp.firs) || [], T0 = tb(), trip = S.ofp ? S.ofp.times.trip : 0;
-  return F.map((f, i) => ({ code: f.code, name: (S.ofp.firNames && S.ofp.firNames[f.code]) || f.name, wp: f.wp, from: f.t, to: i + 1 < F.length ? F[i + 1].t : trip, tIn: atP(f.t), tOut: atP(i + 1 < F.length ? F[i + 1].t : trip) }));
+  const X = xLegs().map(x => Object.assign({}, x, { tIn: atP(x.from), tOut: atP(x.to) }));
+  return X.concat(F.map((f, i) => ({ code: f.code, name: (S.ofp.firNames && S.ofp.firNames[f.code]) || f.name, wp: f.wp, from: f.t, to: i + 1 < F.length ? F[i + 1].t : trip, tIn: atP(f.t), tOut: atP(i + 1 < F.length ? F[i + 1].t : trip) })));
 }
 const firFor = el => { const L = firLegs(); let c = null; L.forEach(x => { if (x.from <= el) c = x; }); return c; };
 function firSummary(items) {                                // 同类合并：「GPS 干扰 ×2」
@@ -826,7 +855,7 @@ function openFir(code) {
     (leg.tIn ? '<div style="color:var(--dim);font-size:13px">' + th('进入', 'Enter') + ' ' + (leg.wp || '') + ' ' + hmZ(leg.tIn) + ' · ' + th('离开', 'Exit') + ' ' + hmZ(leg.tOut) + '</div>' : '<div style="color:var(--dim);font-size:13px">' + th('航路不经过（附近）', 'Not crossed (nearby)') + '</div>') +
     '<h3>' + th('重大影响', 'Significant') + '（' + sig.length + '）' + nseg() + '</h3>' + (sig.length ? sig.map(it).join('') : '<div style="color:var(--dim)">' + th('没有', 'None') + '</div>') +
     (oth.length ? '<details style="margin-top:10px"><summary>' + th('其他通告', 'Other NOTAMs') + '（' + oth.length + '）</summary>' + oth.map(it).join('') + '</details>' : '') +
-    ((S.ofp.notams[code] || []).length ? '' : '<div style="color:var(--dim);margin-top:8px">' + th('OFP 里没有这个管制区的通告', 'No NOTAMs for this FIR in the OFP') + '</div>');
+    ((S.ofp.notams[FIRALIAS[code] || code] || []).length ? '' : '<div style="color:var(--dim);margin-top:8px">' + th('OFP 里没有这个管制区的通告', 'No NOTAMs for this FIR in the OFP') + '</div>');
   $('sheet-in').dataset.re = 'fir|' + code;
   $('sheet').classList.add('open');
 }
@@ -882,7 +911,7 @@ function tick() {
   const eta = S.atd ? atP(o.times.trip) : null;
   const remain = S.atd ? Math.max(0, o.times.trip - el) : o.times.trip;
   renderWp();
-  const nf = (o.firs || []).find(f => f.t != null && f.t > el);
+  const nf = firLegs().map(x => ({ t: x.from, wp: x.wp ? x.wp.replace('≈', '') : '', name: x.name, code: x.code })).find(f => f.t != null && f.t > el);
   const cf = firFor(el);
   if (!pv && S.atd && cf && S.lastFir !== cf.code) { if (S.lastFir !== undefined) { if (S.demo) toast('📻 ' + th('进入 ', 'Entering ') + esc(cf.name) + ' (' + cf.code + ')', 4000); else showFirPop(cf, true); } S.lastFir = cf.code; }
   if (!S.atd) S.lastFir = undefined;
@@ -1288,7 +1317,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v26';
+const APPV = 'v27';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
