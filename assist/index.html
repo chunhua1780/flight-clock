@@ -204,14 +204,20 @@ div.en,.wl .en{display:block;margin-left:0}
 #dec.open{display:flex}
 #dec .bar{display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:var(--top);border-bottom:1px solid var(--line)}
 #dec-q{width:150px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:14px;text-transform:uppercase}
-#dec-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:10px 14px 45vh;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55;white-space:pre;color:var(--text)}
-#dec-body .ln{cursor:pointer;border-radius:3px}
-#dec-body .ln.sel{background:rgba(226,185,100,.22)}
-#dec-body .ln.hit{background:rgba(111,180,255,.22)}
-#dec-body .ln.sec{color:var(--gold);font-weight:700}
+#dec-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:18px 10px 48vh;background:#5b6474}
+#dec-body .paper{max-width:760px;margin:0 auto;background:#fdfbf4;color:#1a1a1a;box-shadow:0 3px 18px rgba(0,0,0,.35);padding:26px 28px;font-family:"Courier New",ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.5;white-space:pre;overflow-x:auto;border-radius:2px}
+#dec-body .pgbrk{height:0;border-top:2px dashed #b8b2a2;margin:14px -28px;position:relative}
+#dec-body .pgbrk span{position:absolute;right:10px;top:-10px;background:#fdfbf4;color:#8a8576;font-size:10px;padding:0 6px;font-family:-apple-system,sans-serif}
+#dec-body .ln{cursor:pointer;border-radius:3px;min-height:1.5em}
+#dec-body .ln:hover{background:rgba(0,0,0,.04)}
+#dec-body .ln.sel{background:#fff0a8;box-shadow:inset 3px 0 0 #e0a800}
+#dec-body .ln.hit{background:#d6e8ff}
+#dec-body .ln.sec{color:#7a4e00;font-weight:700}
+#dec-pop .rc{color:var(--blue)}
 #dec-pop{position:absolute;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;background:var(--card);border-top:2px solid var(--gold);padding:12px 16px 20px;display:none;box-shadow:0 -6px 24px rgba(0,0,0,.35);font-size:15px;line-height:1.6}
 #dec-pop .w{font-size:14px;color:var(--dim);margin-bottom:6px}
 #dec-pop .l{font-size:16px}
+#dec-pop .om{margin-top:10px;padding:8px 10px;border-left:3px solid var(--blue);background:var(--input);border-radius:6px;font-size:14px}
 #dec-pop .x{float:right;cursor:pointer;color:var(--dim);font-size:20px;margin-left:10px}
 .nseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle;margin-left:8px}
 .nseg span{padding:3px 10px;font-size:12px;cursor:pointer;color:var(--dim)}
@@ -349,6 +355,9 @@ div.en,.wl .en{display:block;margin-left:0}
       <p><span data-i="公司机场授权表（OMA 12.2.5）：从手册里整张复制，粘贴到下面，点「导入」。只保存在这台 iPad 上，不会上传。|Aerodrome Authorisation Table (OMA 12.2.5): copy the whole table from the manual, paste below, tap Import. Stored on this iPad only, never uploaded."></span><span id="ek-st"></span></p>
       <textarea id="s-ek" style="height:90px" placeholder="Aerodrome Authorisation Table (Listed ICAO)&#10;12.2.5.1 — AG-AY&#10;ICAO&#10;IATA&#10;…"></textarea>
       <div class="row"><button class="btn" id="b-ek" data-i="导入授权表|Import table"></button><button class="btn sm" id="b-ekclr" data-i="删除|Delete"></button></div>
+      <p><span data-i="公司 OFP 解读（OM 10.1.7「EK-OFP Decodes」）：从手册整段复制粘贴到下面，点「导入」。只保存在这台 iPad 上；有网时会翻成中文，离线也能看。|Company OFP decodes (OM 10.1.7 EK-OFP Decodes): paste the whole section and tap Import. Stored on this iPad only; translated when online."></span><span id="om-st"></span></p>
+      <textarea id="s-om" style="height:90px" placeholder="EK-OFP Decodes&#10;1.&#10;EK701: Flight Number.&#10;…"></textarea>
+      <div class="row"><button class="btn" id="b-om" data-i="导入公司解读|Import decodes"></button><button class="btn sm" id="b-omclr" data-i="删除|Delete"></button></div>
       <div class="row"><button class="btn" id="b-save" data-i="保存设置|Save settings"></button></div>
       <p class="small" style="margin-top:14px;color:var(--dim)"><span id="verlbl"></span> · <a href="#" id="b-force" style="color:var(--amber)" data-i="网页一直不更新？点这里强制重新下载（需要网络）|Stuck on an old version? Force re-download (needs network)"></a></p>
     </details>
@@ -363,6 +372,7 @@ div.en,.wl .en{display:block;margin-left:0}
 <script src="brief.js"></script>
 <script src="notamx.js"></script>
 <script src="decode.js"></script>
+<script src="ompack.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -1041,7 +1051,7 @@ $('b-ek').onclick = () => {
   drawRoute(); lastList = 0; tick();
 };
 $('b-ekclr').onclick = () => { if (!confirm(tt('删除这台 iPad 上的机场授权表？', 'Delete the authorisation table from this iPad?'))) return; S.EK = null; try { localStorage.removeItem('fa.ek'); } catch (e) {} ekStatus(); drawRoute(); lastList = 0; tick(); };
-function openLoad() { ekStatus(); syncStatus(); $('verlbl').textContent = tt('版本', 'Version') + ' ' + APPV; $('load').classList.add('open'); $('s-clock').value = clockUrl(); $('s-key').value = lsGet('key') || ''; $('s-type').value = lsGet('type') || ''; $('s-lang').value = LANG; }
+function openLoad() { ekStatus(); omStatus(); syncStatus(); $('verlbl').textContent = tt('版本', 'Version') + ' ' + APPV; $('load').classList.add('open'); $('s-clock').value = clockUrl(); $('s-key').value = lsGet('key') || ''; $('s-type').value = lsGet('type') || ''; $('s-lang').value = LANG; }
 $('b-load').onclick = openLoad;
 $('b-close').onclick = () => $('load').classList.remove('open');
 function useText(txt) {
@@ -1206,7 +1216,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v13';
+const APPV = 'v15';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1332,18 +1342,104 @@ async function translateNotams(quiet) {
 }
 window.addEventListener('online', () => translateNotams(true));
 
+/* ---------------- 公司 OFP 解读（机长导入，只存在这台 iPad） ---------------- */
+let OM = null; try { OM = JSON.parse(lsGet('om') || 'null'); } catch (e) {}
+const omStatus = () => { $('om-st').innerHTML = OM ? '<br>✅ ' + th('已导入 ' + OM.n + ' 条', OM.n + ' entries imported') + (OM.zh ? th('（已翻译成中文）', ' (translated)') : th('（中文翻译：有网时自动完成）', ' (translation pending)')) : '<br><span class="t-amber">' + th('还没导入', 'Not imported') + '</span>'; };
+async function translateOM(quiet) {
+  if (!OM || OM.zh || !navigator.onLine || !lsGet('key')) return;
+  const keys = Object.keys(OM.e);
+  try { for (let i = 0; i < keys.length; i += 30) { const part = keys.slice(i, i + 30);
+      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'translate', texts: part.map(k => OM.e[k].en.slice(0, 4000)), to: 'zh-CN' }) });
+      const j = JSON.parse(await r.text()); if (!j.ok) return; j.out.forEach((t, n) => { if (t) OM.e[part[n]].zh = t; }); }
+    OM.zh = true; lsSet('om', JSON.stringify(OM)); if (!quiet) toast('✅ ' + th('公司解读已翻译成中文', 'Company decodes translated'), 3000); omStatus();
+  } catch (e) {}
+}
+$('b-om').onclick = () => {
+  const r = OMP.parse($('s-om').value);
+  if (r.n < 20) { $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('没读出来（只找到 ' + r.n + ' 条）。请把整段 EK-OFP Decodes 复制进来。', 'Could not read it (' + r.n + ' entries).'); return; }
+  OM = { e: r.e, n: r.n, at: Date.now() }; lsSet('om', JSON.stringify(OM)); $('s-om').value = ''; omStatus();
+  $('msg').style.color = 'var(--green)'; $('msg').textContent = '✅ ' + tt('导入 ' + r.n + ' 条公司解读', r.n + ' entries imported');
+  translateOM();
+};
+$('b-omclr').onclick = () => { if (!confirm(tt('删除这台 iPad 上的公司解读？', 'Delete company decodes from this iPad?'))) return; OM = null; try { localStorage.removeItem('fa.om'); } catch (e) {} omStatus(); };
+window.addEventListener('online', () => translateOM(true));
+// 点到的字 / 这一行 → 公司手册里对应的条目
+const OMLBL = ['ZFW CHANGE', 'FL CHANGE', 'SPD CHANGE', 'T/O FUEL', 'RAMP FUEL', 'FMC-RSV', 'GND DIST', 'AIR DIST', 'CRZ DEG', 'CRZ FL/TEMP', 'TOC TROP', 'ADJ RAMP FUEL', 'FUEL REMN', 'FUEL USED', 'AV TRK', 'AV W/C', 'AV ISA', 'DISCR FUEL REASON', 'PLND FL', 'WX PROG', 'PARKING BAY', 'ATC CLRNC', 'DISPATCH BRIEFING INFO', 'CREW NOTES', 'EK COMP FREQ', 'SPEC RQMNTS', 'CG-F/A', 'SR/TDEV', 'SP/M', 'W/C'];
+// 导航日志：按表头列的位置找出点到的是哪一栏
+function navCol(i, pos, w) {
+  const t = DL[i] || '', wpt = /\d+\.\d\s*$/.test(t) && !/\d{2,3}\/\d{3}/.test(t);
+  let h = -1; for (let k = i - 1; k >= 0 && k > i - 400; k--) if (/^AWY\s+TRM/.test(DL[k])) { h = k; break; }
+  if (h < 0) return null;
+  const H = DL[h + (wpt ? 1 : 0)] || '', cols = []; H.replace(/\S+/g, (m, o) => { cols.push({ k: m, a: o, b: o + m.length }); });
+  if (!cols.length) return null;
+  const a = pos, b = pos + w.length, c = (a + b) / 2;
+  let best = null, bd = 1e9; cols.forEach(x => { const ov = Math.min(b, x.b) - Math.max(a, x.a), d = ov > 0 ? -ov : Math.min(Math.abs(c - x.a), Math.abs(c - x.b)); if (d < bd) { bd = d; best = x.k; } });
+  if (best === 'AWY' && wpt) best = 'WPT';
+  return best;
+}
+function omFor(word, i, pos) {
+  if (!OM) return [];
+  const t = (DL[i] || '').replace(/\s+/g, ' ').trim(), sec = DSEC[i], keys = [];
+  const w = (word || '').replace(/[:,]$/, '');
+  if (OM.e[w]) keys.push(w);
+  OMLBL.forEach(k => { if (t.indexOf(k) >= 0 && (k.split(' ').indexOf(w) >= 0 || k === w)) keys.push(k); });
+  if (/^EK\d+\s+\d{2}[A-Z]{3}/.test(t)) keys.push(/^EK\d/.test(w) ? 'FLIGHT' : /^\d{2}[A-Z]{3}$/.test(w) ? 'DATE' : /\//.test(w) ? 'ROUTEPAIR' : /^CAPT/.test(w) ? 'CAPT' : 'TYPE');
+  if (/^UAE\d/.test(t)) keys.push(/SIGN/.test(w) ? 'SIGNATURE' : 'CALLSIGN');
+  if (/^[A-Z]{6}[A-Z]*\d+:/.test(t)) keys.push(/:$/.test(word || '') ? 'COMPANY ROUTE' : 'ROUTE SUMMARY');
+  if (/^OFP:/.test(t)) keys.push(/WX|PROG/.test(w) ? 'WX PROG' : /CTOT/.test(w) ? 'CTOT' : /PARK|BAY/.test(w) ? 'PARKING BAY' : 'OFP');
+  if (/TANKERING/.test(t)) keys.push(/DISCR|REASON|ATC|WX|MEL|ALTN|OTH/.test(w) ? 'DISCR FUEL REASON' : 'TANKERING');
+  if (/^-+.*(FIR|UIR)\//.test(t)) keys.push('FIRLINE');
+  if (w === '+' ) keys.push('+'); if (w === '=') keys.push('=');
+  if ((sec === 'nav' || sec === 'navalt') && /^[A-Z]{4}\/\w+\s+[\d.]+$/.test(t)) keys.push('DEPLINE');
+  if ((sec === 'nav') && /^[A-Z]{4}\/\w+\s+\d{3}/.test(t)) keys.push('DESTMIN');
+  if ((sec === 'nav' || sec === 'navalt') && !keys.length && w && /^[A-Z0-9]{2,8}\s/.test(t)) { const c = navCol(i, pos || 0, word); if (c) keys.push(c === 'SR/TDEV' ? 'SR/TDEV' : c); }
+  if (sec === 'altn' && !keys.length) keys.push('DEST ALTN');
+  if (sec === 'disp' && /DISPATCH/.test(t)) keys.push('DISPATCH BRIEFING INFO');
+  const first = (t.split(' ')[0] || '').replace(/:$/, '');
+  if (!keys.length && OM.e[first]) keys.push(first);
+  return [...new Set(keys)].filter(k => OM.e[k]).slice(0, 2).map(k => OM.e[k]);
+}
+const omHtml = list => list.map(x => '<div class="om">📘 ' + tt('公司手册 OM 10.1.7 第 ' + x.no + ' 条', 'OM 10.1.7 item ' + x.no) + '：' + (LANG === 'en' || !x.zh ? esc(x.en) : esc(x.zh) + (LANG === 'both' ? '<div style="color:var(--dim);font-size:12.5px;margin-top:3px">' + esc(x.en) + '</div>' : '')).replace(/\n/g, '<br>') + '</div>').join('');
+
 /* ---------------- OFP 解读 ---------------- */
 let DL = null, DSEC = null, DNOT = null;
 function openDec() {
   const raw = lsGet('ofptext');
   if (!raw) { toast(th('先载入 OFP（载入后才有原文）', 'Load an OFP first')); return; }
-  DL = OFP.clean(raw); DSEC = DEC.sections(DL);
+  DL = raw.replace(/\r/g, '').split('\n').map(l => l.replace(/\s+$/, '')); DSEC = DEC.sections(DL);
   DNOT = []; let cur = null;
   DL.forEach((l, i) => { const m = /^\s*([A-Z0-9]{1,3}\d{1,5}\/\d{2})\s/.exec(l); if (DSEC[i] === 'notam' && m) cur = m[1]; else if (DSEC[i] === 'notam' && (/^[A-Z]{4}\s*\/[A-Z0-9]{3}\s/.test(l) || /^\+{5,}/.test(l.trim()) || /^-{10,}/.test(l.trim()))) cur = null; DNOT[i] = DSEC[i] === 'notam' ? cur : null; });
-  $('dec-body').innerHTML = DL.map((l, i) => '<div class="ln' + (/^-{5,}.*(FIR|UIR)|^(Weather|NOTAM|DEPARTURE AIRPORT|DESTINATION|LIDO-NOTAM|=+$)/.test(l.trim()) ? ' sec' : '') + '" data-i="' + i + '">' + (esc(l) || ' ') + '</div>').join('');
+  $('dec-body').innerHTML = '<div class="paper">' + DL.map((l, i) => { const pg = /^\s*Page\s+(\d+)\s+of\s+(\d+)\s*$/.exec(l); if (pg) return '<div class="pgbrk" data-i="' + i + '"><span>' + pg[1] + ' / ' + pg[2] + '</span></div>'; if (/^\s*(?:UAE|EK)\d+\/\d{2}[A-Za-z]{3}\d{2}\/[A-Z]{3}-[A-Z]{3}\s+\S+\s+OFP:/.test(l)) return ''; return '<div class="ln' + (/^-{5,}.*(FIR|UIR)|^(Weather|NOTAM|OFP|DEPARTURE AIRPORT|DESTINATION|LIDO-NOTAM|=+$|\*{3})/.test(l.trim()) ? ' sec' : '') + '" data-i="' + i + '">' + (esc(l) || ' ') + '</div>'; }).join('') + '</div>';
+  setTimeout(translateParas, 300);
   $('dec').classList.add('open'); $('dec-pop').style.display = 'none';
 }
+// 整段文字（签派提示、公司通告、机组信息）：找出这一段，整段翻译
+let TRP = {}; try { TRP = JSON.parse(lsGet('trp') || '{}'); } catch (e) {}
+const hash = s => { let h = 0; for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) | 0; return 'p' + (h >>> 0).toString(36); };
+function paraOf(i) {
+  const isB = l => !l || !l.trim() || /^\s*Page\s+\d+/.test(l) || /^\s*(?:UAE|EK)\d+\/\d{2}[A-Za-z]{3}/.test(l);
+  if (isB(DL[i])) return null;
+  let a = i; while (a > 0 && !isB(DL[a - 1]) && !/^\s*-\s/.test(DL[a]) && DSEC[a - 1] === DSEC[i] && !/^\s*[A-Z0-9]{2,5}\d+\/\d{2}\s/.test(DL[a])) a--;
+  let b = i; while (b + 1 < DL.length && !isB(DL[b + 1]) && !/^\s*-\s/.test(DL[b + 1]) && DSEC[b + 1] === DSEC[i] && !/^\s*[A-Z0-9]{2,5}\d+\/\d{2}\s/.test(DL[b + 1]) && b - a < 30) b++;
+  const text = DL.slice(a, b + 1).map(x => x.trim()).join(' ').replace(/^-\s+/, '');
+  return text.split(' ').length >= 4 ? { a, b, text } : null;
+}
+let trpBusy = false;
+async function translateParas() {
+  if (trpBusy || !navigator.onLine || !lsGet('key') || !DL) return;
+  const todo = [], seen = {};
+  DL.forEach((l, i) => { if (!/^(disp|conotam|crew)$/.test(DSEC[i])) return; const p = paraOf(i); if (!p) return; const k = hash(p.text); if (!TRP[k] && !seen[k]) { seen[k] = 1; todo.push({ k, t: NX.en(p.text) }); } });
+  if (!todo.length) return;
+  trpBusy = true;
+  try { for (let i = 0; i < todo.length; i += 30) { const part = todo.slice(i, i + 30);
+    const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'translate', texts: part.map(x => x.t), to: 'zh-CN' }) });
+    const j = JSON.parse(await r.text()); if (!j.ok) break; j.out.forEach((t, k) => { if (t) TRP[part[k].k] = t; }); lsSet('trp', JSON.stringify(TRP)); } } catch (e) {}
+  trpBusy = false;
+}
 const decCtx = () => ({ nav: S.ofp && S.ofp.navlog, WX, hmZ, ref: S.ofp ? S.ofp.flight.dateUTC + 12 * 3600e3 : Date.now(), AP: S.AP, firNames: S.ofp && S.ofp.firNames, NX, atP: t => hmZ(atP(t)),
+  para: i => { const p = paraOf(i); if (!p) return null; const k = hash(p.text), zh = TRP[k];
+    document.querySelectorAll('#dec-body .ln.sel').forEach(x => x.classList.remove('sel')); for (let q = p.a; q <= p.b; q++) { const e = $('dec-body').querySelector('.ln[data-i="' + q + '"]'); if (e) e.classList.add('sel'); }
+    return { zh: '<b>整段意思：</b>' + (zh ? esc(zh) : esc(NX.zh(p.text).s) + ' <span style="color:var(--amber);font-size:12px">（还没联网翻译，先显示对照版；有网时会自动翻译）</span>'), en: '<b>In plain English:</b> ' + esc(NX.en(p.text)) }; },
   notam: i => { const id = DNOT[i]; if (!id) return null; let n = null; Object.values(S.ofp.notams).some(a => (n = a.find(x => x.id === id))); if (!n) return null;
     const r = FIRN.find(x => x[0].test(n.text)) || null;
     const z = NX.zh(n.text, n.id, TR);
@@ -1354,14 +1450,14 @@ $('dec-body').onclick = e => {
   const i = +ln.dataset.i;
   let word = '';
   const r = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : (document.caretPositionFromPoint ? (p => { const x = document.createRange(); x.setStart(p.offsetNode, p.offset); return x; })(document.caretPositionFromPoint(e.clientX, e.clientY)) : null);
-  if (r && r.startContainer && r.startContainer.nodeType === 3) { const t = r.startContainer.textContent, o = r.startOffset; let a = o, b = o; while (a > 0 && /\S/.test(t[a - 1])) a--; while (b < t.length && /\S/.test(t[b])) b++; word = t.slice(a, b); }
+  if (r && r.startContainer && r.startContainer.nodeType === 3) { const t = r.startContainer.textContent, o = r.startOffset; let a = o, b = o; while (a > 0 && /\S/.test(t[a - 1])) a--; while (b < t.length && /\S/.test(t[b])) b++; word = t.slice(a, b); ln.dataset.pos = a; }
   document.querySelectorAll('#dec-body .ln.sel').forEach(x => x.classList.remove('sel')); ln.classList.add('sel');
   const ctx = decCtx(), sec = DSEC[i];
   const L1 = DEC.lineSay(DL, i, sec, ctx), W1 = word ? DEC.wordSay(DL, i, word.replace(/[,;:]$/, ''), sec, ctx) : null;
   const pick = x => x ? (LANG === 'en' ? x.en : LANG === 'zh' ? x.zh : x.zh + '<div style="color:var(--dim);font-size:13px;margin-top:3px">' + x.en + '</div>') : '';
-  const SECN = { head: ['飞行计划首页（油量、时间、重量）', 'OFP front page (fuel, times, weights)'], altn: ['目的地备降场表', 'Destination alternates'], disp: ['签派提示', 'Dispatch notes'], nav: ['导航日志（每个航路点）', 'Navigation log'], navalt: ['去备降场的导航日志', 'Navlog to alternate'], winds: ['高空风温表', 'Winds aloft'], wx: ['天气（METAR / TAF）', 'Weather'], notam: ['航行通告', 'NOTAMs'], crew: ['机组信息', 'Crew info'] }[sec] || ['', ''];
+  const SECN = { head: ['飞行计划首页（油量、时间、重量）', 'OFP front page (fuel, times, weights)'], altn: ['目的地备降场表', 'Destination alternates'], disp: ['签派提示', 'Dispatch notes'], nav: ['导航日志（每个航路点）', 'Navigation log'], navalt: ['去备降场的导航日志', 'Navlog to alternate'], winds: ['高空风温表', 'Winds aloft'], wx: ['天气（METAR / TAF）', 'Weather'], notam: ['航行通告', 'NOTAMs'], crew: ['机组信息', 'Crew info'], conotam: ['公司通告 / 机组须知', 'Company NOTAMs / crew info'], etops: ['ETOPS 信息', 'ETOPS information'] }[sec] || ['', ''];
   $('dec-pop').innerHTML = '<span class="x" onclick="document.getElementById(\'dec-pop\').style.display=\'none\'">✕</span><div class="w">' + tt(SECN[0], SECN[1]) + (word ? ' · <b style="color:var(--text)">' + esc(word) + '</b>' : '') + '</div>' +
-    (W1 ? '<div style="margin-bottom:8px">' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>'));
+    (W1 ? '<div style="margin-bottom:8px">' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0));
   $('dec-pop').style.display = 'block';
 };
 $('b-dec').onclick = e => { e.preventDefault(); openDec(); };
@@ -1387,7 +1483,7 @@ Promise.all([apReady, ekReady]).then(() => {
     drawRoute();
   } else openLoad();
   applyUI(); tick(); setInterval(tick, 5000); fixBar();
-  flushClock(true); translateNotams(true);
+  flushClock(true); translateNotams(true); translateOM(true);
   if (S.ofpOld) toast('⚠️ ' + th('这份 OFP 是用旧版本读入的，请重新载入一次 OFP，才会显示移交点、油量等新内容。', 'This OFP was read by an older version — please load it again to see FIR boundaries, fuel, etc.'), 20000);
 });
 // 测试用：?sim=分钟 把时间设到起飞后多少分钟
