@@ -1242,23 +1242,33 @@ async function usePdfFile(f) {
 function pdfFrom(dt) {
   if (!dt) return null;
   const fs = [...(dt.files || [])], it = [...(dt.items || [])].filter(x => x.kind === 'file').map(x => x.getAsFile()).filter(Boolean);
-  return fs.concat(it).find(f => /pdf/i.test(f.type) || /\.pdf$/i.test(f.name || '')) || null;
+  const all = fs.concat(it);
+  return all.find(f => /pdf/i.test(f.type) || /\.pdf$/i.test(f.name || '')) || all[0] || null;   // 类型不明的也先试（按内容 %PDF 判断）
 }
+const isPdf = async b => { try { const h = new Uint8Array(await b.slice(0, 5).arrayBuffer()); return String.fromCharCode(...h).indexOf('%PDF') === 0; } catch (e) { return false; } };
+async function tryBlob(b) { if (b && await isPdf(b)) { usePdfFile(b); return true; } return false; }
+let pasteSeen = '', pasteHandled = false;
 function onPaste(e) {
   const dt = e.clipboardData; if (!dt) return;
+  pasteSeen = [...(dt.types || [])].join(', ') + ' | files ' + (dt.files ? dt.files.length : 0) + ' | ' + [...(dt.items || [])].map(x => x.kind + ':' + (x.type || '?')).join(', ');
   const f = pdfFrom(dt);
-  if (f) { e.preventDefault(); usePdfFile(f); return; }
+  if (f) { e.preventDefault(); pasteHandled = true; tryBlob(f).then(ok => { if (!ok) { $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('粘贴的文件不是 PDF', 'The pasted file is not a PDF') + '<br><small style="color:var(--dim)">' + esc(pasteSeen) + '</small>'; } }); return; }
   const t = dt.getData('text/plain') || '';
-  if (/OFP|EK\d{3,4}\s+\d{2}[A-Z]{3}|AWY\s+TRM/.test(t) && t.length > 500) { e.preventDefault(); $('f-txt').value = t; useText(t); return; }
-  if ([...(dt.items || [])].some(x => x.kind === 'file')) { e.preventDefault(); $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('粘贴的不是 PDF 文件', 'That is not a PDF'); return; }
-  if (e.target && e.target.id === 'f-paste') { e.preventDefault(); $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('剪贴板里没有 PDF。请先在 Lido 里「复制」PDF，再回来长按这里 → 粘贴。', 'No PDF on the clipboard. Copy the PDF in Lido first.'); }
+  if (/OFP|EK\d{3,4}\s+\d{2}[A-Z]{3}|AWY\s+TRM/.test(t) && t.length > 500) { e.preventDefault(); pasteHandled = true; $('f-txt').value = t; useText(t); return; }
+  // 其他情况：让 iPad 把东西放进框里（有时 PDF 会变成附件 / 图片），在 input 里再看；1.5 秒还没认出就告诉机长收到了什么
+  setTimeout(() => { if (!pasteHandled) { $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('没认出 PDF。请在 Lido 里「复制」PDF，再回来长按这里 → 粘贴。', 'No PDF found. Copy the PDF in Lido first.') + '<br><small style="color:var(--dim)">' + tt('剪贴板里收到：', 'Clipboard had: ') + esc(pasteSeen || '—') + '</small>'; } pasteHandled = false; }, 1500);
 }
 $('f-paste').addEventListener('paste', onPaste);
 document.addEventListener('paste', e => { if ($('load').classList.contains('open') && !(e.target && /^(TEXTAREA|INPUT)$/.test(e.target.tagName))) onPaste(e); });
-$('f-paste').addEventListener('beforeinput', e => { if (e.inputType !== 'insertFromPaste') e.preventDefault(); });
+$('f-paste').addEventListener('beforeinput', e => { if (!/insertFromPaste|insertFromDrop|insertReplacementText/.test(e.inputType)) e.preventDefault(); });
 // 粘贴框只当接收器：粘进来的任何东西都清掉，只留原来的图标和文字
 [...$('f-paste').children].forEach(c => c.classList.add('keep'));
-$('f-paste').addEventListener('input', () => { [...$('f-paste').childNodes].forEach(n => { if (!(n.nodeType === 1 && n.classList.contains('keep'))) n.remove(); }); });
+$('f-paste').addEventListener('input', async () => {
+  // iPad 有时把粘贴的 PDF 变成框里的附件 / 图片（blob: 地址）：取出来按内容判断是不是 PDF
+  const srcs = [...$('f-paste').querySelectorAll('img,object,embed,attachment,a,iframe')].map(n => n.getAttribute('src') || n.getAttribute('data') || n.getAttribute('href') || '').filter(Boolean);
+  [...$('f-paste').childNodes].forEach(n => { if (!(n.nodeType === 1 && n.classList.contains('keep'))) n.remove(); });
+  for (const u of srcs) { try { const b = await (await fetch(u)).blob(); if (await tryBlob(b)) { pasteHandled = true; return; } if (/^image\//.test(b.type)) { pasteHandled = true; $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('粘贴进来的是图片，不是 PDF 文件', 'A picture was pasted, not the PDF file') + '<br><small style="color:var(--dim)">' + esc(pasteSeen + ' | ' + b.type) + '</small>'; return; } } catch (e) {} }
+});
 ['dragover', 'dragenter'].forEach(ev => $('load').addEventListener(ev, e => { e.preventDefault(); $('f-paste').classList.add('over'); }));
 ['dragleave', 'drop'].forEach(ev => $('load').addEventListener(ev, () => $('f-paste').classList.remove('over')));
 $('load').addEventListener('drop', e => { e.preventDefault(); const f = pdfFrom(e.dataTransfer); if (f) usePdfFile(f); });
@@ -1409,7 +1419,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v38';
+const APPV = 'v39';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
