@@ -1218,7 +1218,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v17';
+const APPV = 'v18';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1415,7 +1415,7 @@ function aiHtml(word, sec) {
   $('dec-pop').dataset.ai = JSON.stringify({ k, text: B.text, word, sec });
   if (hit) return '<div class="ai">🌐 <b>' + tt('联网解读', 'Online explanation') + '</b><br>' + aiFmt(hit.out) + '</div>';
   if (!navigator.onLine || !lsGet('key')) return '';
-  return '<div class="ai" id="ai-box"><button class="btn sm" onclick="aiAsk()">🌐 ' + tt('联网解读这一段（Google 搜索 + AI）', 'Explain online (Google search + AI)') + '</button></div>';
+  return '<div class="ai" id="ai-box"><button class="btn sm" onclick="aiAsk()">🌐 ' + tt('联网 AI 解读这一段', 'Explain online (AI)') + '</button></div>';
 }
 async function aiAsk() {
   const box = $('ai-box'), d = JSON.parse($('dec-pop').dataset.ai || '{}'); if (!box || !d.k) return;

@@ -704,10 +704,11 @@ function testOfp() {
 }
 
 // ======== 联网解读（Gemini + Google 搜索） ========
+const GEMINI_KEY_INLINE = '';   // 也可以放在脚本属性 GEMINI_KEY
 // 申请免费 Key：https://aistudio.google.com/apikey → 复制 → Apps Script「项目设置 → 脚本属性」添加 GEMINI_KEY
 function explain_(j) {
   const props = PropertiesService.getScriptProperties();
-  const key = props.getProperty('GEMINI_KEY');
+  const key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE;
   if (!key) return { ok: false, error: 'no GEMINI_KEY' };
   const text = String(j.text || '').slice(0, 6000), lang = j.lang === 'en' ? 'en' : 'zh';
   if (!text.trim()) return { ok: false, error: 'empty' };
@@ -723,21 +724,25 @@ function explain_(j) {
       + 'Read numbers correctly (e.g. 236/063 = wind 236° at 63 kt, -37 = minus 37 °C, 321 = flight level). Do not translate word by word. '
       + (j.word ? 'The captain tapped "' + j.word + '": explain that in one sentence first, then the whole passage. ' : '') + 'Output only the explanation, concise, short paragraphs.\n\n')
     + '---\n' + text + '\n---';
-  const models = [props.getProperty('GEMINI_MODEL') || 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+  const models = [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
+  const call = function (model, search) {
+    const body = { contents: [{ role: 'user', parts: [{ text: prompt + (search ? '' : '\n(No web search available: rely on your aviation knowledge.)') }] }], generationConfig: { temperature: 0.2 } };
+    if (search) body.tools = [{ google_search: {} }];
+    return UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
+      method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
+  };
   let last = '';
   for (let m = 0; m < models.length; m++) {
-    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent', {
-      method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true,
-      payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { temperature: 0.2 } })
-    });
-    const code = r.getResponseCode();
-    if (code === 404 || code === 400 && /not found|not supported/i.test(r.getContentText())) { last = models[m] + ' ' + code; continue; }
+    // 先带 Google 搜索；免费额度不含搜索（429）时，不带搜索再试
+    let r = call(models[m], true), code = r.getResponseCode(), searched = true;
+    if (code === 429 || code === 400 && /search|tool/i.test(r.getContentText())) { r = call(models[m], false); code = r.getResponseCode(); searched = false; }
+    if (code === 404 || code === 429 || code === 503 || code === 400 && /not found|not supported/i.test(r.getContentText())) { last = models[m] + ' ' + code; continue; }
     if (code !== 200) return { ok: false, error: 'Gemini ' + code + ' ' + r.getContentText().slice(0, 160) };
     const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0];
     const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
-    if (!out) return { ok: false, error: 'empty answer' };
+    if (!out) { last = models[m] + ' empty'; continue; }
     try { cache.put(ck, out, 21600); } catch (e) {}
-    return { ok: true, out: out, model: models[m] };
+    return { ok: true, out: out, model: models[m], searched: searched };
   }
   return { ok: false, error: 'no model: ' + last };
 }
