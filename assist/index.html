@@ -1283,7 +1283,7 @@ async function useFile(f, name) {
     dg('read', { kind: r.kind, chars: r.text.length, first: r.text.trim().slice(0, 60) });
     $('f-txt').value = r.text; if (!useText(r.text)) { dg('result', 'not an OFP'); dgSend(); $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('读出了 ' + r.kind + ' 文件，但里面不是 OFP', 'Read the ' + r.kind + ' file, but it is not an OFP') + '<br><small style="color:var(--dim)">' + esc(r.text.trim().slice(0, 120)) + '…</small>'; return false; }
     dg('result', 'OK ' + (S.ofp && S.ofp.flight.no)); dgSend(); return true;
-  } catch (err) { dg('error', err.message); dgSend(); $('msg').style.color = 'var(--red)'; $('msg').textContent = tt('读取失败', 'Read failed') + ': ' + err.message; return false; }
+  } catch (err) { dg('error', err.message); dgSend(); $('msg').style.color = 'var(--red)'; $('msg').textContent = /password|destroy|Worker was destroyed|Loading aborted/i.test(err.message) ? tt('这个 PDF 有密码，没打开。请用「📧 从邮箱选」：Lido 发到邮箱的 OFP 没有密码。', 'This PDF is password-protected. Use “Pick from mail” instead.') : tt('读取失败', 'Read failed') + ': ' + err.message; return false; }
 }
 const usePdfFile = f => useFile(f);
 function pdfFrom(dt) {
@@ -1348,8 +1348,15 @@ $('f-pdf').onchange = async e => { const f = e.target.files[0]; if (!f) return; 
 async function pdfText(buf) {
   if (!window.pdfjsLib) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'vendor/pdf.min.js'; s.onload = ok; s.onerror = () => no(new Error('PDF 组件没载入')); document.head.appendChild(s); });
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+  let encInfo = '';   // 先看有没有加密（交给 pdf.js 以后数据就拿不到了）
+  try { const u = new Uint8Array(buf), t = new TextDecoder('latin1').decode(u.length > 400000 ? new Uint8Array([...u.subarray(0, 200000), ...u.subarray(u.length - 200000)]) : u); const i = t.indexOf('/Encrypt'); if (i >= 0) { const m = /\/Filter\s*\/(\w+)[\s\S]{0,300}?\/V\s+(\d)[\s\S]{0,300}?\/R\s+(\d)/.exec(t); encInfo = m ? m[1] + ' V' + m[2] + ' R' + m[3] : t.slice(i, i + 80); } } catch (e) {}
   const task = pdfjsLib.getDocument({ data: buf, isEvalSupported: false, stopAtErrors: false });
-  task.onPassword = (cb, why) => { const pw = prompt(why === 2 ? tt('密码不对，再输入一次：', 'Wrong password, try again:') : tt('这个 PDF 有密码，请输入：', 'This PDF needs a password:')); if (pw == null) task.destroy(); else cb(pw); };   // 加密的 PDF
+  // 加密的 PDF：记下加密方式（诊断用），问一次密码；不知道密码就取消，改用「从邮箱选」（Lido 发邮件的原文件没有密码）
+  task.onPassword = (cb, why) => {
+    dg('password', { why, enc: encInfo || '?' });
+    const pw = prompt((why === 2 ? tt('密码不对。', 'Wrong password. ') : '') + tt('这个 PDF 加了打开密码。知道密码就输入；不知道请点「取消」，然后用「📧 从邮箱选」——Lido 发到邮箱的 OFP 没有密码。', 'This PDF is password-protected. Enter it if you know it; otherwise Cancel and use “Pick from mail” — the OFP Lido emails has no password.'));
+    if (pw == null) { task.destroy(); } else cb(pw);
+  };
   const doc = await task.promise;
   const pages = [];
   for (let n = 1; n <= doc.numPages; n++) {
@@ -1487,7 +1494,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v43';
+const APPV = 'v44';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {

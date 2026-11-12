@@ -429,7 +429,8 @@ function updateStatus_(leg, pos, now) {
     // 最后一次信号已经在进近，之后信号消失（地面接收不到）：按落地处理
     st.on = Math.round(st.lastAir.t + st.lastAir.alt / 900 * MIN);
   }
-  st.seen = now;
+  if (pos) st.seen = now;   // 只有真的收到 ADS-B 才算「在跟踪」；收不到时时钟按计划时间推进
+  st.polled = now;
   if (JSON.stringify(st) !== before) setStatus_(leg, st);
   return publicStatus_(st);
 }

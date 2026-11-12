@@ -1171,11 +1171,13 @@ function flightPos(f, now) {
   const tracking = st.seen && now - st.seen < 15 * MIN;
   const liveAny = T.pos && now - T.at < 4 * MIN;
   // 在跟踪、还没起飞、也没有实时位置：飞机停在出发机场，预计到达随延误往后推
-  if (tracking && !st.off && !liveAny && now > f.std - 30 * MIN) {
+  // 只在真的看到飞机还在出发机场时才「等」；超过计划起飞 + 滑行 45 分钟、又 20 分钟没收到任何 ADS-B → 按计划时间往前推
+  const stale = !T.at || now - T.at > 20 * MIN;
+  if (tracking && !st.off && !liveAny && now > f.std - 30 * MIN && !(stale && now > f.std + taxiMs(f) + 45 * MIN)) {
     return { lat: A.lat, lon: A.lon, live: false, frac: 0, remKm: D, hdg: bearing(A, B),
       eta: Math.max(f.sta, now + (f.sta - f.std) + 15 * MIN), phase: st.taxi ? 'taxi' : now > f.std + 5 * MIN ? 'waiting' : 'boarding' };
   }
-  const takeoff = st.off || (tracking ? Math.max(f.std + taxiMs(f), st.taxi ? st.taxi + 12 * MIN : 0, Math.min(now + MIN, f.sta - 60 * MIN)) : f.std + taxiMs(f));
+  const takeoff = st.off || (tracking && !(stale && now > f.std + taxiMs(f) + 45 * MIN) ? Math.max(f.std + taxiMs(f), st.taxi ? st.taxi + 12 * MIN : 0, Math.min(now + MIN, f.sta - 60 * MIN)) : f.std + taxiMs(f));
   let land = st.on || (st.off ? st.off + airMs(f) : planLand(f));
   // 已起飞、还在跟踪、但还没检测到落地：别提前说「已落地」，当作还在进近
   if (!st.on && st.off && tracking && now > land - 5 * MIN) land = now + 8 * MIN;
