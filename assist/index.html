@@ -108,9 +108,14 @@ div.en,.wl .en{display:block;margin-left:0}
 #b-rings.off{opacity:.55}
 #prev{position:absolute;left:50%;transform:translateX(-50%);top:10px;z-index:600;display:none;background:rgba(30,46,80,.95);border:1px solid #4d6fae;border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap}
 #prev .btn{margin-left:6px}
-.firm{display:flex;align-items:center;gap:3px;white-space:nowrap}
-.firm i{display:block;width:11px;height:11px;background:#e26bff;transform:rotate(45deg);border:1.5px solid #fff}
-.firm span{color:#f2b8ff;font-size:10.5px;font-weight:800;text-shadow:0 0 3px #000,0 0 3px #000}
+.firm{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.firm i{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#d63bff;border:2.5px solid #fff;box-shadow:0 0 0 3px rgba(214,59,255,.35),0 0 10px #d63bff;font-style:normal;font-size:13px;line-height:1}
+.firm span{background:#d63bff;color:#fff;font-size:11px;font-weight:800;border-radius:6px;padding:2px 6px;box-shadow:0 1px 4px #000}
+.firm span small{font-weight:600;opacity:.85}
+#hud .c.fir{border-color:#d63bff}
+#hud .c.fir.soon{background:#7a1f99;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{background:#d63bff}}
+.apl.hot{font-size:12px;border:none;box-shadow:0 1px 4px #000}
 .dpm{color:#ff5d55;font-weight:900;font-size:13px;text-shadow:0 0 3px #000}
 .tr{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line);padding:6px 4px;cursor:pointer;font-size:13px}
 .tr .tm{font-variant-numeric:tabular-nums;color:var(--dim);width:46px;flex:none}
@@ -137,6 +142,15 @@ div.en,.wl .en{display:block;margin-left:0}
 #brief .cat{color:#fff}#brief .cat.cA1,#brief .cat.cA2{color:#111}
 #brief .num{font-variant-numeric:tabular-nums}
 #brief .small{font-size:11px;color:#555}
+#brief .pg.one{font-size:11px;line-height:1.42;padding:22px 26px}
+#brief .one h1{font-size:17px}#brief .one h2{font-size:12px;margin:8px 0 3px;border-bottom-width:1.5px}
+#brief .one .hd{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;margin:4px 0 6px}
+#brief .one .hd b{font-size:13px}
+#brief .one .cols{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+#brief .one ul{margin:2px 0;padding-left:16px}#brief .one li{margin:1px 0}
+#brief .one .fuel td,#brief .one .fuel th{padding:2px 5px}
+#brief .one .key{background:#fff4d6}
+#brief .one .flag{color:#c0221b;font-weight:700}
 @media print{
   @page{size:A4;margin:12mm}
   html,body{overflow:visible!important;height:auto!important;background:#fff!important}
@@ -144,6 +158,7 @@ div.en,.wl .en{display:block;margin-left:0}
   #brief{position:static!important;display:block!important;background:#fff!important;overflow:visible!important}
   #brief .pg{box-shadow:none;margin:0;padding:0;max-width:none}
   #brief h2{break-after:avoid}#brief tr{break-inside:avoid}
+  #brief .pg.one{padding:0;font-size:10.5px}
   .cat{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
@@ -182,7 +197,7 @@ div.en,.wl .en{display:block;margin-left:0}
 </div>
 
 <div id="sheet"><div class="in" id="sheet-in"></div></div>
-<div id="brief"><div class="bar"><button class="btn pri" id="b-print" data-i="🖨 打印 / 存 PDF|🖨 Print / Save PDF"></button><button class="btn" id="b-bclose" data-i="关闭|Close"></button></div><div class="pg" id="brief-pg"></div></div>
+<div id="brief"><div class="bar"><button class="btn sm" id="b-full" data-i="一页版 / 详细版|1-page / full"></button><button class="btn pri" id="b-print" data-i="🖨 打印 / 存 PDF|🖨 Print / Save PDF"></button><button class="btn" id="b-bclose" data-i="关闭|Close"></button></div><div class="pg" id="brief-pg"></div></div>
 <div id="toast"></div>
 
 <div id="load">
@@ -399,7 +414,7 @@ function ekHints(e, t) {
   const o = { red: 0, amber: 1, info: 2 }; return out.sort((a, b) => o[a.lv] - o[b.lv]);
 }
 function drawLegend() {
-  const rings = '<br><span class="rlab">- - 1h · 410 nm</span><br><span class="rlab r2">- - 2h · 820 nm</span><br><span style="font-size:10px">' + '<span style="color:#2ee6ff">◯</span> ' + th('青色外圈 = 2 小时圈内的备降场', 'Cyan outline = alternates within 2h') + '</span>';
+  const rings = '<br><span class="rlab">- - 1h · 410 nm</span><br><span class="rlab r2">- - 2h · 820 nm</span><br><span style="font-size:10px">' + th('圈内机场变大、标签按类别上色', 'Inside rings: enlarged, label in category colour') + '<br><span style="color:#e26bff">📻</span> ' + th('FIR 移交点 = 换频率', 'FIR boundary = change frequency') + '</span>';
   if (!S.EK) { $('legend').innerHTML = '<span class="t-amber">' + th('还没导入公司机场授权表', 'Authorisation table not imported') + '</span><br><span style="font-size:10px">OFP → ' + th('设置', 'Settings') + ' → OMA 12.2.5</span>' + rings; return; }
   $('legend').innerHTML = '<b style="color:var(--text)">' + TYPES[typeIdx()] + '</b><br>' +
     ['D', 'A1', 'A2', 'CA', 'EA'].map(c => catTag(c) + (c === 'CA' ? '' : catName(c))).join('<br>') + '<br>' + catTag('-') + th('未评估 / 不在表里', 'not evaluated / not listed') + '<br><span style="font-size:10px">' + th('外圈颜色 = 到达时天气', 'Outline = WX at arrival') + '</span>' + rings;
@@ -455,7 +470,7 @@ function drawRoute() {
   // FIR 移交点
   (o.firs || []).forEach(f => {
     const pt = S.pts.find(x => x.id === f.wp); if (!pt) return;
-    L_wps.push(L.marker(pt.pos, { icon: L.divIcon({ className: '', html: '<div class="firm"><i></i><span>▸ ' + f.code + '</span></div>', iconSize: [70, 14], iconAnchor: [6, 7] }), interactive: false, zIndexOffset: 500 }).addTo(map));
+    L_wps.push(L.marker(pt.pos, { icon: L.divIcon({ className: '', html: '<div class="firm"><i>📻</i><span>' + f.wp + ' ▸ ' + f.name.replace(/ FIR$/, '') + ' <small>' + f.code + ' ' + hmZ(tb() + f.t * MIN) + '</small></span></div>', iconSize: [200, 24], iconAnchor: [12, 12] }), interactive: false, zIndexOffset: 900 }).addTo(map));
   });
   // 释压改航点 DP
   (o.dp || []).forEach(d => {
@@ -474,7 +489,7 @@ function drawRoute() {
     const ring = c.ofp ? { green: '#3fcf7f', amber: '#f3b13c', red: '#ff5d55', none: '#0b1220' }[assess(c, tEta).rate] : '#0b1220';
     const mk = L.circleMarker(c.pos, { radius: big ? 9 : c.ofp ? 7 : 5, color: ring, weight: c.ofp ? 3 : 1.5, fillColor: CATC[cat] || CATC['-'], fillOpacity: c.ek ? 1 : .35 })
       .bindTooltip(c.icao, { permanent: true, direction: 'top', className: 'apl' + (c.ofp ? '' : ' x5'), offset: [0, -6] }).on('click', () => openSheet(c.icao)).addTo(map);
-    mk._fo = c.ek ? 1 : .35; mk._ring = ring; mk._w = c.ofp ? 3 : 1.5; L_apm[c.icao] = mk; L_aps.push(mk);
+    mk._fo = c.ek ? 1 : .35; mk._ring = ring; mk._w = c.ofp ? 3 : 1.5; mk._r = big ? 9 : c.ofp ? 7 : 5; mk._c = c; L_apm[c.icao] = mk; L_aps.push(mk);
   });
   L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div id="plane">' + PLANE + '</div>', iconSize: [34, 34], iconAnchor: [17, 17] }), draggable: true, zIndexOffset: 1000 }).addTo(map);
   // 拖动飞机：沿航路预览；30 秒不动就回到实际位置
@@ -565,6 +580,7 @@ function tick() {
   const eta = S.atd ? S.atd + o.times.trip * MIN : null;
   const remain = S.atd ? Math.max(0, o.times.trip - el) : o.times.trip;
   const nf = (o.firs || []).find(f => f.t != null && f.t > el);
+  if (nf && !pv && S.atd && nf.t - el <= 5 && S.firToast !== nf.wp) { S.firToast = nf.wp; toast('📻 <b>' + th('准备换频率', 'Change frequency') + '</b> · ' + nf.wp + ' ' + hmZ(tb() + nf.t * MIN) + ' ▸ ' + nf.name, 15000); }
   if (pv) setTimeout(() => { if (S.drag != null && !S.dragging) tick(); }, 1000);
   $('hud').innerHTML =
     '<div class="c"><div class="k">ATD</div><div class="v num">' + (S.atd ? hmZ(S.atd) : '—') + '</div></div>' +
@@ -572,7 +588,7 @@ function tick() {
     '<div class="c"><div class="k">' + th('已飞 / 剩余', 'Flown / To go') + '</div><div class="v num">' + (S.atd ? dur(Math.max(0, el)) + ' / ' + dur(remain) : '— / ' + dur(o.times.trip)) + '</div></div>' +
     '<div class="c"><div class="k">' + th('下一点', 'Next') + '</div><div class="v num">' + (p.next ? p.next.id + ' ' + hmZ(S.atd + p.next.t * MIN) : '—') + '</div></div>' +
     '<div class="c"><div class="k">GS</div><div class="v num">' + (p.gs ? Math.round(p.gs) + ' kt' : '—') + '</div></div>' +
-    (nf ? '<div class="c"><div class="k" style="color:#f2b8ff">' + th('下个移交', 'Next FIR') + '</div><div class="v num">' + nf.wp + ' ▸ ' + nf.code + ' ' + hmZ(tb() + nf.t * MIN) + '</div></div>' : '');
+    (nf ? '<div class="c fir' + (nf.t - el <= 10 ? ' soon' : '') + '"><div class="k" style="color:#f2b8ff">📻 ' + (nf.t - el <= 10 ? th('准备换频率', 'Change frequency') + ' · ' + Math.max(0, Math.round(nf.t - el)) + ' min' : th('下个移交', 'Next FIR')) + '</div><div class="v num">' + nf.wp + ' ▸ ' + nf.name.replace(/ FIR$/, '') + ' ' + hmZ(tb() + nf.t * MIN) + '</div></div>' : '');
   renderList();
 }
 
@@ -664,12 +680,17 @@ function summary(cur, n2) {
     (chips ? '<div class="chips">' + chips + '</div>' : '') + '</div>';
 }
 // 地图：2 小时圈内能用的机场外圈变成青色；2 小时圈外的变淡
-const IN2 = '#2ee6ff';
+// 1 小时 / 2 小时圈内能用的机场：按公司类别上色（外圈 + 标签），一眼看出 D / A1 / A2 / CA / EA
+const DARKTXT = { A1: 1, A2: 1, CA: 1 };
 function updateMap(p, in2) {
-  const set = new Set(in2.map(x => x.c.icao));
+  const set = {}; in2.forEach(x => { set[x.c.icao] = x; });
   Object.entries(L_apm).forEach(([k, mk]) => {
-    const c = mk.getLatLng(), far = distNm(p.pos, [c.lat, c.lng]) > R2, hot = set.has(k);
-    mk.setStyle({ color: hot ? IN2 : mk._ring, weight: hot ? 3 : mk._w, opacity: far ? .3 : 1, fillOpacity: far ? .22 * mk._fo : mk._fo });
+    const c = mk.getLatLng(), d = distNm(p.pos, [c.lat, c.lng]), far = d > R2, hx = set[k];
+    const cat = hx ? (mk._c.ek ? catAt(mk._c.ek, S.tview) : '-') : null, col = hx ? (CATC[cat] || '#8d9ab3') : null;
+    mk.setStyle({ color: hx ? '#ffffff' : mk._ring, weight: hx ? 2.5 : mk._w, fillColor: hx ? col : mk.options.fillColor, opacity: far ? .3 : 1, fillOpacity: far ? .22 * mk._fo : mk._fo });
+    mk.setRadius(hx ? (d <= R1 ? 11 : 9) : mk._r);
+    const te = mk.getTooltip() && mk.getTooltip().getElement();
+    if (te) { te.classList.toggle('hot', !!hx); te.style.background = hx ? col : ''; te.style.color = hx ? (DARKTXT[cat] ? '#0b1220' : '#fff') : ''; }
     const tp = mk.getTooltip(); if (tp) tp.setOpacity(far ? .35 : 1);
   });
 }
@@ -757,7 +778,7 @@ $('sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
 /* ---------------- ATD 输入 ---------------- */
 function setATD(t) {
   S.atd = t; lsSet('atd', t || ''); $('atd').value = t ? hmZ(t).slice(0, 4) : ''; S.drag = null;
-  S.follow = true; $('recenter').style.display = 'none'; lastList = 0; tick(); if (t) fitRing();
+  S.follow = true; $('recenter').style.display = 'none'; lastList = 0; S.firToast = null; if (L_route) drawRoute(); tick(); if (t) fitRing();
 }
 $('atd').onchange = () => {
   const v = $('atd').value.trim();
@@ -883,7 +904,10 @@ $('b-upd').onclick = async () => {
 };
 
 /* ---------------- Today Brief ---------------- */
-$('b-brief').onclick = e => { e.preventDefault(); if (!S.ofp) { openLoad(); return; } $('brief-pg').innerHTML = briefHtml(); $('brief').classList.add('open'); $('brief').scrollTop = 0; };
+let briefFullMode = false;
+const showBrief = () => { $('brief-pg').innerHTML = briefFullMode ? briefFull() : briefOne(); $('brief-pg').classList.toggle('one', !briefFullMode); };
+$('b-brief').onclick = e => { e.preventDefault(); if (!S.ofp) { openLoad(); return; } showBrief(); $('brief').classList.add('open'); $('brief').scrollTop = 0; };
+$('b-full').onclick = () => { briefFullMode = !briefFullMode; showBrief(); };
 $('b-bclose').onclick = () => $('brief').classList.remove('open');
 $('b-print').onclick = () => window.print();
 

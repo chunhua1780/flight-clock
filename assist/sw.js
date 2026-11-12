@@ -1,5 +1,5 @@
 /* 飞行助手离线缓存：完全离线。只有在页面上按「⟳ 更新」（有网络时）才会重新下载。 */
-const CACHE = 'fa-v5';
+const CACHE = 'fa-v6';
 const FILES = ['./', 'index.html', 'ofp.js', 'wx.js', 'ekparse.js', 'brief.js', 'manifest.json', 'data/airports.json', 'data/countries.json',
   'vendor/pdf.min.js', 'vendor/pdf.worker.min.js', 'vendor/topojson-client.min.js',
   '../vendor/leaflet/leaflet.js', '../vendor/leaflet/leaflet.css', '../icon-180.png'];

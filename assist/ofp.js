@@ -55,6 +55,7 @@
     t.crzFl = g(/CRZ FL\/TEMP\s+(FL\d{3})/);
     t.avgWind = g(/AV W\/C\s+([PM]\d{3})/);
     t.rampFuel = g(/RAMP FUEL\s+([\d.]+)/);
+    { const pb = g(/PARKING BAY:\s*(\S+)/); out.flight.bay = pb && !/^\.+$/.test(pb) ? pb : ''; }
     t.avgTrk = g(/AV TRK\s+(\d{3})/); t.avgIsa = g(/AV ISA\s+([PM]\d{2,3})/);
     t.plndFl = g(/PLND FL:\s*([^\n]+)/); if (t.plndFl) t.plndFl = t.plndFl.trim();
     // 油量表（kg；RAMP 是吨）
@@ -185,7 +186,7 @@
         const hd = /^([A-Z]{4})\s*\/([A-Z0-9]{3})\s+\S/.exec(l);
         if (hd && /^-{10,}/.test((L[i + 1] || '').trim())) { push(); cur = hd[1]; cat = ''; continue; }
         const fir = /^([A-Z]{4})\s+([A-Z][A-Z ]+(?:FIR|UIR|CTA|OCA)\b.*)$/.exec(l);
-        if (fir && /^-{6,}/.test((L[i + 1] || '').trim())) { push(); cur = fir[1]; cat = 'fir'; continue; }
+        if (fir && /^-{6,}/.test((L[i + 1] || '').trim())) { push(); cur = fir[1]; cat = 'fir'; (out.firNames = out.firNames || {})[fir[1]] = fir[2].trim().replace(/\s+/g, ' '); continue; }
         const ch = /^\+{5,}\s*([A-Z /]+?)\s*\+{5,}/.exec(l.trim());
         if (ch) { push(); cat = ch[1].trim(); continue; }
         const nt = /^([A-Z0-9]{1,3}\d{1,5}\/\d{2})(?:\s+-\s+[A-Z ]+?)?\s+VALID:\s*(\d{10})\s*-\s*(\d{10}|UFN|PERM)(\s+EST)?/.exec(l.trim());
