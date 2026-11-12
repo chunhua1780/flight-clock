@@ -367,8 +367,9 @@ div.en,.wl .en{display:block;margin-left:0}
 .nx-cv{font-weight:800;font-size:17px}.nx-c.ok .nx-cv{color:var(--green)}.nx-c.no .nx-cv{color:var(--red)}.nx-ci{font-size:11.5px;color:var(--dim);line-height:1.35}
 .nx-pb{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.nx-pb span{padding:6px 10px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer}.nx-pb span.on{background:var(--red);border-color:var(--red);color:#fff}
 .nx-pb input{flex:1;min-width:160px;background:var(--input);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:6px 9px;font:inherit;font-size:13px}
-.nx-say{margin-top:8px;border-left:3px solid var(--blue);background:rgba(111,180,255,.07);border-radius:8px;padding:8px 10px;cursor:text;user-select:text;-webkit-user-select:text}
-.nx-sh{font-size:11.5px;color:var(--blue);font-weight:700;margin-bottom:4px}.nx-st{font-size:15px;line-height:1.55;color:var(--text);font-family:Georgia,'Times New Roman',serif}
+.nx-say{margin-top:6px;border-left:3px solid var(--blue);background:rgba(111,180,255,.07);border-radius:8px;padding:5px 10px;cursor:pointer;display:inline-block}.nx-say:not(.open){margin-left:8px}.nx-say.open{display:block;padding:8px 10px}
+.nx-say .nx-st{cursor:text;user-select:text;-webkit-user-select:text;margin-top:4px}.nx-ar{display:inline-block;width:12px}
+.nx-sh{font-size:12px;color:var(--blue);font-weight:700}.nx-st{font-size:15px;line-height:1.55;color:var(--text);font-family:Georgia,'Times New Roman',serif}
 .nx-st .ph{color:var(--amber);font-family:inherit;font-weight:700}
 .nx-end{text-align:center;padding:18px;font-size:16px;color:var(--green)}
 #lb{position:fixed;inset:0;z-index:3500;background:var(--bg);display:none;overflow:auto;-webkit-overflow-scrolling:touch}
@@ -1548,7 +1549,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v51';
+const APPV = 'v52';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
