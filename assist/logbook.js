@@ -100,13 +100,15 @@
   const dshort = t => { if (!t) return ''; const d = new Date(t); return z2(d.getUTCDate()) + '/' + z2(d.getUTCMonth() + 1) + '/' + String(d.getUTCFullYear()).slice(2); };
 
   // ---------- 从 OFP 建 / 更新这一班 ----------
+  // 估算（只在 ADS-B 没有时用）：777 滑出至少 15 分钟（按 OFP 的 TAXI，最多 30）；落地后滑入 10 分钟
+  const TXO = m => Math.max(15, Math.min(30, m || 15)), TXI = 10;
   function keyOf(o) { return o.flight.no + '|' + o.flight.date + '|' + o.flight.dep; }
   function fromOfp() {
     if (typeof S === 'undefined' || !S.ofp) return null;
     const o = S.ofp, f = o.flight, k = keyOf(o);
     let e = LB.find(x => x.k === k);
     if (!e && (SY.del || []).indexOf(k) >= 0) return null;   // 删掉过的不要自动再建
-    const std = o.times.std || f.dateUTC, taxi = Math.min(30, o.times.taxi || 15) * MINms, trip = (o.times.trip || 0) * MINms;   // 滑出时间按 OFP 的 TAXI，最多 30 分钟
+    const std = o.times.std || f.dateUTC, taxi = TXO(o.times.taxi) * MINms, trip = (o.times.trip || 0) * MINms;   // 滑出时间按 OFP 的 TAXI，最多 30 分钟
     const ap = c => (S.AP && S.AP[c]) ? [S.AP[c][3], S.AP[c][4]] : null;
     const dp = (S.pts && S.pts[0] && S.pts[0].pos) || (typeof apPos === 'function' ? apPos(f.dep) : null) || ap(f.dep);
     const aq = (S.pts && S.pts.length && S.pts[S.pts.length - 1].pos) || (typeof apPos === 'function' ? apPos(f.arr) : null) || ap(f.arr);
@@ -114,7 +116,7 @@
       e = { k, flt: f.no, cs: 'UAE' + f.digits, date: std, dep: f.dep, arr: f.arr, depI: f.depIata, arrI: f.arrIata, type: f.type || '', reg: (f.reg || '').replace(/-/g, ''), role: SET.role, pf: false, pic: '', rmk: '', src: {} };
       LB.push(e); LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date));
     }
-    e.dp = dp; e.ap = aq; e.std = std; e.taxiP = Math.min(30, o.times.taxi || 15);
+    e.dp = dp; e.ap = aq; e.std = std; e.taxiP = TXO(o.times.taxi);
     e.pts = (S.pts || []).filter((p, i, A) => i === 0 || i === A.length - 1 || i % Math.ceil(A.length / 120) === 0).map(p => [+p.pos[0].toFixed(3), +p.pos[1].toFixed(3), p.t]);
     // 时间：手改 > ADS-B > Flight Assist 确认的起飞时间 > 计划
     const put = (f2, v, src) => { const rank = { man: 3, adsb: 2, est: 1.5, fa: 1, plan: 0 }; if (v && (!e[f2] || (rank[src] >= (rank[e.src[f2]] || 0)))) { e[f2] = v; e.src[f2] = src; } };
@@ -122,7 +124,7 @@
     put('to', to0 || std + taxi, to0 ? 'fa' : 'plan');
     put('offB', (to0 || std + taxi) - taxi, to0 ? 'fa' : 'plan');
     put('ldg', (e.to || std + taxi) + trip, to0 ? 'fa' : 'plan');
-    put('onB', (e.ldg || std + taxi + trip) + 5 * MINms, to0 ? 'fa' : 'plan');
+    put('onB', (e.ldg || std + taxi + trip) + TXI * MINms, to0 ? 'fa' : 'plan');
     save(); return e;
   }
   // 家里时钟用 ADS-B 判断的时间
@@ -138,10 +140,13 @@
       const st = j.status, put = (f, v, src) => { if (v && e.src[f] !== 'man' && !(src === 'est' && e.src[f] === 'adsb')) { e[f] = v; e.src[f] = src || 'adsb'; } };
       put('to', st.off); put('ldg', st.on);
       // 撤轮挡：ADS-B 看到开始滑行（往前推 2 分钟算推出）；看不到（地面信号常常收不到）→ 起飞时间 − OFP 滑行时间，最多 30 分钟
-      const tx = st.taxi && st.off && st.off - st.taxi > 0 && st.off - st.taxi < 90 * MINms ? st.taxi - 2 * MINms : null;
-      if (tx) put('offB', tx, 'adsb'); else if (st.off) put('offB', st.off - Math.min(30, e.taxiP || 15) * MINms, 'est');
-      // 挡轮挡：落地后大约 6 分钟（估算，可手改）
-      if (st.on) put('onB', st.on + 6 * MINms, 'est');
+      // 撤轮挡：优先 ADS-B 看到的第一次移动（推出）→ 开始滑行前 2 分钟 → 都没有才估算
+      const ok1 = v => v && st.off && st.off - v > 0 && st.off - v < 90 * MINms;
+      const tx = ok1(st.move) ? st.move : ok1(st.taxi) ? st.taxi - 2 * MINms : null;
+      if (tx) put('offB', tx, 'adsb'); else if (st.off) put('offB', st.off - TXO(e.taxiP) * MINms, 'est');
+      // 挡轮挡：优先 ADS-B 看到在目的地停稳；没有才按落地后 10 分钟估算
+      const ib = st.in && st.on && st.in - st.on > 0 && st.in - st.on < 90 * MINms ? st.in : null;
+      if (ib) put('onB', ib, 'adsb'); else if (st.on) put('onB', st.on + TXI * MINms, 'est');
       if (st.reg && !e.reg) e.reg = st.reg;
       save(); if (!quiet) toast('✅ ' + T('已读取 ADS-B 起降时间', 'ADS-B times loaded'), 2500); return true;
     } catch (err) { if (!quiet) toast('⚠️ ' + T('没连上时钟后台', 'Could not reach the backend')); return false; }

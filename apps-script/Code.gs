@@ -376,7 +376,7 @@ function setStatus_(leg, st) {
   PropertiesService.getScriptProperties().setProperty(statusKey_(leg), JSON.stringify(st));
 }
 function publicStatus_(st) {
-  return { taxi: st.taxi || null, off: st.off || null, on: st.on || null, seen: st.seen || null, reg: st.reg || null };
+  return { move: st.move || null, taxi: st.taxi || null, off: st.off || null, on: st.on || null, in: st.in || null, seen: st.seen || null, reg: st.reg || null };
 }
 function cleanup_() {
   const props = PropertiesService.getScriptProperties();
@@ -401,7 +401,10 @@ function updateStatus_(leg, pos, now) {
     if (dO + dD > total * 1.35 + 400) return publicStatus_(st); // 不在这条航线上（可能是同呼号的别的航班）
     if (pos.reg) st.reg = pos.reg;
     if (pos.ground) {
+      if (dO < 15 && !st.off && pos.gs != null && pos.gs >= 1.5 && !st.move) st.move = now;   // 第一次在地面动（推出）＝撤轮挡
       if (dO < 15 && !st.off && pos.gs >= 5 && !st.taxi) st.taxi = now;
+      // 落地后在目的地滑行：最后一次停下来的时间＝挡轮挡（中途停下等待、再动，会重新算）
+      if (dD < 15 && st.on && pos.gs != null) { if (pos.gs >= 3) { st.inMove = now; st.in = null; } else if (pos.gs < 1 && !st.in && now - st.on > 2 * MIN) st.in = now; }
       if (dD < 15 && st.off && !st.on) {
         const la = st.lastAir;
         st.on = la ? Math.min(now, Math.round(la.t + (la.alt || 0) / 900 * MIN)) : now;
