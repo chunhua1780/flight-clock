@@ -123,6 +123,7 @@ function doGet(e) {
       const leg = p.o && p.d && p.std ? { origin: p.o, dest: p.d, std: +p.std, sta: +p.sta || 0 } : null;
       return out_(track_(p.cs, leg));
     }
+    if (p.action === 'logtimes') return out_(logTimes_(p));   // 飞行记录本：这一班 ADS-B 判断的滑出 / 起飞 / 落地时间
     if (p.action === 'ics') return out_(flights_(p.url));
     return out_(flights_());
   } catch (err) {
@@ -779,4 +780,18 @@ function kbGet_() {
     try { if (key.indexOf('kb_') === 0) terms[key.slice(3)] = JSON.parse(all[key]); else if (key.indexOf('ka_') === 0) ai[key.slice(3)] = JSON.parse(all[key]); } catch (e) {}
   });
   return { ok: true, terms: terms, ai: ai };
+}
+
+// ======== 飞行记录本：按起降机场 + 大约时间，找时钟用 ADS-B 记下的滑出 / 起飞 / 落地时间 ========
+function logTimes_(p) {
+  const o = String(p.o || '').toUpperCase(), d = String(p.d || '').toUpperCase(), t = +p.t || 0;
+  if (!/^[A-Z]{3,4}$/.test(o) || !/^[A-Z]{3,4}$/.test(d) || !t) return { ok: false, error: 'bad params' };
+  const all = PropertiesService.getScriptProperties().getProperties(), pre = 'st_' + o + d;
+  let best = null, bd = 18 * HOUR;
+  Object.keys(all).forEach(function (k) {
+    if (k.indexOf(pre) !== 0) return; const std = +k.slice(pre.length); if (!std) return;
+    const dd = Math.abs(std - t); if (dd < bd) { bd = dd; best = { std: std, st: JSON.parse(all[k]) }; }
+  });
+  if (!best) return { ok: true, found: false };
+  return { ok: true, found: true, std: best.std, status: publicStatus_(best.st) };
 }

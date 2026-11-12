@@ -294,6 +294,32 @@ div.en,.wl .en{display:block;margin-left:0}
 #brief .one .fuel td,#brief .one .fuel th{padding:2px 5px}
 #brief .one .key{background:#fff4d6}
 #brief .one .flag{color:#c0221b;font-weight:700}
+#lb{position:fixed;inset:0;z-index:3500;background:var(--bg);display:none;overflow:auto;-webkit-overflow-scrolling:touch}
+#lb.open{display:block}
+#lb .bar{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;background:#0e1626;border-bottom:1px solid var(--line)}
+#lb .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}#lb .seg span{padding:6px 12px;cursor:pointer;font-size:13px;color:var(--dim)}#lb .seg span.on{background:var(--blue);color:#04121f;font-weight:700}
+#lb-pg{max-width:1180px;margin:0 auto;padding:12px 14px 40px}
+.lcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0}
+.lcard summary{cursor:pointer}
+.lhd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;margin-bottom:10px}
+.lreg{width:90px;background:var(--input);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:3px 6px;font:inherit;font-size:14px}
+.lrow{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:6px 0}
+.lt{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--dim)}
+.lt input,.lt select{background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:6px 8px;font:inherit;font-size:15px}
+.lt input.num{width:72px;font-size:18px;font-weight:700;letter-spacing:.04em;text-align:center}
+.lsrc{font-size:10px;border-radius:4px;padding:0 4px;align-self:flex-start}.lsrc.a{background:#1f6f45;color:#d8ffe9}.lsrc.m{background:#7a5a10;color:#fff3d0}.lsrc.f{background:#23548a;color:#dcecff}.lsrc.p{background:#46526a;color:#e3e8f1}
+.lsum{margin-top:8px;font-size:14px}.ldim{color:var(--dim);font-size:12px}
+.lpaper{background:#fff;color:#111;border-radius:6px;padding:16px 18px;margin-top:16px;overflow-x:auto}
+.lpaper h1{font-size:18px;margin:0 0 2px}.lmeta{font-size:11.5px;color:#555;margin-bottom:8px}
+.lbt{border-collapse:collapse;font-size:11.5px;min-width:100%;white-space:nowrap}.lbt th,.lbt td{border:1px solid #b9c0cc;padding:3px 5px;text-align:center}.lbt th{background:#eef1f6;font-size:10.5px;font-weight:700}
+.lbt td.b{font-weight:700}.lbt tr:not(.tot):hover td{background:#f4f8ff;cursor:pointer}.lbt tr.tot td{background:#f6f3e8;font-weight:700}
+@media print{
+  body.plb #brief{display:none!important}
+  body.plb #lb{position:static!important;display:block!important;background:#fff!important;overflow:visible!important}
+  body.plb #lb .bar,body.plb #lb .noprint{display:none!important}
+  body.plb .lpaper{padding:0;margin:0}
+  body.plb .lbt{font-size:9px}
+}
 @media print{
   @page{size:A4;margin:12mm}
   html,body{overflow:visible!important;height:auto!important;background:#fff!important}
@@ -348,11 +374,12 @@ div.en,.wl .en{display:block;margin-left:0}
       <button class="btn sm" data-tab="all" data-i="OFP 天气|OFP WX"></button>
     </div>
     <div id="list"></div>
-    <div class="disc"><a href="#" id="b-brief">📋 Today Brief</a><a href="#" id="b-dec">📄 OFP <span data-i="解读|Decode"></span></a><a href="#" id="b-demo">▶ <span data-i="演示|Demo"></span></a><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
+    <div class="disc"><a href="#" id="b-brief">📋 Today Brief</a><a href="#" id="b-dec">📄 OFP <span data-i="解读|Decode"></span></a><a href="#" id="b-demo">▶ <span data-i="演示|Demo"></span></a><a href="#" id="b-lb">📒 <span data-i="飞行记录本|Logbook"></span></a><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
   </div>
 </div>
 
 <div id="sheet"><div class="in" id="sheet-in"></div></div>
+<div id="lb"><div class="bar"><span class="seg" id="lb-fmt"><span data-v="caac" onclick="LBK.fmt('caac')">中国民航</span><span data-v="jepp" onclick="LBK.fmt('jepp')">Jeppesen</span></span><span style="flex:1"></span><button class="btn sm" onclick="LBK.csv()" data-i="⬇ 导出表格|⬇ CSV"></button><button class="btn sm" onclick="LBK.backup()" data-i="💾 备份|💾 Backup"></button><label class="btn sm" style="cursor:pointer"><span data-i="↩ 恢复|↩ Restore"></span><input type="file" accept=".json,application/json" style="display:none" onchange="if(this.files[0])LBK.restore(this.files[0]);this.value=''"></label><button class="btn pri" onclick="document.body.classList.add('plb');window.print();setTimeout(()=>document.body.classList.remove('plb'),500)" data-i="🖨 打印|🖨 Print"></button><button class="btn" onclick="LBK.close()" data-i="关闭|Close"></button></div><div id="lb-pg"></div></div>
 <div id="brief"><div class="bar"><button class="btn sm" id="b-full" data-i="一页版 / 详细版|1-page / full"></button><button class="btn pri" id="b-print" data-i="🖨 打印 / 存 PDF|🖨 Print / Save PDF"></button><button class="btn" id="b-bclose" data-i="关闭|Close"></button></div><div class="pg" id="brief-pg"></div></div>
 <div id="toast"></div>
 <div id="dec"><div class="bar"><b style="font-size:16px">📄 OFP <span data-i="解读|Decode"></span></b><span style="color:var(--dim);font-size:12px" data-i="点任何字看解释|Tap anything for an explanation"></span><span style="flex:1"></span>
@@ -402,6 +429,7 @@ div.en,.wl .en{display:block;margin-left:0}
 <script src="notamx.js"></script>
 <script src="decode.js"></script>
 <script src="ompack.js"></script>
+<script src="logbook.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -1118,7 +1146,7 @@ $('sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
 
 /* ---------------- ATD 输入 ---------------- */
 function setATD(t) {
-  S.atd = t; lsSet('atd', t || ''); $('atd').value = t ? hmZ(t).slice(0, 4) : ''; S.drag = null; if (S.fix) { S.fix = null; lsSet('fix', ''); fixBar(); }
+  S.atd = t; lsSet('atd', t || ''); if (!S.demo) setTimeout(() => { try { LBK.sync(); } catch (e) {} }, 300); $('atd').value = t ? hmZ(t).slice(0, 4) : ''; S.drag = null; if (S.fix) { S.fix = null; lsSet('fix', ''); fixBar(); }
   S.follow = true; rcOn(true); lastList = 0; S.firToast = null; if (L_route) drawRoute(); tick(); if (t) fitRing();
 }
 $('atd').oninput = () => $('atd').classList.toggle('dirty', $('atd').value.trim() !== (S.atd ? hmZ(S.atd).slice(0, 4) : ''));
@@ -1169,7 +1197,7 @@ function useText(txt) {
   const nA = Object.keys(r.airports).length, nN = Object.values(r.notams).reduce((s, x) => s + x.length, 0);
   $('msg').style.color = 'var(--green)';
   $('msg').textContent = '✅ ' + r.flight.no + ' ' + r.flight.dep + '→' + r.flight.arr + '：' + tt(r.navlog.length + ' 个航路点（' + Object.keys(r.fixes).length + ' 个有坐标），' + nA + ' 个机场天气，' + nN + ' 条 NOTAM', r.navlog.length + ' waypoints (' + Object.keys(r.fixes).length + ' with coords), WX for ' + nA + ' airports, ' + nN + ' NOTAMs') + (r.warnings.length ? '\n⚠️ ' + r.warnings.join('; ') : '');
-  drawRoute(); lastList = 0; tick(); syncClock(); setTimeout(() => { translateNotams(); translateParas(); }, 2500);
+  drawRoute(); lastList = 0; tick(); syncClock(); setTimeout(() => { translateNotams(); translateParas(); }, 2500); setTimeout(() => { try { LBK.sync(); } catch (e) {} }, 1500);
   setTimeout(() => $('load').classList.remove('open'), 1200);
   return true;
 }
@@ -1321,7 +1349,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v29';
+const APPV = 'v30';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1704,6 +1732,7 @@ const showBrief = () => { $('brief-pg').innerHTML = briefFullMode ? briefFull() 
 $('b-brief').onclick = e => { e.preventDefault(); if (!S.ofp) { openLoad(); return; } showBrief(); $('brief').classList.add('open'); $('brief').scrollTop = 0; };
 $('b-full').onclick = () => { briefFullMode = !briefFullMode; showBrief(); };
 $('b-bclose').onclick = () => $('brief').classList.remove('open');
+$('b-lb').onclick = e => { e.preventDefault(); LBK.open(); };
 $('b-print').onclick = () => window.print();
 
 /* ---------------- 开始 ---------------- */
