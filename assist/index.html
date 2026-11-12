@@ -1220,7 +1220,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v19';
+const APPV = 'v20';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1405,6 +1405,13 @@ function omFor(word, i, pos) {
 }
 const omHtml = list => list.map(x => '<div class="om">📘 ' + tt('公司手册 OM 10.1.7 第 ' + x.no + ' 条', 'OM 10.1.7 item ' + x.no) + '：' + (LANG === 'en' || !x.zh ? esc(x.en) : esc(x.zh) + (LANG === 'both' ? '<div style="color:var(--dim);font-size:12.5px;margin-top:3px">' + esc(x.en) + '</div>' : '')).replace(/\n/g, '<br>') + '</div>').join('');
 
+// 这台设备还没存口令（每台设备、每个浏览器分开存）：当场问一次，记住
+function needKey() {
+  if (lsGet('key')) return true;
+  const k = (prompt('这台设备还没填「时钟后台口令」（和 iPad 设置里填的一样）。\n填一次就记住了：') || '').trim();
+  if (!k) return false;
+  lsSet('key', k); if ($('s-key')) $('s-key').value = k; return true;
+}
 /* ---------------- 联网解读（Gemini + Google 搜索，经自己的 Apps Script）：有网时点一下，结果存在 iPad 上，离线也能看 ---------------- */
 let AI = {}; try { AI = JSON.parse(lsGet('ai') || '{}'); } catch (e) {}
 const aiLang = () => LANG === 'en' ? 'en' : 'zh';
@@ -1416,11 +1423,12 @@ function aiHtml(word, sec) {
   const k = hash(aiLang() + '|' + B.text), hit = AI[k];
   $('dec-pop').dataset.ai = JSON.stringify({ k, text: B.text, word, sec });
   if (hit) return '<div class="ai">🌐 <b>' + tt('联网解读', 'Online explanation') + '</b><br>' + aiFmt(hit.out) + '</div>';
-  if (!navigator.onLine || !lsGet('key')) return '';
+  if (!navigator.onLine) return '';
   return '<div class="ai" id="ai-box"><button class="btn sm" onclick="aiAsk()">🌐 ' + tt('联网 AI 解读这一段', 'Explain online (AI)') + '</button></div>';
 }
 async function aiAsk() {
   const box = $('ai-box'), d = JSON.parse($('dec-pop').dataset.ai || '{}'); if (!box || !d.k) return;
+  if (!needKey()) return;
   box.innerHTML = '⏳ ' + tt('正在联网查找、整理…（10–30 秒）', 'Searching and writing… (10–30 s)');
   try {
     const SECN = { head: 'OFP front page (fuel/times/weights)', altn: 'destination alternates', disp: 'dispatch briefing', nav: 'navigation log', navalt: 'navlog to alternate', winds: 'winds/temperatures aloft table', wx: 'weather METAR/TAF', notam: 'NOTAM', crew: 'crew info', conotam: 'company NOTAM', etops: 'ETOPS info' };
@@ -1528,7 +1536,7 @@ async function decRefresh() {
   b.classList.add('busy'); b.textContent = '⟳ ' + tt('联网中…', 'Connecting…');
   const done = () => { const x = $('dec-rf'); if (x) { x.classList.remove('busy'); x.textContent = '⟳ ' + tt('刷新', 'Refresh'); } };
   if (!(await online())) { done(); toast('📵 ' + tt('当前无网络，保留离线内容', 'No network — keeping the offline version')); return; }
-  if (!lsGet('key')) { done(); toast(tt('先在设置里填时钟后台口令', 'Set the clock backend key first')); return; }
+  if (!needKey()) { done(); return; }
   const i = DLAST.i, post = body => fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => JSON.parse(t));
   let ok = false;
   try {
