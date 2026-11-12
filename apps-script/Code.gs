@@ -56,6 +56,8 @@ function doPost(e) {
   const p = (e && e.parameter) || {};
   if (!OFP_POST_KEY || p.k !== OFP_POST_KEY) return txt_('❌ 口令不对');
   const text = (e.postData && e.postData.contents) || p.text || '';
+  // 飞行助手发来的 JSON：航班、计划时间、航路点（坐标 + 计划时间 + 累计距离）、手动输入的起飞时间
+  if (/^\s*\{/.test(text)) return txt_(postJson_(text));
   const r = parsePlan_(text);
   if (!r) return txt_('❌ 没认出飞行计划（要包含第一行，例如 EK9876 08NOV OMDW/DWC-ZGGG/CAN）');
   const props = PropertiesService.getScriptProperties();
@@ -66,6 +68,21 @@ function doPost(e) {
   const hm = function (m) { return Math.floor(m / 60) + 'h' + ('0' + m % 60).slice(-2); };
   return txt_('✅ EK' + r.digits + ' ' + r.date + ' ' + r.depIata + '→' + r.arrIata +
     (r.trip ? ' · 计划飞行 ' + hm(r.trip) : ' · ⚠️ 没找到 TRIP 时间') + (r.taxi ? ' · 滑行 ' + r.taxi + ' 分' : '') + (r.reg ? ' · ' + r.reg : ''));
+}
+function postJson_(text) {
+  let j; try { j = JSON.parse(text); } catch (x) { return '❌ 数据格式不对'; }
+  if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
+  const props = PropertiesService.getScriptProperties();
+  const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
+  let old = {}; try { old = JSON.parse(props.getProperty(key) || '{}'); } catch (x) {}
+  const pts = Array.isArray(j.pts) ? j.pts.slice(0, 120).map(function (q) { return [Math.round(q[0] * 1e3) / 1e3, Math.round(q[1] * 1e3) / 1e3, Math.round(q[2]), Math.round(q[3])]; }) : (old.pts || null);
+  const r = { digits: String(j.digits).replace(/^0+/, ''), date: j.date, depIata: j.depIata, arrIata: j.arrIata, reg: j.reg || old.reg || null,
+    trip: +j.trip || old.trip || null, taxi: +j.taxi || old.taxi || null, gnd: +j.gnd || old.gnd || null, pts: pts,
+    atd: j.atd === null ? null : (+j.atd || old.atd || null), t: Date.now() };
+  props.setProperty(key, JSON.stringify(r));
+  const hm = function (m) { return Math.floor(m / 60) + 'h' + ('0' + m % 60).slice(-2); };
+  return '✅ EK' + r.digits + ' ' + r.date + ' ' + r.depIata + '→' + r.arrIata + (r.trip ? ' · ' + hm(r.trip) : '') + (pts ? ' · ' + pts.length + ' 个航路点' : '') +
+    (r.atd ? ' · ATD ' + new Date(r.atd).toISOString().slice(11, 16).replace(':', '') + 'Z' : '');
 }
 function txt_(s) { return ContentService.createTextOutput(s).setMimeType(ContentService.MimeType.TEXT); }
 
