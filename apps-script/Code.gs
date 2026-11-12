@@ -851,11 +851,11 @@ function lbSync_(j) {
 // 在 Lido 里把 OFP 的 PDF 用邮件发给自己（发到这个 Google 账号）就行。
 function ofpMail_(j) {
   const days = Math.min(10, Math.max(1, +j.days || 4)), out = [];
-  GmailApp.search('has:attachment filename:pdf newer_than:' + days + 'd', 0, 30).forEach(function (th) {
+  GmailApp.search('has:attachment {filename:pdf filename:docx filename:doc filename:rtf filename:txt filename:odt} newer_than:' + days + 'd', 0, 30).forEach(function (th) {
     th.getMessages().forEach(function (m) {
       m.getAttachments({ includeInlineImages: false }).forEach(function (a, i) {
         const name = a.getName() || '';
-        if (!/\.pdf$/i.test(name) && !/pdf/i.test(a.getContentType())) return;
+        if (!/\.(pdf|docx?|rtf|txt|odt)$/i.test(name) && !/pdf|word|rtf|text\/plain|opendocument/i.test(a.getContentType())) return;
         if (a.getSize() > 15e6) return;
         out.push({ id: m.getId() + ':' + i, name: name, subject: String(m.getSubject() || '').slice(0, 120), t: m.getDate().getTime(), size: a.getSize() });
       });

@@ -64,7 +64,7 @@
         mailMsg = T('下载 ', 'Downloading ') + f.name; menuRefresh();
         const a = await post({ action: 'ofpget', id: f.id }); if (!a.ok || !a.b64) continue;
         const bin = Uint8Array.from(atob(a.b64), c => c.charCodeAt(0));
-        let text = ''; try { text = await pdfText(bin.buffer); } catch (e) { continue; }
+        let text = ''; try { text = (await DOCR.readAny(new Blob([bin]), f.name, pdfText)).text; } catch (e) { continue; }   // PDF / Word / RTF / 文字都行
         const r = OFP.parse(text); seen.add(f.id);
         if (!r.ok || !mine(r)) continue;                                                       // 不是 OFP / 不是排班上的航班：不收
         await save(text, 'mail', f.name, r); got++;
