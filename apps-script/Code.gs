@@ -80,6 +80,8 @@ function postJson_(text) {
   if (j.action === 'explain') return JSON.stringify(explain_(j));
   // 学到的东西：所有设备共用（iPad、电脑），下载到设备上离线用
   if (j.action === 'kb') return JSON.stringify(kbGet_());
+  // 飞行记录本：云端保存（你自己 Google Drive 里的一个表格）
+  if (j.action === 'lbsync') return JSON.stringify(lbSync_(j));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -794,4 +796,46 @@ function logTimes_(p) {
   });
   if (!best) return { ok: true, found: false };
   return { ok: true, found: true, std: best.std, status: publicStatus_(best.st) };
+}
+
+// ======== 飞行记录本云端：存在你自己 Google Drive 的表格「Flight Logbook (Flight Assist)」里 ========
+// 第一次用：在编辑器里选函数 setupLogbook → 运行 → 允许访问（Google 表格）。
+function setupLogbook() { const ss = lbBook_(); Logger.log('✅ 飞行记录本表格：' + ss.getUrl()); }
+function lbBook_() {
+  const props = PropertiesService.getScriptProperties(); let id = props.getProperty('LB_SHEET'), ss = null;
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create('Flight Logbook (Flight Assist)');
+    props.setProperty('LB_SHEET', ss.getId());
+    const d = ss.getSheets()[0]; d.setName('Logbook');
+    ss.insertSheet('data').getRange(1, 1, 1, 4).setValues([['key', 'updated', 'deleted', 'json']]);
+    ss.insertSheet('meta').getRange(1, 1, 2, 2).setValues([['settings', '{}'], ['settingsUpdated', 0]]);
+  }
+  return ss;
+}
+function lbSync_(j) {
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const ss = lbBook_(), sh = ss.getSheetByName('data'), meta = ss.getSheetByName('meta');
+    const n = sh.getLastRow(), rows = n > 1 ? sh.getRange(2, 1, n - 1, 4).getValues() : [], idx = {};
+    rows.forEach(function (r, i) { idx[r[0]] = i; });
+    // 收到的修改：比服务器上新的才收
+    (j.entries || []).forEach(function (e) {
+      if (!e || !e.k) return; const u = +e.u || Date.now(), i = idx[e.k];
+      const row = [e.k, u, e.del ? 1 : 0, e.del ? '' : JSON.stringify(e).slice(0, 49000)];
+      if (i == null) { idx[e.k] = rows.length; rows.push(row); } else if (u >= +rows[i][1]) rows[i] = row;
+    });
+    if (rows.length) sh.getRange(2, 1, rows.length, 4).setValues(rows);
+    // 设置
+    let set = {}, setU = +meta.getRange(2, 2).getValue() || 0; try { set = JSON.parse(meta.getRange(1, 2).getValue() || '{}'); } catch (e) {}
+    if (j.set && +j.setU > setU) { set = j.set; setU = +j.setU; meta.getRange(1, 2, 2, 1).setValues([[JSON.stringify(set)], [setU]]); }
+    // 好看的那一页：手机 / 电脑上直接看
+    if (Array.isArray(j.table) && j.table.length) {
+      const L = ss.getSheetByName('Logbook'); L.clearContents();
+      const w = j.table[0].length, t = j.table.map(function (r) { const o = r.slice(0, w); while (o.length < w) o.push(''); return o; });
+      L.getRange(1, 1, t.length, w).setValues(t); L.getRange(1, 1, 1, w).setFontWeight('bold').setBackground('#eef1f6'); L.setFrozenRows(1);
+    }
+    const out = []; rows.forEach(function (r) { if (+r[2]) out.push({ k: r[0], u: +r[1], del: true }); else { try { const e = JSON.parse(r[3]); e.u = +r[1]; out.push(e); } catch (x) {} } });
+    return { ok: true, entries: out, set: set, setU: setU, url: ss.getUrl(), t: Date.now() };
+  } finally { lock.releaseLock(); }
 }

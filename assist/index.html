@@ -314,6 +314,7 @@ div.en,.wl .en{display:block;margin-left:0}
 #lb.open{display:block}
 #lb .bar{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;background:#0e1626;border-bottom:1px solid var(--line)}
 .pfx{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}.pfopt{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.pfopt span{padding:5px 10px;font-size:12.5px;cursor:pointer;color:var(--dim)}.pfopt span.on{background:var(--green);color:#04210f;font-weight:700}
+.lcloud{cursor:pointer;font-size:12.5px;padding:5px 10px;border-radius:14px;border:1px solid var(--line);color:var(--dim);white-space:nowrap;max-width:360px;overflow:hidden;text-overflow:ellipsis}.lcloud.ok{color:var(--green);border-color:rgba(63,207,127,.5)}.lcloud.busy{color:var(--blue)}.lcloud.old,.lcloud.auth,.lcloud.err{color:var(--amber);border-color:rgba(243,177,60,.5)}
 .lgrand{margin-top:10px;padding:8px 10px;background:var(--input);border-radius:8px;font-size:13.5px}
 .lbt tr.bf td{background:#eef5ee;font-style:italic}
 #lb .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}#lb .seg span{padding:6px 12px;cursor:pointer;font-size:13px;color:var(--dim)}#lb .seg span.on{background:var(--blue);color:#04121f;font-weight:700}
@@ -398,7 +399,7 @@ div.en,.wl .en{display:block;margin-left:0}
 </div>
 
 <div id="sheet"><div class="in" id="sheet-in"></div></div>
-<div id="lb"><div class="bar"><span class="seg" id="lb-fmt"><span data-v="caac" onclick="LBK.fmt('caac')">中国民航</span><span data-v="jepp" onclick="LBK.fmt('jepp')">Jeppesen</span></span><span style="flex:1"></span><button class="btn sm" onclick="LBK.csv()" data-i="⬇ 导出表格|⬇ CSV"></button><button class="btn sm" onclick="LBK.backup()" data-i="💾 备份|💾 Backup"></button><label class="btn sm" style="cursor:pointer"><span data-i="↩ 恢复|↩ Restore"></span><input type="file" accept=".json,application/json" style="display:none" onchange="if(this.files[0])LBK.restore(this.files[0]);this.value=''"></label><button class="btn pri" onclick="document.body.classList.add('plb');window.print();setTimeout(()=>document.body.classList.remove('plb'),500)" data-i="🖨 打印|🖨 Print"></button><button class="btn" onclick="LBK.close()" data-i="关闭|Close"></button></div><div id="lb-pg"></div></div>
+<div id="lb"><div class="bar"><span class="seg" id="lb-fmt"><span data-v="caac" onclick="LBK.fmt('caac')">中国民航</span><span data-v="jepp" onclick="LBK.fmt('jepp')">Jeppesen</span></span><span style="flex:1"></span><span id="lb-cloud" class="lcloud" onclick="LBK.cloud()"></span><a id="lb-sheet" class="btn sm" target="_blank" rel="noopener" style="display:none;text-decoration:none" data-i="📊 Google 表格|📊 Sheet"></a><button class="btn sm" onclick="LBK.csv()" data-i="⬇ 导出表格|⬇ CSV"></button><button class="btn sm" onclick="LBK.backup()" data-i="💾 备份|💾 Backup"></button><label class="btn sm" style="cursor:pointer"><span data-i="↩ 恢复|↩ Restore"></span><input type="file" accept=".json,application/json" style="display:none" onchange="if(this.files[0])LBK.restore(this.files[0]);this.value=''"></label><button class="btn pri" onclick="document.body.classList.add('plb');window.print();setTimeout(()=>document.body.classList.remove('plb'),500)" data-i="🖨 打印|🖨 Print"></button><button class="btn" onclick="LBK.close()" data-i="关闭|Close"></button></div><div id="lb-pg"></div></div>
 <div id="brief"><div class="bar"><button class="btn sm" id="b-full" data-i="一页版 / 详细版|1-page / full"></button><button class="btn pri" id="b-print" data-i="🖨 打印 / 存 PDF|🖨 Print / Save PDF"></button><button class="btn" id="b-bclose" data-i="关闭|Close"></button></div><div class="pg" id="brief-pg"></div></div>
 <div id="toast"></div>
 <div id="dec"><div class="bar"><b style="font-size:16px">📄 OFP <span data-i="解读|Decode"></span></b><span style="color:var(--dim);font-size:12px" data-i="点任何字看解释|Tap anything for an explanation"></span><span style="flex:1"></span>
@@ -1368,7 +1369,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v31';
+const APPV = 'v32';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {

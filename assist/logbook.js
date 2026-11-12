@@ -10,7 +10,46 @@
   const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   let LB = ld(KEY, []), SET = Object.assign({ fmt: 'caac', role: 'CAPT', name: '', lic: '', night: 'auto', bf: {} }, ld(SKEY, {}));
   if (!SET.bf) SET.bf = {};
-  const save = () => sv(KEY, LB), saveSet = () => sv(SKEY, SET);
+  const save = () => { sv(KEY, LB); cloudSoon(); }, saveSet = () => { sv(SKEY, SET); cloudSoon(); };
+  // ---------- 云端（你 Google Drive 里的表格，经自己的 Apps Script）：改了就自动同步，新设备打开就下载 ----------
+  let SY = ld('fa.lbsync', { h: {}, setH: '', setU: 0, at: 0, url: '' }), cloudT = 0, cloudBusy = false, cloudMsg = '';
+  const hsh = x => { const t = JSON.stringify(x); let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return String(h >>> 0); };
+  const strip = e => { const o = Object.assign({}, e); delete o.u; return o; };
+  function cloudSoon() { clearTimeout(cloudT); cloudT = setTimeout(() => cloud(true), 4000); }
+  async function cloud(quiet) {
+    if (cloudBusy) return; const key = (typeof lsGet === 'function') && lsGet('key');
+    if (!navigator.onLine) { cloudMsg = 'off'; chip(); if (!quiet) toast('📵 ' + T('当前无网络，回头有网会自动同步', 'Offline — will sync when online')); return; }
+    if (!key) { cloudMsg = 'nokey'; chip(); if (!quiet) toast(T('这台设备还没填时钟后台口令', 'No backend password on this device')); return; }
+    cloudBusy = true; cloudMsg = 'busy'; chip();
+    try {
+      const now = Date.now(), have = new Set(LB.map(e => e.k)), send = [];
+      LB.forEach(e => { if (SY.h[e.k] !== hsh(strip(e))) { e.u = now; send.push(e); } });
+      Object.keys(SY.h).forEach(k => { if (!have.has(k)) send.push({ k, del: true, u: now }); });
+      // 第一次同步（新设备）：设置以云端为准，不上传本机的默认设置
+      const first = !SY.at, sh = hsh(SET); if (!first && sh !== SY.setH) SY.setU = now;
+      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(key), { method: 'POST', body: JSON.stringify({ action: 'lbsync', entries: send, set: first ? null : SET, setU: first ? 0 : SY.setU, table: first && !LB.length ? null : rowsOf() }) });
+      const raw = await r.text(); let j; try { j = JSON.parse(raw); } catch (e) { j = { ok: false, error: raw.slice(0, 160) }; }
+      if (!j.ok) { cloudMsg = /缺少航班|数据格式|lbsync/.test(j.error || '') ? 'old' : /permission|权限|authoriz|Spreadsheet/i.test(j.error || '') ? 'auth' : 'err'; chip(); if (!quiet) toast(cloudTip(), 6000); return; }
+      // 服务器已经按「新的赢」合并好：以它为准
+      const mine = new Map(LB.map(e => [e.k, e])); LB = [];
+      const dels = []; (j.entries || []).forEach(e => { if (e.del) { dels.push(e.k); return; } const l = mine.get(e.k); LB.push(l && (l.u || 0) > (e.u || 0) ? l : e); });
+      LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date));
+      if (j.set && +j.setU && (first || +j.setU > (SY.setU || 0))) { SET = Object.assign(SET, j.set); if (!SET.bf) SET.bf = {}; sv(SKEY, SET); }
+      SY = { h: {}, setH: hsh(SET), setU: +j.setU || SY.setU, at: now, url: j.url || SY.url, del: dels }; LB.forEach(e => { SY.h[e.k] = hsh(strip(e)); });
+      sv(KEY, LB); sv('fa.lbsync', SY); cloudMsg = 'ok'; chip();
+      if ($('lb').classList.contains('open') && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#lb-pg'))) render();
+      if (!quiet) toast('☁️ ' + T('已保存到云端', 'Saved to the cloud') + '（' + LB.length + '）', 2500);
+    } catch (e) { cloudMsg = 'err'; chip(); if (!quiet) toast('⚠️ ' + T('没连上后台，回头会再试', 'Could not reach the backend — will retry')); }
+    finally { cloudBusy = false; }
+  }
+  const cloudTip = () => ({ old: T('后台是旧版：请用新的 Code.gs 更新并重新部署', 'Backend is old — update Code.gs and redeploy'), auth: T('后台还没授权建表格：Apps Script 里选 setupLogbook → 运行 → 允许', 'Authorise the backend: run setupLogbook in Apps Script'), err: T('同步没成功，回头会自动再试', 'Sync failed — will retry'), off: T('离线：有网时自动同步', 'Offline — syncs when online'), nokey: T('这台设备还没填后台口令', 'No backend password on this device') }[cloudMsg] || '');
+  function chip() {
+    const c = document.getElementById('lb-cloud'); if (!c) return;
+    const t = SY.at ? z2(new Date(SY.at).getUTCHours()) + ':' + z2(new Date(SY.at).getUTCMinutes()) + 'Z' : '';
+    c.className = 'lcloud ' + (cloudMsg || (SY.at ? 'ok' : ''));
+    c.innerHTML = cloudMsg === 'busy' ? '☁️ ' + T('同步中…', 'Syncing…') : (cloudMsg === 'ok' || (!cloudMsg && SY.at)) ? '☁️ ' + T('已同步', 'Synced') + ' ' + t : cloudMsg === 'off' ? '☁️ ' + T('离线', 'Offline') + (t ? ' · ' + T('上次', 'last') + ' ' + t : '') : cloudMsg ? '⚠️ ' + cloudTip() : '☁️ ' + T('云端', 'Cloud');
+    const a = document.getElementById('lb-sheet'); if (a) { a.style.display = SY.url ? '' : 'none'; if (SY.url) a.href = SY.url; }
+  }
   const T = (zh, en) => typeof tt === 'function' ? tt(zh, en) : zh;
 
   // ---------- 太阳高度（NOAA 简化算法，精度 ±0.2°，够判断昼夜） ----------
@@ -63,6 +102,7 @@
     if (typeof S === 'undefined' || !S.ofp) return null;
     const o = S.ofp, f = o.flight, k = keyOf(o);
     let e = LB.find(x => x.k === k);
+    if (!e && (SY.del || []).indexOf(k) >= 0) return null;   // 删掉过的不要自动再建
     const std = o.times.std || f.dateUTC, taxi = (o.times.taxi || 15) * MINms, trip = (o.times.trip || 0) * MINms;
     const ap = c => (S.AP && S.AP[c]) ? [S.AP[c][3], S.AP[c][4]] : null;
     const dp = (S.pts && S.pts[0] && S.pts[0].pos) || (typeof apPos === 'function' ? apPos(f.dep) : null) || ap(f.dep);
@@ -107,7 +147,7 @@
   const roleN = r => ({ CAPT: T('机长', 'Captain'), FO: T('副驾驶', 'First Officer'), SO: T('第二副驾驶', 'Second Officer') }[r] || r);
   const srcTag = s => s === 'adsb' ? '<span class="lsrc a">ADS-B</span>' : s === 'man' ? '<span class="lsrc m">' + T('手改', 'edited') + '</span>' : s === 'fa' ? '<span class="lsrc f">ATD</span>' : '<span class="lsrc p">' + T('计划', 'plan') + '</span>';
   function editor(e) {
-    if (!e) return '<div class="lcard"><b>' + T('还没有这一班', 'No flight yet') + '</b><div class="ldim">' + T('先在「载入 OFP」里读入飞行计划，这里会自动建一条记录。', 'Load an OFP first — a record is created automatically.') + '</div></div>';
+    if (!e) return '<div class="lcard"><b>' + T('还没有这一班', 'No flight yet') + '</b><div class="ldim">' + (curKey() ? T('这一班的记录删掉了。', 'This flight was deleted.') + ' <button class="btn sm" onclick="LBK.redo()">' + T('重新建立', 'Re-create') + '</button>' : T('先在「载入 OFP」里读入飞行计划，这里会自动建一条记录。', 'Load an OFP first — a record is created automatically.')) + '</div></div>';
     const r = calc(e), fld = (f, lab) => '<label class="lt"><span>' + lab + '</span><input class="num" data-f="' + f + '" value="' + hhmm(e[f]) + '" inputmode="numeric" maxlength="4">' + srcTag(e.src[f]) + '</label>';
     return '<div class="lcard"><div class="lhd"><b>' + esc(e.flt) + '</b> · ' + dstr(e.offB || e.date) + ' · ' + esc(e.dep) + ' → ' + esc(e.arr) + ' · ' + esc(e.type) + ' · <input class="lreg" data-f="reg" value="' + esc(e.reg) + '">' +
       '<span style="flex:1"></span><button class="btn sm" onclick="LBK.adsb()">⟳ ' + T('读取 ADS-B 时间', 'Load ADS-B times') + '</button></div>' +
@@ -178,19 +218,20 @@
       SET.bf[k] = v; saveSet(); render(); });
     $('lb-pg').querySelectorAll('[data-s]').forEach(inp => inp.onchange = () => { SET[inp.dataset.s] = inp.value.trim(); saveSet(); if (inp.dataset.s === 'role' && e && !e.src.roleSet) { e.role = SET.role; save(); } render(); });
   }
-  function csv() {
+  function rowsOf() {
     const R = LB.slice().sort((a, b) => (a.offB || a.date) - (b.offB || b.date)).map(e => [e, calc(e)]);
     const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const head = SET.fmt === 'caac' ? ['日期', '航班号', '机型', '登记号', '起飞地点', '着陆地点', '撤轮挡', '起飞', '着陆', '挡轮挡', '总时间', '空中', '机长', '副驾驶', '夜航', '仪表', '起落昼', '起落夜', '备注']
+    const head = SET.fmt === 'caac' ? ['日期', '航班号', '机型', '登记号', '起飞地点', '着陆地点', '撤轮挡', '起飞', '着陆', '挡轮挡', '总时间', '空中', '机长', '副驾驶', '夜航', '仪表', '起飞昼', '起飞夜', '着陆昼', '着陆夜', '备注']
       : ['Date', 'Dep place', 'Dep time', 'Arr place', 'Arr time', 'Type', 'Reg', 'SP SE', 'SP ME', 'Multi-pilot', 'Total', 'Name PIC', 'Ldg day', 'Ldg night', 'Night', 'IFR', 'PIC', 'Co-pilot', 'Dual', 'Instructor', 'Remarks'];
-    const rows = R.map(([e, r]) => SET.fmt === 'caac' ? [dstr(e.offB || e.date), e.flt, e.type, e.reg, e.dep, e.arr, hcol(e.offB), hcol(e.to), hcol(e.ldg), hcol(e.onB), hm(r.block), hm(r.air), hm(r.pic), hm(r.cop), hm(r.night), hm(r.ifr), r.ldD || '', r.ldNn || '', e.rmk || '']
+    const rows = R.map(([e, r]) => SET.fmt === 'caac' ? [dstr(e.offB || e.date), e.flt, e.type, e.reg, e.dep, e.arr, hcol(e.offB), hcol(e.to), hcol(e.ldg), hcol(e.onB), hm(r.block), hm(r.air), hm(r.pic), hm(r.cop), hm(r.night), hm(r.ifr), r.toD || '', r.toNn || '', r.ldD || '', r.ldNn || '', e.rmk || '']
       : [dshort(e.offB || e.date), e.dep, hcol(e.offB), e.arr, hcol(e.onB), e.type, e.reg, '', '', hm(r.block), hm(r.block), (e.role || SET.role) === 'CAPT' ? 'SELF' : e.pic || '', r.ldD || '', r.ldNn || '', hm(r.night), hm(r.ifr), hm(r.pic), hm(r.cop), '', '', [e.flt, e.rmk].filter(Boolean).join(' · ')]);
-    return '﻿' + [head].concat(rows).map(r => r.map(q).join(',')).join('\r\n');
+    return [head].concat(rows);
   }
+  function csv() { const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; return '\ufeff' + rowsOf().map(r => r.map(q).join(',')).join('\r\n'); }
   function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 
   window.LBK = {
-    open() { editK = null; fromOfp(); render(); $('lb').classList.add('open'); $('lb').scrollTop = 0; const e = LB.find(x => x.k === curKey()); if (e) adsb(e, true).then(ok => { if (ok) render(); }); },
+    open() { editK = null; fromOfp(); render(); chip(); $('lb').classList.add('open'); $('lb').scrollTop = 0; cloud(true); const e = LB.find(x => x.k === curKey()); if (e) adsb(e, true).then(ok => { if (ok) render(); }); },
     close() { $('lb').classList.remove('open'); try { pfUI(); } catch (e) {} },
     fmt(v) { SET.fmt = v; saveSet(); render(); },
     pf() { const e = LB.find(x => x.k === (editK || curKey())); if (!e) return; setPf(e, pfMode(e) === 'none' ? 'both' : 'none'); render(); },
@@ -200,13 +241,16 @@
     mode() { return pfMode(this.cur()); }, setMode(m) { const e = this.cur(); if (!e) return false; setPf(e, m); if ($('lb').classList.contains('open')) render(); return true; }, pfName,
     async adsb() { const e = LB.find(x => x.k === (editK || curKey())); if (await adsb(e, false)) render(); },
     edit(k) { editK = k; render(); if (k) $('lb').scrollTop = 0; },
-    del() { if (!editK || !confirm(T('删除这条记录？', 'Delete this record?'))) return; LB = LB.filter(x => x.k !== editK); save(); editK = null; render(); },
+    del() { if (!editK || !confirm(T('删除这条记录？', 'Delete this record?'))) return; SY.del = (SY.del || []).concat(editK); sv('fa.lbsync', SY); LB = LB.filter(x => x.k !== editK); save(); editK = null; render(); },
+    redo() { const k = curKey(); SY.del = (SY.del || []).filter(x => x !== k); sv('fa.lbsync', SY); fromOfp(); render(); },
     csv() { download('logbook-' + SET.fmt + '-' + dstr(Date.now()) + '.csv', csv(), 'text/csv;charset=utf-8'); },
     backup() { download('logbook-backup-' + dstr(Date.now()) + '.json', JSON.stringify({ v: 1, set: SET, lb: LB }), 'application/json'); },
     restore(file) { const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); if (!Array.isArray(j.lb)) throw 0; const have = new Set(LB.map(x => x.k)); j.lb.forEach(x => { if (!have.has(x.k)) LB.push(x); }); if (j.set) SET = Object.assign(SET, j.set); save(); saveSet(); render(); toast('✅ ' + T('已恢复 ', 'Restored ') + j.lb.length); } catch (e) { toast(T('文件不对', 'Not a logbook backup')); } }; r.readAsText(file); },
     sync() { if (typeof S !== 'undefined' && S.ofp) { const e = fromOfp(); if (e) adsb(e, true); } },   // OFP 载入 / 确认起飞时间后调用
-    calc, sunAlt, all: () => LB
+    cloud() { cloud(false); }, calc, sunAlt, all: () => LB
   };
+  window.addEventListener('online', () => cloud(true));
+  setInterval(() => cloud(true), 15 * 60e3); setTimeout(() => cloud(true), 6000);
   // 有网时定期看看时钟有没有 ADS-B 时间（落地后自动补上）
   setInterval(() => { if (typeof S === 'undefined' || !S.ofp || !navigator.onLine) return; const e = LB.find(x => x.k === curKey()); if (e && e.src.ldg !== 'adsb' && e.src.ldg !== 'man' && Date.now() > (e.to || 0)) adsb(e, true).then(ok => { if (ok && $('lb').classList.contains('open')) render(); }); }, 10 * 60e3);
 })();
