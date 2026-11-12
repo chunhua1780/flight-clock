@@ -110,6 +110,116 @@
   }
   const join = (a, r) => r.zh ? Z(a.zh + (a.zh ? '<br>' : '') + '<span class="rc">▸ ' + r.zh + '</span>', a.en + (a.en ? '<br>' : '') + '▸ ' + r.en) : a;
 
+
+  // ---------- 按表头的列位置读一行（LIDO 是等宽排版，每个数字都在它那一栏下面） ----------
+  function colsOf(H) { const c = []; String(H || '').replace(/\S+/g, (m, o) => { c.push({ k: m, a: o, b: o + m.length }); }); return c; }
+  function cellsOf(line, H) {
+    const C = colsOf(H), out = {}; if (!C.length) return out;
+    String(line).replace(/\S+/g, (w, a) => {
+      const b = a + w.length, c = (a + b) / 2; let best = null, bd = 1e9;
+      C.forEach(x => { const ov = Math.min(b, x.b) - Math.max(a, x.a), d = ov > 0 ? -ov : Math.min(Math.abs(c - x.a), Math.abs(c - x.b)); if (d < bd) { bd = d; best = x.k; } });
+      if (w === '+' || w === '=') best = w;
+      if (/^\.+$/.test(w)) return;
+      if (best) out[best] = out[best] ? out[best] + ' ' + w : w;
+    });
+    return out;
+  }
+  const nm = n => (+n).toLocaleString('en');
+  const isaAt = fl => Math.max(-56.5, 15 - 1.98 * fl / 10);           // fl 以百英尺计
+  const metric = fl => fl % 10 ? '（约 ' + nm(Math.round(fl * 30.48 / 100) * 100) + ' 米）' : '';
+  const metricE = fl => fl % 10 ? ' (≈' + nm(Math.round(fl * 30.48 / 100) * 100) + ' m)' : '';
+  const PTN = { TOC: ['爬升顶点 TOC', 'top of climb'], TOD: ['下降顶点 TOD', 'top of descent'], T_O_D: ['下降顶点 TOD', 'top of descent'], T_O_C: ['爬升顶点 TOC', 'top of climb'], BOC: ['爬升起点', 'bottom of climb'], BOD: ['下降底点', 'bottom of descent'] };
+  const ptZ = w => PTN[w] ? PTN[w][0] : w, ptE = w => PTN[w] ? PTN[w][1].toUpperCase() === w ? w : PTN[w][1] + ' (' + w.replace(/_/g, '') + ')' : w;
+  // 导航日志：一条航段（AWY 行）+ 到达的航路点（WPT 行）合成一段话
+  function navHdr(L, i) { for (let k = i; k >= 0 && k > i - 300; k--) if (/^AWY\s+TRM/.test(L[k])) return [L[k], L[k + 1]]; return null; }
+  const isLeg = t => /\b\d{2}\/\d{3}\b/.test(t) && /\.\.\s+\.\./.test(t);
+  const isWpt = t => /\.{4}\s+\.{4}\s+[\d.]+\s*$/.test(t) || /^\s*[A-Z]{4}\/\w+\s+[\d.]+\s*$/.test(t);
+  function prevWpt(L, i) { for (let k = i - 1; k >= 0 && k > i - 40; k--) { const t = L[k].trim(); if (/^AWY\s+TRM/.test(t)) return null; if (isWpt(L[k])) return t.split(/\s+/)[0]; } return null; }
+  function navSay(L, i, ctx) {
+    const H = navHdr(L, i); if (!H) return null;
+    let li = -1, wi = -1;
+    if (isLeg(L[i])) { li = i; for (let k = i + 1; k < L.length && k < i + 4; k++) if (isWpt(L[k])) { wi = k; break; } }
+    else if (isWpt(L[i])) { wi = i; for (let k = i - 1; k >= 0 && k > i - 4; k--) { if (isLeg(L[k])) { li = k; break; } if (L[k].trim()) break; } }
+    else return null;
+    const W = wi >= 0 ? cellsOf(L[wi], H[1]) : {}, G = li >= 0 ? cellsOf(L[li], H[0]) : {};
+    const name = (W.WPT || '').split(' ')[0], dep = /^([A-Z]{4})\/(\w+)$/.exec(name);
+    // 起飞机场那一行（只有剩油）
+    if (dep && li < 0 && W.MINR && !W.ATM) return Z('起飞：<b>' + dep[1] + '</b> ' + dep[2] + ' 号跑道。松刹车起飞时最少要有 <b>' + W.MINR + ' 吨</b>油。', 'Departure from ' + dep[1] + ' runway ' + dep[2] + '. You need at least ' + W.MINR + ' t of fuel at take-off.');
+    const zh = [], en = [];
+    const from = prevWpt(L, li >= 0 ? li : wi);
+    if (li >= 0) {
+      const awy = (G.AWY || '').split(' ')[0], via = awy === 'DCT' ? '直飞到' : '沿 <b>' + awy + '</b> 飞到', viaE = awy === 'DCT' ? 'direct' : 'via ' + awy;
+      const wd = /^(\d{2})\/(\d{3})$/.exec(G.WIND || ''), fl = G.FL || '', tas = G.TAS, sp = G.SP_M || G['SP/M'], stm = G.STM;
+      let lv = '', lvE = '';
+      if (fl === 'CLB') { lv = '还在爬升'; lvE = 'still climbing'; } else if (fl === 'DES') { lv = '在下降'; lvE = 'descending'; }
+      else if (/^\d+$/.test(fl)) { if (+fl >= 600) { lv = '高度 ' + nm(+fl * 10) + ' 米（中国米制，约 FL' + Math.round(+fl * 10 * 3.2808 / 100) + '）'; lvE = 'at ' + nm(+fl * 10) + ' m (China metric, ≈FL' + Math.round(+fl * 10 * 3.2808 / 100) + ')'; } else { lv = '高度 FL' + fl.padStart(3, '0'); lvE = 'at FL' + fl.padStart(3, '0'); } }
+      let spd = '', spdE = '';
+      if (sp) { if (+sp >= 600) { spd = '马赫 0.' + sp; spdE = 'Mach .' + sp; } else { spd = '指示空速 ' + +sp + ' 节'; spdE = 'IAS ' + +sp + ' kt'; } }
+      const fz = from && /^[A-Z]{4}\/\w+$/.test(from) ? from.split('/')[0] + ' 起飞后' : from ? '从 <b>' + from + '</b> ' : '';
+      zh.push(fz + via + ' <b>' + ptZ(name) + '</b>：' + [G.TRM ? '磁航迹 ' + G.TRM + '°' : '', G.DIST ? '距离 ' + +G.DIST + ' 海里' : '', wd ? '风从 ' + wd[1] + '0° 吹来，' + +wd[2] + ' 节' : '', lv, tas ? '真空速 ' + +tas + ' 节' : '', spd, stm ? '这一段飞 ' + +stm + ' 分钟' : ''].filter(Boolean).join('，') + '。');
+      en.push((from && /^[A-Z]{4}\/\w+$/.test(from) ? 'After take-off from ' + from.split('/')[0] + ', fly ' : from ? 'From ' + from + ' ' : 'Fly ') + viaE + ' to ' + ptE(name) + ': ' + [G.TRM ? 'magnetic track ' + G.TRM + '°' : '', G.DIST ? +G.DIST + ' nm' : '', wd ? 'wind from ' + wd[1] + '0° at ' + +wd[2] + ' kt' : '', lvE, tas ? 'TAS ' + +tas + ' kt' : '', spdE, stm ? 'this leg takes ' + +stm + ' min' : ''].filter(Boolean).join(', ') + '.');
+    }
+    if (wi >= 0) {
+      const sr = /^(\d{2})?\/([PM])(\d{2})$/.exec(W['SR/TDEV'] || ''), mora = W.MORA ? +W.MORA * 100 : null, wc = /^([PM])(\d{3})$/.exec(W['W/C'] || ''), trop = W.TROP, atm = W.ATM, minr = W.MINR;
+      const p = ctx && ctx.nav && ctx.nav.find(x => x.id === name.split('/')[0]), at = ctx && ctx.atP && p ? ctx.atP(p.t) : '';
+      const dest = /^([A-Z]{4})\/(\w+)$/.exec(name), mark = W['+'] ? '（强制报告点，要向管制报告）' : W['='] ? '（管制区边界点）' : '', markE = W['+'] ? ' (compulsory reporting point)' : W['='] ? ' (FIR boundary)' : '';
+      const z = [], e = [];
+      if (atm) { z.push('起飞后 <b>' + tm(atm) + '</b> ' + (dest ? '落地' : '到') + (at ? '（约 ' + at + '）' : '')); e.push((dest ? 'landing ' : 'reached ') + tmE(atm) + ' after take-off' + (at ? ' (about ' + at + ')' : '')); }
+      if (W.ITT) { z.push('出航真航迹 ' + W.ITT + '°'); e.push('outbound true track ' + W.ITT + '°'); }
+      if (sr) { z.push('气温比标准' + (sr[2] === 'P' ? '高 ' : '低 ') + +sr[3] + '°C'); e.push('temperature ISA ' + (sr[2] === 'P' ? '+' : '−') + +sr[3] + ' °C'); if (sr[1] && +sr[1] > 0) { z.push('风切变率 ' + +sr[1] + (+sr[1] >= 4 ? '（偏大，可能颠簸）' : '（小）')); e.push('wind shear rate ' + +sr[1] + (+sr[1] >= 4 ? ' (high — possible turbulence)' : '')); } }
+      if (wc) { z.push((wc[1] === 'M' ? '逆风 ' : '顺风 ') + +wc[2] + ' 节'); e.push((wc[1] === 'M' ? 'headwind ' : 'tailwind ') + +wc[2] + ' kt'); }
+      if (mora != null) { z.push('MORA ' + nm(mora) + ' 英尺' + (mora >= 15000 ? '，<b>地形很高</b>' : mora >= 10000 ? '，地形较高' : '')); e.push('MORA ' + nm(mora) + ' ft' + (mora >= 15000 ? ' — high terrain' : '')); }
+      if (trop) { z.push('对流层顶约 ' + nm(+trop * 1000) + ' 英尺'); e.push('tropopause about ' + nm(+trop * 1000) + ' ft'); }
+      if (minr) { z.push('到这里最少要剩 <b>' + minr + ' 吨</b>油'); e.push('minimum fuel here ' + minr + ' t'); }
+      zh.push((dest ? '到达 <b>' + dest[1] + '</b> ' + dest[2] + ' 号跑道' : (li >= 0 ? '到 ' : '航路点 ') + '<b>' + ptZ(name) + '</b>' + mark) + '：' + z.join('，') + '。');
+      en.push((dest ? 'Arrival at ' + dest[1] + ' runway ' + dest[2] : 'At ' + ptE(name) + markE) + ': ' + e.join(', ') + '.');
+      if (li < 0 && wi >= 0 && from) { zh.unshift('（上一个点是 ' + from + '）'); }
+    }
+    zh.push('<span style="opacity:.7">「.. ..」写预计过点时间，「.....」写实际剩油，「.... ....」写要求 / 实际过点时间。</span>');
+    en.push('<span style="opacity:.7">Blanks: ETA, actual fuel remaining, RTA / ATA.</span>');
+    return { zh: zh.join('<br>'), en: en.join('<br>'), lines: [li, wi].filter(x => x >= 0) };
+  }
+  // 高空风温表：每块 4 栏，第一行是点名（或 CLIMB / DESCENT），然后是纬度、经度，再是「高度 风向/风速 温度」
+  function windsSay(L, i, ctx) {
+    const blank = l => !l || !l.trim() || /^\s*Page\s+\d+/.test(l) || /^\s*(?:UAE|EK)\d+\/\d{2}[A-Za-z]{3}/.test(l);
+    const isHead = l => /^\s*[A-Z_][A-Z0-9_]{1,9}(\s+[A-Z_][A-Z0-9_]{1,9}){0,4}\s*$/.test(l || '') && !/[NS]\d{4}\.\d/.test(l);
+    if (blank(L[i])) return null;
+    let a = i; while (a > 0 && !isHead(L[a]) && !blank(L[a - 1]) && i - a < 12) a--;
+    if (!isHead(L[a])) return null;
+    let b = a; while (b + 1 < L.length && !blank(L[b + 1]) && !isHead(L[b + 1]) && b - a < 12) b++;
+    if (i > b) return null;
+    const C = colsOf(L[a]); if (!C.length) return null;
+    // 每一格：纬度 / 经度 / 「高度 风向/风速 温度」，按位置归到最近的那一栏
+    const cellsIn = l => { const out = []; String(l).replace(/[NS]\d{4}\.\d|[EW]\d{5}\.\d|\d{3}\s+\d{3}\/\d{3}\s+[PM+-]?\d{2}\b/g, (m, o) => { out.push({ v: m, a: o, b: o + m.length }); }); return out; };
+    const colOf = x => { let k = 0, bd = 1e9; C.forEach((c0, n) => { const d = Math.abs(x - c0.a); if (d < bd) { bd = d; k = n; } }); return k; };
+    const pos = ctx && ctx.pos != null ? ctx.pos : 0;
+    let c = 0;
+    if (i === a) { let bd = 1e9; C.forEach((c0, n) => { const d = pos < c0.a ? c0.a - pos : pos > c0.b ? pos - c0.b : 0; if (d < bd) { bd = d; c = n; } }); }
+    else { const cs = cellsIn(L[i]); let hit = cs.find(x => pos >= x.a - 1 && pos <= x.b + 1); if (!hit && cs.length) hit = cs.reduce((p0, x) => Math.abs((x.a + x.b) / 2 - pos) < Math.abs((p0.a + p0.b) / 2 - pos) ? x : p0); c = hit ? colOf(hit.a) : colOf(pos); }
+    const nameRaw = C[c].k, rows = [];
+    let lat = '', lon = '';
+    for (let r = a + 1; r <= b; r++) cellsIn(L[r]).forEach(x => {
+      if (colOf(x.a) !== c) return; const v = x.v; let m;
+      if ((m = /^([NS])(\d{2})(\d{2}\.\d)$/.exec(v))) lat = { z: (m[1] === 'N' ? '北纬 ' : '南纬 ') + +m[2] + '°' + m[3] + '′', e: m[1] + +m[2] + '°' + m[3] + '′' };
+      else if ((m = /^([EW])(\d{3})(\d{2}\.\d)$/.exec(v))) lon = { z: (m[1] === 'E' ? '东经 ' : '西经 ') + +m[2] + '°' + m[3] + '′', e: m[1] + +m[2] + '°' + m[3] + '′' };
+      else if ((m = /^(\d{3})\s+(\d{3})\/(\d{3})\s+([PM+-]?)(\d{2})$/.exec(v))) { const fl = +m[1], t = (m[4] === 'M' || m[4] === '-' ? -1 : 1) * +m[5]; rows.push({ r, fl, dir: m[2], spd: +m[3], t, dev: Math.round(t - isaAt(fl)) }); }
+    });
+    if (!rows.length) return null;
+    const sel = rows.find(x => x.r === i);
+    const kind = /^CLIMB$/.test(nameRaw) ? 'clb' : /^DESCENT$/.test(nameRaw) ? 'des' : 'wpt';
+    const tz = t => (t > 0 ? '+' : t < 0 ? '−' : '') + Math.abs(t) + '°C', dz = d => d === 0 ? '和标准一样' : '比标准' + (d > 0 ? '高 ' : '低 ') + Math.abs(d) + '°', de = d => 'ISA ' + (d >= 0 ? '+' : '−') + Math.abs(d);
+    const rowZ = x => 'FL' + String(x.fl).padStart(3, '0') + metric(x.fl) + '：风从 ' + +x.dir + '° 吹来，' + x.spd + ' 节；气温 ' + tz(x.t) + '（' + dz(x.dev) + '）';
+    const rowE = x => 'FL' + String(x.fl).padStart(3, '0') + metricE(x.fl) + ': wind from ' + +x.dir + '° at ' + x.spd + ' kt, temperature ' + tz(x.t).replace('°C', ' °C') + ' (' + de(x.dev) + ')';
+    const B = (x, s) => x === sel ? '<b>' + s + '</b>' : s;
+    const hz = kind === 'clb' ? '<b>爬升阶段</b>的风和温度（从起飞爬到巡航，按高度列出；可以输入 FMC 的爬升风）：' : kind === 'des' ? '<b>下降阶段</b>的风和温度（从巡航降到进近，按高度列出；输入 FMC 的下降风 DES FORECAST）：' : '<b>' + ptZ(nameRaw) + '</b>' + (lat ? '（' + lat.z + '，' + lon.z + '）' : '') + ' 这个点上空的风和温度：';
+    const he = kind === 'clb' ? '<b>Climb</b> winds and temperatures by level (for the FMC climb winds):' : kind === 'des' ? '<b>Descent</b> winds and temperatures by level (for the FMC descent forecast):' : '<b>' + ptE(nameRaw) + '</b>' + (lat ? ' (' + lat.e + ' ' + lon.e + ')' : '') + ' — winds and temperatures aloft:';
+    const top = sel ? '你点的这一格：' + rowZ(sel) + '。<br>' : '', topE = sel ? 'This cell: ' + rowE(sel) + '.<br>' : '';
+    const strong = rows.reduce((p, x) => x.spd > p.spd ? x : p, rows[0]);
+    const tail = rows.length > 1 ? '<br>最强的风在 FL' + String(strong.fl).padStart(3, '0') + '（' + strong.spd + ' 节）。温度是实际气温（不是温差），负号 = 零下。' : '';
+    const tailE = rows.length > 1 ? '<br>Strongest wind at FL' + String(strong.fl).padStart(3, '0') + ' (' + strong.spd + ' kt). Temperatures are actual air temperature; minus = below zero.' : '';
+    return { zh: top + hz + '<br>' + rows.map(x => '• ' + B(x, rowZ(x))).join('<br>') + tail, en: topE + he + '<br>' + rows.map(x => '• ' + B(x, rowE(x))).join('<br>') + tailE, lines: [a, b] };
+  }
+
   function lineSay(L, i, sec, ctx) {
     const l = L[i], t = l.replace(/\s+/g, ' ').trim(); let m;
     if (!t) return null;
@@ -120,53 +230,55 @@
     if (/^[.\s]{20,}$/.test(t) && sec === 'head') return Z('起飞性能手写栏：跑道、假设温度、最低收襟翼高度、襟翼、重心、V1 / VR / V2 / VREF、发动机失效程序。', 'Take-off performance entry line.');
     if (/^CREW\s+NOTES/.test(t)) return Z('机组笔记（手写）。', 'Crew notes.');
     if (/^(WX\/NOTAM|NO DATA AVAILABLE|OFP|NOTAM|Weather)$/.test(t)) return Z({ 'WX/NOTAM': '天气 / 通告封面', 'NO DATA AVAILABLE': '没有资料', OFP: '飞行计划正文开始', NOTAM: '航行通告部分', Weather: '天气部分开始' }[t], t);
-    if (sec === 'head' && i < 20 && /^([A-Z0-9]{2,7}(?:\/\w+)?\s+)*[A-Z0-9]{2,7}(?:\/\w+)?$/.test(t) && L.slice(Math.max(0, i - 3), i).some(x => /^\s*[A-Z]{6}[A-Z]*\d+:|^\s*(?:[A-Z0-9]{2,7}\s+){3,}/.test(x)))
+    if (sec === 'head' && i < 20 && !/^(EXTRA|ADDNL|TRIP|CONT|ALTN|FRSV|TAXI|FUEL|RAMP|ADJUST|PLND|OFP)\b/.test(t) && !/\b\d{4}\b/.test(t) && /^([A-Z0-9]{2,7}(?:\/\w+)?\s+)*[A-Z0-9]{2,7}(?:\/\w+)?$/.test(t) && L.slice(Math.max(0, i - 3), i).some(x => /^\s*[A-Z]{6}[A-Z]*\d+:|^\s*(?:[A-Z0-9]{2,7}\s+){3,}/.test(x)))
       return Z('航路（接上一行）：' + t.split(' ').map(x => /^[A-Z]{4}\/\w+$/.test(x) ? x.replace('/', ' 跑道 ') + '（落地）' : x).join(' → '), 'Route (continued): ' + t);
     if (sec === 'altn' && /^([A-Z0-9]{2,7}\s*)+$/.test(t)) return Z('去备降场的航路（接上一行）：' + t, 'Alternate routing (continued): ' + t);
     if ((m = /^-\s+FUEL\s+ENROUTE\s+AIRPORT\s+(\w{4})/.exec(t))) return Z('签派指定航路加油 / 备降机场：<b>' + m[1] + '</b>（需要时可以去这里加油）。', 'Fuel en-route airport ' + m[1] + '.');
     // ---------- 首页 ----------
-    if ((m = /^(?:EK)?(\d+)\s+(\d{2}[A-Z]{3})\s+(\w{4})\/(\w{3})\s*-\s*(\w{4})\/(\w{3})\s+(\S+)\s+(\S+)/.exec(t))) return Z('航班 <b>EK' + m[1] + '</b>，' + m[2] + '。' + m[3] + '/' + m[4] + ' → ' + m[5] + '/' + m[6] + '，机型 ' + m[7] + '，注册号 ' + m[8] + '。', 'Flight EK' + m[1] + ' ' + m[2] + ', ' + m[3] + '→' + m[5] + ', ' + m[7] + ' ' + m[8] + '.');
+    if ((m = /^(?:EK)?(\d+)\s+(\d{2}[A-Z]{3})\s+(\w{4})\/(\w{3})\s*-\s*(\w{4})\/(\w{3})\s+(\S+)\s+(\S+)/.exec(t))) return Z('航班 <b>EK' + m[1] + '</b>，' + m[2] + '。' + m[3] + '/' + m[4] + ' → ' + m[5] + '/' + m[6] + '，机型 ' + m[7] + '，注册号 ' + m[8] + '。', 'Flight <b>EK' + m[1] + '</b> on ' + m[2] + ', from ' + m[3] + ' (' + m[4] + ') to ' + m[5] + ' (' + m[6] + '), aircraft type ' + m[7] + ', registration ' + m[8] + '.');
     if ((m = /^(UAE\d+\w*)\s/.exec(t))) return Z('ATC 呼号 <b>' + m[1] + '</b>（可能和航班号不同）。SIGNATURE = 机长签名。', 'ATC call sign ' + m[1] + '.');
     if ((m = /^([A-Z]{6})([A-Z]*)(\d+):\s*(.*)$/.exec(t))) {
       const c = m[2], tr = { F: '最省油航迹', T: '最省时航迹', C: '最省成本航迹', D: '最短距离航迹' };
       const p = /^P([FTCD])(\w?)$/.exec(c);
       return Z('公司航路代码 <b>' + m[1] + m[2] + m[3] + '</b>：' + m[1].slice(0, 3) + '→' + m[1].slice(3) + '' + '。后面是航路：起飞机场 / 跑道、离场、航路、航路点、进场、落地跑道 / 目的地。', 'Company route ' + m[1] + m[2] + m[3] + ' then route summary (DEP/RWY, SID, airways, STAR, ARR/RWY).');
     }
-    if ((m = /^PLND FL:\s*(.*)$/.exec(t))) return Z('计划巡航高度：' + m[1].split(' ').map(x => { const q = /^(?:(\w+)\/)?(\d{3})$/.exec(x); return q ? (q[1] ? '过 ' + q[1] + ' 后改 FL' + q[2] : '起始 FL' + q[2]) : x; }).join('，') + '。', 'Planned levels: ' + m[1]);
+    if ((m = /^PLND FL:\s*(.*)$/.exec(t))) return Z('计划巡航高度：' + m[1].split(' ').map(x => { const q = /^(?:(\w+)\/)?(\d{3})$/.exec(x); return q ? (q[1] ? '过 ' + q[1] + ' 后改 FL' + q[2] : '起始 FL' + q[2]) : x; }).join('，') + '。', 'Planned cruise levels: ' + m[1].split(' ').map(x => { const q = /^(?:(\w+)\/)?(\d{3})$/.exec(x); return q ? (q[1] ? 'FL' + q[2] + ' after ' + q[1] : 'start at FL' + q[2]) : x; }).join(', ') + '.');
     if ((m = /^OFP:\s*(\d+)\/(\d+)\/(\d+)/.exec(t))) { const w = /WX PROG:\s*(\d+)\s*-\s*(\d+)/.exec(t); return Z('OFP 编号 ' + m[1] + '/' + m[2] + '/' + m[3] + '。' + (w ? '高空风预报用 ' + w[1] + ':00–' + w[2] + ':00 UTC。' : '') + 'CTOT = 起飞时隙（有才填），PARKING BAY = 停机位。', 'OFP ' + m[1] + '/' + m[2] + '/' + m[3] + (w ? '; WX PROG ' + w[1] + '–' + w[2] + 'Z' : '')); }
     if (/^FUEL\s+TIME\s+CORR/.test(t)) return Z('燃油表的表头：左边是油量（kg）、时间、修正栏；右边 ARR/DEP 是计划时间，后面两格手写实际时间。', 'Fuel table header.');
-    if ((m = /^TRIP\s+([A-Z]{4})\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('航程油：飞到 ' + m[1] + ' 要烧 <b>' + kg(m[2]) + ' kg</b>，空中 ' + tm(m[3]) + '。', 'Trip to ' + m[1] + ': ' + kg(m[2]) + ' kg, ' + tmE(m[3]) + '.'), R);
-    if ((m = /^CONT\s+(.*?)\s+(\d+)\s+(\d{4})/.exec(t))) { const p = /([\d.]+)\s*P\/?C/.exec(m[1]); return join(Z('应急油 <b>' + kg(m[2]) + ' kg</b>，约 ' + tm(m[3]) + '。' + (p ? '按航程油的 ' + p[1] + '% 算' : /MIN/.test(m[1]) ? '最小应急油封顶' : /MAX/.test(m[1]) ? '最大应急油封顶' : /\d{2}$/.test(m[1]) ? '统计应急油（' + m[1] + '）' : m[1]) + '。', 'Contingency ' + kg(m[2]) + ' kg (' + m[1] + ').'), R); }
-    if ((m = /^ALTN\s+([A-Z]{4})\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('备降油：去 <b>' + m[1] + '</b> 要 ' + kg(m[2]) + ' kg、' + tm(m[3]) + '。', 'Alternate ' + m[1] + ': ' + kg(m[2]) + ' kg, ' + tmE(m[3]) + '.'), R);
-    if ((m = /^FRSV\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('最后储备油 <b>' + kg(m[1]) + ' kg</b>（' + tm(m[2]) + '）。', 'Final reserve ' + kg(m[1]) + ' kg.'), R);
-    if ((m = /^FMC-RSV\s+-?([\d.]+)-?/.exec(t))) return join(Z('FMC 里输入的储备油 <b>' + m[1] + ' 吨</b>。', 'Reserve for FMC ' + m[1] + ' t.'), R);
-    if ((m = /^ADDNL\s*([A-Z]*)\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('附加油 ' + kg(m[2]) + ' kg（' + tm(m[3]) + '），类别 ' + m[1] + '：' + m[1] + '。', 'Additional ' + m[1] + ' ' + kg(m[2]) + ' kg.'), R);
-    if ((m = /^EXTRA\s*([A-Z]*)\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('额外油 <b>' + kg(m[2]) + ' kg</b>，可多飞 ' + tm(m[3]) + '，原因代码 ' + (m[1] || '—') + '。', 'Extra ' + m[1] + ' ' + kg(m[2]) + ' kg (' + tmE(m[3]) + ').'), R);
-    if ((m = /^T\/O FUEL\s+(\d+)/.exec(t))) return join(Z('起飞油 <b>' + kg(m[1]) + ' kg</b> = 航程 + 应急 + 备降 + 最后储备 + 附加 + 额外。', 'Take-off fuel ' + kg(m[1]) + ' kg.'), R);
-    if ((m = /^TAXI\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('滑行油 ' + kg(m[1]) + ' kg，滑行时间 ' + tm(m[2]) + '。', 'Taxi ' + m[1] + ' kg (' + tmE(m[2]) + ').'), R);
-    if ((m = /^RAMP FUEL\s+([\d.]+)\s+(\d{4})/.exec(t))) return join(Z('<b>总油 ' + m[1] + ' 吨</b>（= 起飞油 + 滑行油，加油加到这个数），总共能飞 ' + tm(m[2]) + '。', 'Ramp fuel ' + m[1] + ' t, endurance ' + tmE(m[2]) + '.'), R);
+    if ((m = /^TRIP\s+([A-Z]{4})\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('航程油：飞到 ' + m[1] + ' 要烧 <b>' + kg(m[2]) + ' kg</b>，空中 ' + tm(m[3]) + '。', 'Trip fuel: the flight to ' + m[1] + ' burns <b>' + kg(m[2]) + ' kg</b> and takes ' + tmE(m[3]) + ' in the air.'), R);
+    if ((m = /^CONT\s+(.*?)\s+(\d+)\s+(\d{4})/.exec(t))) { const p = /([\d.]+)\s*P\/?C/.exec(m[1]); return join(Z('应急油 <b>' + kg(m[2]) + ' kg</b>，约 ' + tm(m[3]) + '。' + (p ? '按航程油的 ' + p[1] + '% 算' : /MIN/.test(m[1]) ? '最小应急油封顶' : /MAX/.test(m[1]) ? '最大应急油封顶' : /\d{2}$/.test(m[1]) ? '统计应急油（' + m[1] + '）' : m[1]) + '。', 'Contingency fuel: <b>' + kg(m[2]) + ' kg</b> (about ' + tmE(m[3]) + ' of flying), basis ' + m[1] + '.'), R); }
+    if ((m = /^ALTN\s+([A-Z]{4})\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('备降油：去 <b>' + m[1] + '</b> 要 ' + kg(m[2]) + ' kg、' + tm(m[3]) + '。', 'Alternate fuel: going on to ' + m[1] + ' needs ' + kg(m[2]) + ' kg and ' + tmE(m[3]) + '.'), R);
+    if ((m = /^FRSV\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('最后储备油 <b>' + kg(m[1]) + ' kg</b>（' + tm(m[2]) + '）。', 'Final reserve: <b>' + kg(m[1]) + ' kg</b> (' + tmE(m[2]) + ' of holding) — never planned to be used.'), R);
+    if ((m = /^FMC-RSV\s+-?([\d.]+)-?/.exec(t))) return join(Z('FMC 里输入的储备油 <b>' + m[1] + ' 吨</b>。', 'Enter <b>' + m[1] + ' t</b> as the reserve in the FMC.'), R);
+    if ((m = /^ADDNL\s*([A-Z]*)\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('附加油 ' + kg(m[2]) + ' kg（' + tm(m[3]) + '），类别 ' + m[1] + '：' + m[1] + '。', 'Additional fuel ' + (m[1] ? '(' + m[1] + ') ' : '') + kg(m[2]) + ' kg (' + tmE(m[3]) + ').'), R);
+    if ((m = /^EXTRA\s*([A-Z]*)\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('额外油 <b>' + kg(m[2]) + ' kg</b>，可多飞 ' + tm(m[3]) + '，原因代码 ' + (m[1] || '—') + '。', 'Extra fuel: <b>' + kg(m[2]) + ' kg</b>, good for about ' + tmE(m[3]) + ' more' + (m[1] ? ' (reason code ' + m[1] + ')' : '') + '.'), R);
+    if ((m = /^T\/O FUEL\s+(\d+)/.exec(t))) return join(Z('起飞油 <b>' + kg(m[1]) + ' kg</b> = 航程 + 应急 + 备降 + 最后储备 + 附加 + 额外。', 'Take-off fuel: <b>' + kg(m[1]) + ' kg</b> = trip + contingency + alternate + final reserve + additional + extra.'), R);
+    if ((m = /^TAXI\s+(\d+)\s+(\d{4})/.exec(t))) return join(Z('滑行油 ' + kg(m[1]) + ' kg，滑行时间 ' + tm(m[2]) + '。', 'Taxi fuel ' + kg(m[1]) + ' kg for ' + tmE(m[2]) + ' of taxi.'), R);
+    if ((m = /^RAMP FUEL\s+([\d.]+)\s+(\d{4})/.exec(t))) return join(Z('<b>总油 ' + m[1] + ' 吨</b>（= 起飞油 + 滑行油，加油加到这个数），总共能飞 ' + tm(m[2]) + '。', '<b>Ramp fuel ' + m[1] + ' t</b> (take-off fuel + taxi — the figure to load); total endurance ' + tmE(m[2]) + '.'), R);
     if (/^ADJUST\b/.test(t)) return join(Z('ADJUST：机长决定多加 / 少加的油（±），手写。', 'Captain adjustment.'), R);
     if (/^ADJ RAMP FUEL/.test(t)) return join(Z('调整后的总油 = 总油 + 机长额外油（手写）。', 'Adjusted ramp fuel.'), R);
     if (/^FUEL REMN/.test(t)) return join(Z('落地后实际剩油（手写）。', 'Fuel remaining after arrival.'), R);
     if (/^FUEL USED/.test(t)) return join(Z('实际用油 = 总油 − 剩油（手写）。', 'Fuel used.'), R);
     if (R.zh && /^(CRZ|AV|GND|AIR|CID|TOC)\b/.test(t)) return Z(R.zh + '。', R.en);
     if ((m = /TANKERING/.exec(t))) { const r = /\(([PHVB])\)/.exec(t), s = /TANKERING SECTOR.*?(\d+)\s*KG/.exec(t), d = /DISCR FUEL REASON/.test(t);
-      return Z((/NO TANKERING/.test(t) ? '这次<b>不建议带油</b>' : '建议带油' + (s ? ' ' + s[1] + ' kg' : '')) + (r ? '，代码 (' + r[1] + ')' : '') + '。' + (d ? '机长额外加油时圈选原因：ATC 空管、WX 天气、MEL 保留故障、ALTN 备降、OTH 其他。' : ''), t); }
+      return Z((/NO TANKERING/.test(t) ? '这次<b>不建议带油</b>' : '建议带油' + (s ? ' ' + s[1] + ' kg' : '')) + (r ? '，代码 (' + r[1] + ')' : '') + '。' + (d ? '机长额外加油时圈选原因：ATC 空管、WX 天气、MEL 保留故障、ALTN 备降、OTH 其他。' : ''), (/NO TANKERING/.test(t) ? '<b>No tankering</b> recommended this time' : 'Tankering recommended' + (s ? ': ' + s[1] + ' kg' : '')) + (r ? ' (code ' + r[1] + ')' : '') + '.' + (d ? ' If you add discretionary fuel, circle the reason: ATC, weather, MEL item, alternate or other.' : '')); }
     if ((m = /^DOW RANGE\s+([\d.]+)\D+([\d.]+).*DOI RANGE\s+([\d.]+)\D+([\d.]+)/.exec(t))) return Z('干操作重量范围 ' + m[1] + '–' + m[2] + ' 吨；干操作指数（重心）范围 ' + m[3] + '–' + m[4] + '。', 'DOW ' + m[1] + '–' + m[2] + ' t, DOI ' + m[3] + '–' + m[4] + '.');
-    if ((m = /^EZFW\s+(\d+)\s+MZFW\s+(\d+)/.exec(t))) return Z('预计无油重量 ' + kg(m[1]) + ' kg，最大 ' + kg(m[2]) + '，余量 <b>' + kg(+m[2] - +m[1]) + ' kg</b>。AZFW 填实际。', 'EZFW ' + m[1] + ' / MZFW ' + m[2] + ' (margin ' + (+m[2] - +m[1]) + ').');
-    if ((m = /^ETOW\s+(\d+)\s+MTOW\s+(\d+)(?:.*?RTOW\s+(\d+))?/.exec(t))) return Z('预计起飞重量 ' + kg(m[1]) + ' kg，结构最大 ' + kg(m[2]) + (m[3] ? '，性能限制（RTOW）' + kg(m[3]) : '，没有性能限制') + '，余量 <b>' + kg(Math.min(+m[2], +(m[3] || 1e9)) - +m[1]) + ' kg</b>。ATOW 填实际。', 'ETOW ' + m[1] + ', MTOW ' + m[2] + (m[3] ? ', RTOW ' + m[3] : '') + '.');
-    if ((m = /^ELWT\s+(\d+)\s+MLWT\s+(\d+)(?:.*?RLWT\s+(\d+))?/.exec(t))) { const mg = +m[2] - +m[1]; return Z('预计落地重量 ' + kg(m[1]) + ' kg，最大 ' + kg(m[2]) + '，余量 <b>' + kg(mg) + ' kg</b>' + (mg < 3000 ? '（<b>很接近最大落地重量</b>）' : '') + '。' + (m[3] ? '性能限制落地重量 ' + kg(m[3]) + '。' : ''), 'ELWT ' + m[1] + ', MLWT ' + m[2] + ' (margin ' + mg + ').'); }
+    if ((m = /^EZFW\s+(\d+)\s+MZFW\s+(\d+)/.exec(t))) return Z('预计无油重量 ' + kg(m[1]) + ' kg，最大 ' + kg(m[2]) + '，余量 <b>' + kg(+m[2] - +m[1]) + ' kg</b>。AZFW 填实际。', 'Estimated zero-fuel weight ' + kg(m[1]) + ' kg; maximum ' + kg(m[2]) + ' kg, so <b>' + kg(+m[2] - +m[1]) + ' kg</b> to spare.');
+    if ((m = /^ETOW\s+(\d+)\s+MTOW\s+(\d+)(?:.*?RTOW\s+(\d+))?/.exec(t))) return Z('预计起飞重量 ' + kg(m[1]) + ' kg，结构最大 ' + kg(m[2]) + (m[3] ? '，性能限制（RTOW）' + kg(m[3]) : '，没有性能限制') + '，余量 <b>' + kg(Math.min(+m[2], +(m[3] || 1e9)) - +m[1]) + ' kg</b>。ATOW 填实际。', 'Estimated take-off weight ' + kg(m[1]) + ' kg; structural maximum ' + kg(m[2]) + (m[3] ? ', performance limit ' + kg(m[3]) : '') + ' kg — <b>' + kg(Math.min(+m[2], +(m[3] || 1e9)) - +m[1]) + ' kg</b> to spare.');
+    if ((m = /^ELWT\s+(\d+)\s+MLWT\s+(\d+)(?:.*?RLWT\s+(\d+))?/.exec(t))) { const mg = +m[2] - +m[1]; return Z('预计落地重量 ' + kg(m[1]) + ' kg，最大 ' + kg(m[2]) + '，余量 <b>' + kg(mg) + ' kg</b>' + (mg < 3000 ? '（<b>很接近最大落地重量</b>）' : '') + '。' + (m[3] ? '性能限制落地重量 ' + kg(m[3]) + '。' : ''), 'Estimated landing weight ' + kg(m[1]) + ' kg; maximum ' + kg(m[2]) + ' kg, so <b>' + kg(mg) + ' kg</b> to spare' + (mg < 3000 ? ' — <b>very close to the maximum</b>' : '') + '.'); }
     if (/^RWY\s+ASSMD/.test(t)) return Z('起飞性能表头：跑道、假设温度、最低收襟翼高度、襟翼、重心、V1、VR、V2、VREF、发动机失效程序。', 'Take-off performance header.');
     if (/^STATCONT/.test(t)) return Z('统计应急油数据：' + (/NO DATA/.test(t) ? '这个航段没有统计数据。' : t), 'Statistical contingency: ' + t);
     if (/OPERATIONAL IMPACTS/.test(t)) return Z('下面是「如果……会怎样」：无油重量、高度、速度改变时，油耗和时间的变化。', 'What-if table: ZFW / level / speed changes.');
     if ((m = /^(ZFW|FL|SPD) CHANGE\s+(.*)$/.exec(t)) || (sec === 'head' && /BURN/.test(t) && /^(UP|DN|CI\d+)\b/.test(t))) {
       const b = /BURN\s+([PM])\s*(\d+)/.exec(t), ti = /TIME\s+([PM])\s*(\d{4})/.exec(t), w = /(UP|DN)\s+([\d.]+)\s*(TONNE|FT)?|(\d+)FT|(CI\d+)/.exec(t);
       const what = /(UP|DN)\s+([\d.]+)\s*TONNE/.test(t) ? (/UP/.test(t) ? '无油重量多 ' : '无油重量少 ') + /([\d.]+)\s*TONNE/.exec(t)[1] + ' 吨' : /(UP|DN)\s+(\d+)\s*FT/.test(t) ? (/UP/.test(t) ? '飞高 ' : '飞低 ') + /(\d+)\s*FT/.exec(t)[1] + ' 英尺' : /CI(\d+)/.test(t) ? '成本指数改成 ' + /CI(\d+)/.exec(t)[1] : '';
-      return Z(what + '：' + (b ? (b[1] === 'P' ? '多烧 ' : '少烧 ') + b[2] + ' kg' : '') + (ti ? '，时间' + (ti[1] === 'P' ? '多 ' : '少 ') + (+ti[2].slice(2) + 60 * +ti[2].slice(0, 2)) + ' 分钟' : '') + '。', t);
+      const whatE = /(UP|DN)\s+([\d.]+)\s*TONNE/.test(t) ? (/UP/.test(t) ? 'ZFW ' : 'ZFW ') + (/UP/.test(t) ? '+' : '−') + /([\d.]+)\s*TONNE/.exec(t)[1] + ' t' : /(UP|DN)\s+(\d+)\s*FT/.test(t) ? 'you fly ' + /(\d+)\s*FT/.exec(t)[1] + ' ft ' + (/UP/.test(t) ? 'higher' : 'lower') : /CI(\d+)/.test(t) ? 'cost index ' + /CI(\d+)/.exec(t)[1] : '';
+      const mins = ti ? +ti[2].slice(2) + 60 * +ti[2].slice(0, 2) : 0;
+      return Z(what + '：' + (b ? (b[1] === 'P' ? '多烧 ' : '少烧 ') + b[2] + ' kg' : '') + (ti ? '，时间' + (mins ? (ti[1] === 'P' ? '多 ' : '少 ') + mins + ' 分钟' : '不变') : '') + '。', 'If ' + whatE + ': ' + (b ? (b[1] === 'P' ? 'burn ' + b[2] + ' kg more' : 'burn ' + b[2] + ' kg less') : '') + (ti ? ', ' + (mins ? mins + ' min ' + (ti[1] === 'P' ? 'longer' : 'shorter') : 'same time') : '') + '.');
     }
     // ---------- 备降场表 ----------
     if (sec === 'altn' && (m = /^([A-Z]{4})\/(\w+)\s+(\d{4})\s+(\d{3})\s+(\d{3})\s+([PM])(\d{3})\s+(\d{4})\s+(\d+)\s*(.*)$/.exec(t)))
-      return Z('备降场 <b>' + m[1] + '</b>，计划落地跑道 ' + m[2] + '：空中距离 ' + (+m[3]) + ' 海里，平均航迹 ' + m[4] + '°，高度 FL' + m[5] + '，' + (m[6] === 'P' ? '顺风 ' : '逆风 ') + (+m[7]) + ' 节，飞 ' + tm(m[8]) + '，用油 ' + kg(m[9]) + ' kg。航路：' + m[10], 'Alternate ' + m[1] + '/' + m[2] + ': ' + (+m[3]) + ' nm, FL' + m[5] + ', ' + tmE(m[8]) + ', ' + m[9] + ' kg. ' + m[10]);
+      return Z('备降场 <b>' + m[1] + '</b>，计划落地跑道 ' + m[2] + '：空中距离 ' + (+m[3]) + ' 海里，平均航迹 ' + m[4] + '°，高度 FL' + m[5] + '，' + (m[6] === 'P' ? '顺风 ' : '逆风 ') + (+m[7]) + ' 节，飞 ' + tm(m[8]) + '，用油 ' + kg(m[9]) + ' kg。航路：' + m[10], 'Alternate <b>' + m[1] + '</b>, planned runway ' + m[2] + ': ' + (+m[3]) + ' nm (air distance), track ' + m[4] + '°, FL' + m[5] + ', ' + (m[6] === 'P' ? 'tailwind ' : 'headwind ') + (+m[7]) + ' kt, ' + tmE(m[8]) + ' and ' + kg(m[9]) + ' kg of fuel. Route: ' + m[10]);
     if (/^DEST\s+ALTN\s+DIST/.test(t)) return Z('备降场表：计划跑道、距离、航迹、高度、风分量、时间、油量和航路。', 'Alternate summary header.');
     if ((m = /DISPATCH BRIEFING INFO\s+DISP:\s*(\S+)\s+TEL:\s*(.*)$/.exec(t))) return Z('签派提示开始。签派员 ' + m[1] + '，电话 ' + m[2] + '。', 'Dispatch remarks; dispatcher ' + m[1] + ', tel ' + m[2]);
     // ---------- 导航日志 ----------
@@ -176,30 +288,8 @@
     if (/^(BEFORE|AFTER) DP/.test(t)) return Z(/^BEFORE/.test(t) ? '决断点之前释压：' + t.replace(/^BEFORE DP - /, '').replace('TURN BACK ALONG FLIGHT PLANNED ROUTE TO ORIGIN', '沿计划航路掉头返回起飞机场') : '决断点之后释压：' + t.replace(/^AFTER DP - /, '').replace('CONTINUE ALONG FLIGHT PLANNED ROUTE TO DESTINATION', '沿计划航路继续飞目的地'), t);
     if (/^AWY\s+TRM\s+DIST/.test(t)) return Z('导航日志第一行表头：航路、出航磁航迹、距离、风、高度、真空速、速度（IAS / 马赫）、段时间、预计过点、剩油（手写）。', 'Navlog header line 1.');
     if (/^WPT\s+ITT/.test(t)) return Z('导航日志第二行表头：航路点、出航真航迹、风切变率 / 温度偏差、MORA、风分量、对流层顶、累计时间、要求过点 / 实际过点时间、最少需要油量。', 'Navlog header line 2.');
-    if (sec === 'nav' || sec === 'navalt') {
-      if ((m = /^(\S+)\s+(=\s*)?(?:(\d{3})\s+)?(\d{3})\s+(\d{2})\/(\d{3})\s+((?:(?:CLB|DES|\d{3})\s+)*?)(\d{3})\s+\.\./.exec(t))) {
-        const nx = L[i + 1] ? L[i + 1].trim().split(/\s+/)[0] : '';
-        const v = m[7].trim() ? m[7].trim().split(/\s+/) : [];
-        let FLv = null, TAS = null, SP = null;
-        if (v.length >= 3) { FLv = v[0]; TAS = v[1]; SP = v[2]; }
-        else if (v.length === 2) { if (/CLB|DES/.test(v[0])) { FLv = v[0]; SP = v[1]; } else if (+v[1] >= 600) { TAS = v[0]; SP = v[1]; } else { FLv = v[0]; TAS = v[1]; } }
-        else if (v.length === 1) { if (/CLB|DES/.test(v[0])) FLv = v[0]; else if (+v[0] >= 600) SP = v[0]; else TAS = v[0]; }
-        return Z('沿 ' + (m[1] === 'DCT' ? '<b>直飞</b>' : '<b>' + m[1] + '</b>') + ' 飞到 <b>' + nx + '</b>：' + (m[3] ? '出航磁航迹 ' + m[3] + '°，' : '') + '距离 ' + (+m[4]) + ' 海里，风 ' + m[5] + '0°（真）' + (+m[6]) + ' 节' + (FLv ? '，' + (FLv === 'CLB' ? '爬升中' : FLv === 'DES' ? '下降中' : '高度 ' + flv(FLv)) : '') + (TAS ? '，真空速 ' + TAS + ' 节' : '') + (SP ? '，' + spd(SP) : '') + '，这段飞 ' + (+m[8]) + ' 分钟。后面的 「.. ..」 写预计过点时间，「.....」 写实际剩油。',
-          'Via ' + m[1] + ' to ' + nx + ': ' + (m[3] ? 'MT ' + m[3] + '°, ' : '') + (+m[4]) + ' nm, wind ' + m[5] + '0°T/' + (+m[6]) + ' kt' + (FLv ? ', ' + (/\d/.test(FLv) ? 'FL ' + FLv : FLv) : '') + (TAS ? ', TAS ' + TAS : '') + (SP ? ', ' + spdE(SP) : '') + ', ' + (+m[8]) + ' min.');
-      }
-      if ((m = /^([A-Z0-9_]{2,8})(?:\/\w+)?\s+(\+\s+)?(\d{3})?\s*(\d{2})?\/([PM])(\d{2})\s+(\d{2,3})\s+([PM])(\d{3})\s+(?:(\d{2})\s+)?(\d{4})\s+\.{4}\s+\.{4}\s+([\d.]+)/.exec(t))) {
-        const w = ctx && ctx.nav && ctx.nav.find(x => x.id === m[1]);
-        const mora = +m[7] * 100;
-        if (/^[A-Z]{4}\/\w+/.test(t)) return Z('到达目的地 <b>' + m[1] + '</b>，跑道 ' + (/^\w{4}\/(\w+)/.exec(t) || [])[1] + '：起飞后 <b>' + tm(m[11]) + '</b> 落地' + (ctx && ctx.atP && w ? '（约 ' + ctx.atP(w.t) + '）' : '') + '，MORA ' + kg(mora) + ' 英尺。落地时最少要剩 <b>' + m[12] + ' 吨</b>。', 'Arrive ' + m[1] + ' at T/O+' + tmE(m[11]) + '; min fuel ' + m[12] + ' t.');
-        return Z('航路点 <b>' + m[1] + '</b>' + (m[2] ? '（标「+」）' : '') + '：' + (m[3] ? '出航真航迹 ' + m[3] + '°，' : '') + (m[4] ? '风切变率 ' + (+m[4]) + (+m[4] >= 4 ? '（较大，可能颠簸）' : '') + '，' : '') + '温度比标准' + (m[5] === 'P' ? '高 ' : '低 ') + (+m[6]) + '°C，MORA <b>' + kg(mora) + ' 英尺</b>' + (mora >= 15000 ? '（很高的地形）' : mora >= 10000 ? '（高地形）' : '') + '，' + (m[8] === 'M' ? '逆风 ' : '顺风 ') + (+m[9]) + ' 节' + (m[10] ? '，对流层顶约 ' + (+m[10]) + ',000 英尺' : '') + '。起飞后 <b>' + tm(m[11]) + '</b> 到这里' + (ctx && ctx.atP && w ? '（约 ' + ctx.atP(w.t) + '）' : '') + '；到这里最少要剩 <b>' + m[12] + ' 吨</b>。',
-          'Waypoint ' + m[1] + (m[2] ? ' (+)' : '') + ': ISA ' + (m[5] === 'P' ? '+' : '−') + (+m[6]) + ', MORA ' + mora + ' ft, ' + (m[8] === 'M' ? 'HW ' : 'TW ') + (+m[9]) + ' kt, T/O+' + tmE(m[11]) + ', MINR ' + m[12] + ' t.');
-      }
-      if ((m = /^([A-Z]{4})\/(\w+)\s+([\d.]+)$/.exec(t))) return Z('起飞机场 <b>' + m[1] + '</b>，跑道 ' + m[2] + '。起飞时最少要有 <b>' + m[3] + ' 吨</b>。', 'Departure ' + m[1] + ' RWY ' + m[2] + ', MINR ' + m[3] + ' t.');
-      if ((m = /^([A-Z0-9]+)\s+(\d{3})\s+(\d{3})\s+(\d{2})\/(\d{3})/.exec(t)) && /\d{4}\s*$|[\d.]+\s*$/.test(t) === false) {}
-      if ((m = /^([A-Z]{4})\/(\w+)\s+(\d{3})\s+.*?(\d{4})\s+\.{4}\s+\.{4}\s+([\d.]+)$/.exec(t))) return Z('到达目的地 <b>' + m[1] + '</b>，跑道 ' + m[2] + '，起飞后 ' + tm(m[4]) + '。落地时最少要剩 <b>' + m[5] + ' 吨</b>。', 'Arrive ' + m[1] + '/' + m[2] + ' at T/O+' + tmE(m[4]) + '; min fuel ' + m[5] + ' t.');
-      if ((m = /^(\S+)\s+(\d{3})\s+(\d{3})\s+(\d{2})\/(\d{3})\s+.*?(\d{3})\s+\.\./.exec(t))) {}
-    }
-    if (sec === 'winds') return Z('高空风温表：每个航路点在不同高度的风（真风向 / 风速）和温度，用来输入 FMC 或考虑换高度。', 'Winds / temperatures aloft.');
+    if (sec === 'nav' || sec === 'navalt') { const r = navSay(L, i, ctx); if (r) return r; }
+    if (sec === 'winds') { const r = windsSay(L, i, ctx); if (r) return r; return Z('高空风温表：每个航路点在几个高度上的风（真风向 / 风速）和气温。点表里的数字看这个点的详细说明。', 'Winds and temperatures aloft: for each waypoint, wind (true direction / speed) and temperature at several levels. Tap a figure for that waypoint.'); }
     // ---------- ETOPS / 缩减应急油 ----------
     if ((m = /^(?:([A-Z]{4})\/)?(ENTRY|EXIT)(\d)/.exec(t))) return Z((m[2] === 'ENTRY' ? 'ETOPS 进入点' : 'ETOPS 退出点') + ' ' + m[3] + (m[1] ? '（' + (m[2] === 'ENTRY' ? '离开前最后一个充足机场 ' : '退出后第一个充足机场 ') + m[1] + '）' : '') + '。', 'ETOPS ' + m[2] + ' ' + m[3]);
     if (/^ETP\d/.test(t)) return Z('等时点（ETP）：去两个合适机场用时 / 用油相同的位置。', 'Equal time point (1D depressurisation case).');
@@ -270,6 +360,6 @@
     return null;
   }
 
-  root.DEC = { G, sections, lineSay, wordSay };
+  root.DEC = { G, sections, lineSay, wordSay, cellsOf, navHdr };
   if (typeof module !== 'undefined') module.exports = root.DEC;
 })(typeof window !== 'undefined' ? window : globalThis);

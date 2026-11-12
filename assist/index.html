@@ -710,7 +710,8 @@ const FIRN = [
   [/GNSS|\bGPS\b/, 'amber', 'GPS 干扰', 'GNSS interference'],
   [/(?:FREQ|HF)[^.]{0,120}\bU\/S\b|RADAR[^.]{0,80}(?:U\/S|NOT AVBL)|CPDLC[^.]{0,40}(?:U\/S|NOT AVBL)|ADS-C[^.]{0,40}NOT AVBL/, 'amber', 'ATC 频率 / 雷达部分不可用', 'ATC frequency / radar partly U/S'],
   [/CONTACT[^.]{0,60}(?:ACC|CTR|CONTROL)[^.]{0,80}(?:PRIOR|BEFORE|NOT LESS THAN)/, 'amber', '进入前要提前联系 ATC', 'Contact ATC before entry'],
-  [/ARTILLERY|FIRING|EXER|PARA DROP|MILITARY|DANGER AREA|DNG AREA|RESTRICTED AREA|\bTRA\d|\bTSA\b|AIRSPACE RESERVATION|PROHIBITED/, 'amber', '军事活动 / 临时限制区', 'Military activity / restricted area'],
+  [/\bBIRDS?\b[^.]{0,60}(?:ACTIVIT|MIGRAT|FLOCK|STRIKE)/, 'amber', '鸟群活动', 'Bird activity'],
+  [/ARTILLERY|FIRING|\bEXER\b|MIL(?:ITARY)? EXERCISE|PARA DROP|MILITARY|DANGER AREA|DNG AREA|RESTRICTED AREA|\bTRA\d|\bTSA\b|AIRSPACE RESERVATION|PROHIBITED/, 'amber', '军事活动 / 临时限制区', 'Military activity / restricted area'],
   [/FLOW CONTROL|FLOW CTL|CONGESTION|\bMIT\b|MINUTES SEPARATION/, 'info', '流量控制', 'Flow control'],
   [/\bTOS\b|TRAFFIC ORIENTATION SCHEME/, 'info', '航路方向规定（TOS）', 'Traffic orientation scheme'],
   [/COMPANY NOTAM/, 'info', '公司通告', 'Company NOTAM']
@@ -1064,7 +1065,7 @@ function useText(txt) {
   const nA = Object.keys(r.airports).length, nN = Object.values(r.notams).reduce((s, x) => s + x.length, 0);
   $('msg').style.color = 'var(--green)';
   $('msg').textContent = '✅ ' + r.flight.no + ' ' + r.flight.dep + '→' + r.flight.arr + '：' + tt(r.navlog.length + ' 个航路点（' + Object.keys(r.fixes).length + ' 个有坐标），' + nA + ' 个机场天气，' + nN + ' 条 NOTAM', r.navlog.length + ' waypoints (' + Object.keys(r.fixes).length + ' with coords), WX for ' + nA + ' airports, ' + nN + ' NOTAMs') + (r.warnings.length ? '\n⚠️ ' + r.warnings.join('; ') : '');
-  drawRoute(); lastList = 0; tick(); syncClock(); setTimeout(() => translateNotams(), 2500);
+  drawRoute(); lastList = 0; tick(); syncClock(); setTimeout(() => { translateNotams(); translateParas(); }, 2500);
   setTimeout(() => $('load').classList.remove('open'), 1200);
   return true;
 }
@@ -1164,7 +1165,7 @@ $('b-upd').onclick = async () => {
   b.classList.add('busy'); $('b-upd-t').textContent = ' ' + tt('检查网络…', 'Checking…');
   if (!(await online())) { b.classList.remove('busy'); $('b-upd-t').textContent = ''; toast('📵 ' + th('当前无网络，继续使用离线版本', 'No network — using the offline version')); return; }
   $('b-upd-t').textContent = ' ' + tt('更新中…', 'Updating…');
-  flushClock(true); translateNotams(true);
+  flushClock(true); translateNotams(true); translateParas();
   try { if (REG) await REG.update(); } catch (e) {}
   const c = navigator.serviceWorker && navigator.serviceWorker.controller;
   if (!c) { location.reload(); return; }
@@ -1216,7 +1217,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v15';
+const APPV = 'v16';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1314,7 +1315,7 @@ function setNmode(m) { NMODE = m; lsSet('nmode', m); const s = $('sheet-in'); if
 function notamHtml(n) {
   if (NMODE === 'raw') return '<div class="raw">' + esc(n.text) + '</div>';
   const z = NX.zh(n.text, n.id, TR), e = NX.en(n.text);
-  const zh = esc(z.s) + (z.full ? '' : ' <span style="color:var(--amber);font-size:11px">（' + tt('还没联网翻译，先显示对照版', 'not translated yet') + '）</span>');
+  const zh = z.full ? esc(z.s) : '<span style="color:var(--amber);font-size:11.5px">（还没翻成中文，有网时会自动翻译。先看英文白话：）</span><br>' + esc(e);
   if (LANG === 'en') return '<div class="ndec">' + esc(e) + '</div>';
   if (LANG === 'zh') return '<div class="ndec">' + zh + '</div>';
   return '<div class="ndec">' + zh + '<div class="en2">' + esc(e) + '</div></div>';
@@ -1340,7 +1341,7 @@ async function translateNotams(quiet) {
   } catch (e) { if (!quiet) toast(tt('翻译没完成（需要网络和新版时钟后台）', 'Translation incomplete (needs network and updated backend)'), 5000); }
   trBusy = false;
 }
-window.addEventListener('online', () => translateNotams(true));
+window.addEventListener('online', () => { translateNotams(true); translateParas(); });
 
 /* ---------------- 公司 OFP 解读（机长导入，只存在这台 iPad） ---------------- */
 let OM = null; try { OM = JSON.parse(lsGet('om') || 'null'); } catch (e) {}
@@ -1403,12 +1404,15 @@ const omHtml = list => list.map(x => '<div class="om">📘 ' + tt('公司手册 
 
 /* ---------------- OFP 解读 ---------------- */
 let DL = null, DSEC = null, DNOT = null;
-function openDec() {
-  const raw = lsGet('ofptext');
-  if (!raw) { toast(th('先载入 OFP（载入后才有原文）', 'Load an OFP first')); return; }
+function buildDL() {
+  const raw = lsGet('ofptext'); if (!raw) return false;
   DL = raw.replace(/\r/g, '').split('\n').map(l => l.replace(/\s+$/, '')); DSEC = DEC.sections(DL);
   DNOT = []; let cur = null;
   DL.forEach((l, i) => { const m = /^\s*([A-Z0-9]{1,3}\d{1,5}\/\d{2})\s/.exec(l); if (DSEC[i] === 'notam' && m) cur = m[1]; else if (DSEC[i] === 'notam' && (/^[A-Z]{4}\s*\/[A-Z0-9]{3}\s/.test(l) || /^\+{5,}/.test(l.trim()) || /^-{10,}/.test(l.trim()))) cur = null; DNOT[i] = DSEC[i] === 'notam' ? cur : null; });
+  return true;
+}
+function openDec() {
+  if (!buildDL()) { toast(th('先载入 OFP（载入后才有原文）', 'Load an OFP first')); return; }
   $('dec-body').innerHTML = '<div class="paper">' + DL.map((l, i) => { const pg = /^\s*Page\s+(\d+)\s+of\s+(\d+)\s*$/.exec(l); if (pg) return '<div class="pgbrk" data-i="' + i + '"><span>' + pg[1] + ' / ' + pg[2] + '</span></div>'; if (/^\s*(?:UAE|EK)\d+\/\d{2}[A-Za-z]{3}\d{2}\/[A-Z]{3}-[A-Z]{3}\s+\S+\s+OFP:/.test(l)) return ''; return '<div class="ln' + (/^-{5,}.*(FIR|UIR)|^(Weather|NOTAM|OFP|DEPARTURE AIRPORT|DESTINATION|LIDO-NOTAM|=+$|\*{3})/.test(l.trim()) ? ' sec' : '') + '" data-i="' + i + '">' + (esc(l) || ' ') + '</div>'; }).join('') + '</div>';
   setTimeout(translateParas, 300);
   $('dec').classList.add('open'); $('dec-pop').style.display = 'none';
@@ -1419,6 +1423,14 @@ const hash = s => { let h = 0; for (let k = 0; k < s.length; k++) h = (h * 31 + 
 function paraOf(i) {
   const isB = l => !l || !l.trim() || /^\s*Page\s+\d+/.test(l) || /^\s*(?:UAE|EK)\d+\/\d{2}[A-Za-z]{3}/.test(l);
   if (isB(DL[i])) return null;
+  const CO = l => /^\s*CO\d+\/\d{2}\s/.test(l || '');
+  if (DSEC[i] === 'conotam') {   // 一整条公司通告（CO1234/26 …）当成一段
+    let a = i; while (a > 0 && !CO(DL[a]) && DSEC[a - 1] === 'conotam' && i - a < 120) a--;
+    if (CO(DL[a])) { let b = i; while (b + 1 < DL.length && !CO(DL[b + 1]) && DSEC[b + 1] === 'conotam' && b - a < 150) b++;
+      while (b > a && isB(DL[b])) b--;
+      const text = DL.slice(a, b + 1).filter(l => !isB(l)).map(x => x.trim()).join(' ');
+      return { a, b, text }; }
+  }
   let a = i; while (a > 0 && !isB(DL[a - 1]) && !/^\s*-\s/.test(DL[a]) && DSEC[a - 1] === DSEC[i] && !/^\s*[A-Z0-9]{2,5}\d+\/\d{2}\s/.test(DL[a])) a--;
   let b = i; while (b + 1 < DL.length && !isB(DL[b + 1]) && !/^\s*-\s/.test(DL[b + 1]) && DSEC[b + 1] === DSEC[i] && !/^\s*[A-Z0-9]{2,5}\d+\/\d{2}\s/.test(DL[b + 1]) && b - a < 30) b++;
   const text = DL.slice(a, b + 1).map(x => x.trim()).join(' ').replace(/^-\s+/, '');
@@ -1426,9 +1438,10 @@ function paraOf(i) {
 }
 let trpBusy = false;
 async function translateParas() {
-  if (trpBusy || !navigator.onLine || !lsGet('key') || !DL) return;
+  if (trpBusy || !navigator.onLine || !lsGet('key')) return;
+  if (!DL && !buildDL()) return;
   const todo = [], seen = {};
-  DL.forEach((l, i) => { if (!/^(disp|conotam|crew)$/.test(DSEC[i])) return; const p = paraOf(i); if (!p) return; const k = hash(p.text); if (!TRP[k] && !seen[k]) { seen[k] = 1; todo.push({ k, t: NX.en(p.text) }); } });
+  DL.forEach((l, i) => { if (!/^(disp|conotam|crew|etops)$/.test(DSEC[i])) return; const p = paraOf(i); if (!p) return; const k = hash(p.text); if (!TRP[k] && !seen[k]) { seen[k] = 1; todo.push({ k, t: NX.en(p.text) }); } });
   if (!todo.length) return;
   trpBusy = true;
   try { for (let i = 0; i < todo.length; i += 30) { const part = todo.slice(i, i + 30);
@@ -1436,14 +1449,18 @@ async function translateParas() {
     const j = JSON.parse(await r.text()); if (!j.ok) break; j.out.forEach((t, k) => { if (t) TRP[part[k].k] = t; }); lsSet('trp', JSON.stringify(TRP)); } } catch (e) {}
   trpBusy = false;
 }
+const markLn = q => { const e = $('dec-body').querySelector('.ln[data-i="' + q + '"]'); if (e) e.classList.add('sel'); };
+// 还没翻成中文：不显示中英混杂的东西，先给英文白话，有网就马上翻
+const untrans = en => '<span style="color:var(--amber);font-size:12.5px">这段还没翻成中文' + (navigator.onLine && lsGet('key') ? '，正在翻译，几秒后再点一次' : '（需要联网，有网时会自动翻译）') + '。先看英文白话：</span><br>' + esc(en);
 const decCtx = () => ({ nav: S.ofp && S.ofp.navlog, WX, hmZ, ref: S.ofp ? S.ofp.flight.dateUTC + 12 * 3600e3 : Date.now(), AP: S.AP, firNames: S.ofp && S.ofp.firNames, NX, atP: t => hmZ(atP(t)),
   para: i => { const p = paraOf(i); if (!p) return null; const k = hash(p.text), zh = TRP[k];
     document.querySelectorAll('#dec-body .ln.sel').forEach(x => x.classList.remove('sel')); for (let q = p.a; q <= p.b; q++) { const e = $('dec-body').querySelector('.ln[data-i="' + q + '"]'); if (e) e.classList.add('sel'); }
-    return { zh: '<b>整段意思：</b>' + (zh ? esc(zh) : esc(NX.zh(p.text).s) + ' <span style="color:var(--amber);font-size:12px">（还没联网翻译，先显示对照版；有网时会自动翻译）</span>'), en: '<b>In plain English:</b> ' + esc(NX.en(p.text)) }; },
+    return { para: true, zh: '<b>整段意思：</b>' + (zh ? esc(zh) : untrans(NX.en(p.text))), en: '<b>In plain English:</b> ' + esc(NX.en(p.text)) }; },
   notam: i => { const id = DNOT[i]; if (!id) return null; let n = null; Object.values(S.ofp.notams).some(a => (n = a.find(x => x.id === id))); if (!n) return null;
     const r = FIRN.find(x => x[0].test(n.text)) || null;
     const z = NX.zh(n.text, n.id, TR);
-    return { zh: '<b>' + id + '</b>（' + dZ(n.from) + ' – ' + (n.to ? dZ(n.to) : '直到另行通知') + '）' + (r ? ' <span class="t-' + r[1] + '">' + r[2] + '</span>' : '') + '<br>' + esc(z.s) + (z.full ? '' : ' <span style="color:var(--amber);font-size:12px">（还没联网翻译，先显示对照版）</span>'),
+    for (let q = i; q >= 0 && DNOT[q] === id; q--) markLn(q); for (let q = i + 1; q < DL.length && DNOT[q] === id; q++) markLn(q);
+    return { para: true, zh: '<b>通告 ' + id + '</b>（有效：' + dZ(n.from) + ' 到 ' + (n.to ? dZ(n.to) : '另行通知为止') + '）' + (r ? ' <span class="t-' + r[1] + '">' + r[2] + '</span>' : '') + '<br>' + (z.full ? esc(z.s) : untrans(NX.en(n.text))),
       en: '<b>' + id + '</b> (' + dZ(n.from) + ' – ' + (n.to ? dZ(n.to) : 'UFN') + ')' + (r ? ' <span class="t-' + r[1] + '">' + r[3] + '</span>' : '') + '<br>' + esc(NX.en(n.text)) }; } });
 $('dec-body').onclick = e => {
   const ln = e.target.closest('.ln'); if (!ln) return;
@@ -1452,12 +1469,16 @@ $('dec-body').onclick = e => {
   const r = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : (document.caretPositionFromPoint ? (p => { const x = document.createRange(); x.setStart(p.offsetNode, p.offset); return x; })(document.caretPositionFromPoint(e.clientX, e.clientY)) : null);
   if (r && r.startContainer && r.startContainer.nodeType === 3) { const t = r.startContainer.textContent, o = r.startOffset; let a = o, b = o; while (a > 0 && /\S/.test(t[a - 1])) a--; while (b < t.length && /\S/.test(t[b])) b++; word = t.slice(a, b); ln.dataset.pos = a; }
   document.querySelectorAll('#dec-body .ln.sel').forEach(x => x.classList.remove('sel')); ln.classList.add('sel');
-  const ctx = decCtx(), sec = DSEC[i];
-  const L1 = DEC.lineSay(DL, i, sec, ctx), W1 = word ? DEC.wordSay(DL, i, word.replace(/[,;:]$/, ''), sec, ctx) : null;
-  const pick = x => x ? (LANG === 'en' ? x.en : LANG === 'zh' ? x.zh : x.zh + '<div style="color:var(--dim);font-size:13px;margin-top:3px">' + x.en + '</div>') : '';
+  const ctx = decCtx(), sec = DSEC[i]; ctx.pos = +ln.dataset.pos || 0;
+  const L1 = DEC.lineSay(DL, i, sec, ctx);
+  if (L1 && L1.lines) { const [la, lb] = L1.lines.length > 1 ? [Math.min(...L1.lines), Math.max(...L1.lines)] : [L1.lines[0], L1.lines[0]]; for (let q = la; q <= lb; q++) markLn(q); }
+  const textBlock = L1 && L1.para || /^(notam|conotam|disp|crew)$/.test(sec) || sec === 'winds' || (L1 && L1.lines);
+  const W1 = word && !textBlock ? DEC.wordSay(DL, i, word.replace(/[,;:]$/, ''), sec, ctx) : null;
+  if (!L1 && navigator.onLine && /^(notam|conotam|disp|crew|etops)$/.test(sec)) translateParas();
+  const pick = x => x ? (LANG === 'en' ? x.en : LANG === 'zh' ? x.zh : x.zh + '<div style="color:var(--dim);font-size:13px;margin-top:6px;border-top:1px dashed var(--line);padding-top:6px">' + x.en + '</div>') : '';
   const SECN = { head: ['飞行计划首页（油量、时间、重量）', 'OFP front page (fuel, times, weights)'], altn: ['目的地备降场表', 'Destination alternates'], disp: ['签派提示', 'Dispatch notes'], nav: ['导航日志（每个航路点）', 'Navigation log'], navalt: ['去备降场的导航日志', 'Navlog to alternate'], winds: ['高空风温表', 'Winds aloft'], wx: ['天气（METAR / TAF）', 'Weather'], notam: ['航行通告', 'NOTAMs'], crew: ['机组信息', 'Crew info'], conotam: ['公司通告 / 机组须知', 'Company NOTAMs / crew info'], etops: ['ETOPS 信息', 'ETOPS information'] }[sec] || ['', ''];
   $('dec-pop').innerHTML = '<span class="x" onclick="document.getElementById(\'dec-pop\').style.display=\'none\'">✕</span><div class="w">' + tt(SECN[0], SECN[1]) + (word ? ' · <b style="color:var(--text)">' + esc(word) + '</b>' : '') + '</div>' +
-    (W1 ? '<div style="margin-bottom:8px">' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0));
+    (W1 ? '<div style="margin-bottom:8px;color:var(--dim);font-size:13.5px">' + tt('你点的', 'You tapped') + ' · ' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0));
   $('dec-pop').style.display = 'block';
 };
 $('b-dec').onclick = e => { e.preventDefault(); openDec(); };
@@ -1483,7 +1504,7 @@ Promise.all([apReady, ekReady]).then(() => {
     drawRoute();
   } else openLoad();
   applyUI(); tick(); setInterval(tick, 5000); fixBar();
-  flushClock(true); translateNotams(true); translateOM(true);
+  flushClock(true); translateNotams(true); translateOM(true); setTimeout(translateParas, 4000);
   if (S.ofpOld) toast('⚠️ ' + th('这份 OFP 是用旧版本读入的，请重新载入一次 OFP，才会显示移交点、油量等新内容。', 'This OFP was read by an older version — please load it again to see FIR boundaries, fuel, etc.'), 20000);
 });
 // 测试用：?sim=分钟 把时间设到起飞后多少分钟
