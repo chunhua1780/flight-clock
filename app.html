@@ -1437,8 +1437,9 @@ function photoQueries(city, phase, cat, slot) {
   return out.slice(0, 8);
 }
 // 照片是白天还是晚上：下载一张很小的缩略图，算平均亮度和天空颜色，跟当地实际时段对不上就不用
-const PHOTO_OK = (() => { try { return JSON.parse(lsGet('fc.phok') || '{}'); } catch (e) { return {}; } })();
-function thumbOf(url) { return url.replace(/([?&])w=\d+/, '$1w=96').replace(/&q=\d+/, ''); }
+try { localStorage.removeItem('fc.phok'); } catch (e) {}   // 旧版把「检查不了」也记成了「通过」：清掉
+const PHOTO_OK = (() => { try { return JSON.parse(lsGet('fc.phok2') || '{}'); } catch (e) { return {}; } })();
+function thumbOf(url) { return url.replace(/([?&])w=\d+/, '$1w=96').replace(/&q=\d+/, '') + (url.indexOf('?') >= 0 ? '&' : '?') + 'cors=1'; }   // 单独的地址：Safari 缓存里的普通图片不会挡住像素读取
 function photoLook(url) {
   return new Promise(res => {
     const img = new Image(); img.crossOrigin = 'anonymous';
@@ -1468,9 +1469,10 @@ async function photoFits(url, phase, cat) {
   const k = strHash(url) + '|' + phase + '|' + cat;
   if (k in PHOTO_OK) return PHOTO_OK[k];
   const v = lookFits(await photoLook(url), phase, cat);
+  if (v === null) return false;            // 检查不了：不用它（改用自带的、确定是这个时段的照片），也不记住
   const keys = Object.keys(PHOTO_OK); if (keys.length > 400) keys.slice(0, 200).forEach(x => delete PHOTO_OK[x]);
-  PHOTO_OK[k] = v !== false; lsSet('fc.phok', JSON.stringify(PHOTO_OK));
-  return v !== false;
+  PHOTO_OK[k] = v; lsSet('fc.phok2', JSON.stringify(PHOTO_OK));
+  return v;
 }
 function remotePhoto(city, phase, cat, cb) {
   if (!CFG.photos) return null;
@@ -1494,7 +1496,7 @@ function remotePhoto(city, phase, cat, cb) {
   })();
   return null;
 }
-if (typeof Scene !== 'undefined') Scene.setRemote(remotePhoto);
+if (typeof Scene !== 'undefined') { Scene.setRemote(remotePhoto); if (Scene.setVerify) Scene.setVerify(photoFits); }
 
 function renderScenes(st) {
   if (typeof Scene === 'undefined') return;

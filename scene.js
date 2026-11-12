@@ -96,7 +96,7 @@
   }
 
   // ---------- 维基百科城市照片（没有自带照片的城市） ----------
-  const wikiMem = {};
+  const wikiMem = {}, wikiOk = {};
   function wikiImage(city, cb) {
     if (!city) return cb(null);
     const k = 'fc.wiki.' + city;
@@ -228,7 +228,12 @@
     else if (ap && ap.city) {
       const mem = wikiMem[ap.city];
       if (mem === undefined) wikiImage(ap.city, () => update(el, code, ap, w, Date.now(), phaseOverride));
-      else if (mem) { url = mem; key = 'day'; }
+      else if (mem) {   // 维基照片不知道是白天还是晚上：先检查，和当前时段对得上才用
+        const vk = mem + '|' + phase + '|' + cat;
+        if (phase === 'night') { url = mem; key = 'day'; }   // 晚上：照旧把白天照片调暗当夜景
+        else if (wikiOk[vk] === true) { url = mem; key = 'day'; }
+        else if (wikiOk[vk] === undefined && verifyFn) { wikiOk[vk] = 'pending'; verifyFn(mem, phase, cat).then(ok => { wikiOk[vk] = !!ok; if (ok) update(el, code, ap, w, Date.now(), phaseOverride); }).catch(() => { wikiOk[vk] = false; }); }
+      }
     }
     // 时段色调：照片和实际时段不一致时补偿
     let filter = '', tint = '';
@@ -313,6 +318,6 @@
     }
   }).catch(() => {});
 
-  let remoteFn = null;
-  window.Scene = { setRemote: fn => { remoteFn = fn; }, update, clear, weatherCat, phaseOf, sunAlt, CAT_ZH, LIB };
+  let remoteFn = null, verifyFn = null;
+  window.Scene = { setRemote: fn => { remoteFn = fn; }, setVerify: fn => { verifyFn = fn; }, update, clear, weatherCat, phaseOf, sunAlt, CAT_ZH, LIB };
 })();
