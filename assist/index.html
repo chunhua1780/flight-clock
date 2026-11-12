@@ -12,7 +12,10 @@
 <link rel="apple-touch-icon" href="../icon-180.png">
 <link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
 <style>
-:root{--bg:#0b1220;--panel:#111a2b;--line:#22304a;--text:#e9eef7;--dim:#8d9ab3;--gold:#e2b964;--green:#3fcf7f;--amber:#f3b13c;--red:#ff5d55;--blue:#6fb4ff}
+:root{--bg:#0b1220;--panel:#111a2b;--line:#22304a;--text:#e9eef7;--dim:#8d9ab3;--gold:#e2b964;--green:#3fcf7f;--amber:#f3b13c;--red:#ff5d55;--blue:#6fb4ff;
+  --top:var(--top);--btn:var(--btn);--card:var(--card);--input:#0b1220;--hud:var(--hud);--sum:var(--sum);--on:var(--on);--wp:#9fb0cc;--sh:0 0 3px #000;--sea:#0b1220;--fir:#e26bff}
+:root[data-theme=light]{--bg:#e9eef5;--panel:#ffffff;--line:#c9d3e2;--text:#0f1b2d;--dim:#56657e;--gold:#a8740d;--green:#16924a;--amber:#b97700;--red:#d0302a;--blue:#1f6fd1;
+  --top:#f7f9fc;--btn:#eef2f8;--card:#f8fafd;--input:#ffffff;--hud:rgba(255,255,255,.93);--sum:#e6eefb;--on:#d4e2fb;--wp:#46597a;--sh:0 0 3px #fff,0 0 2px #fff;--sea:#cfe0f0;--fir:#b01fd6}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;overflow:hidden;-webkit-text-size-adjust:100%}
 .num{font-variant-numeric:tabular-nums}
@@ -20,28 +23,32 @@ button{font-family:inherit}
 #app{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,1fr);grid-template-rows:auto minmax(0,1fr)}
 @media (orientation:portrait){#app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) minmax(0,1fr)}}
 /* 顶栏 */
-#top{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;background:#0e1626;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#top{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;background:var(--top);border-bottom:1px solid var(--line);flex-wrap:nowrap}
+#top>*{flex-shrink:0}#top .rt{flex-shrink:1}#top .fl{white-space:nowrap}
 #top .fl{font-size:20px;font-weight:700;color:var(--gold)}
 #top .rt{font-size:14px;color:var(--dim);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto}
 #top .btn .en{display:none}
 #top .sp{flex:1}
 #utc{font-size:22px;font-weight:600}
 #utc small{font-size:12px;color:var(--dim);margin-left:4px}
-.btn{border:1px solid var(--line);background:#16223a;color:var(--text);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--btn);color:var(--text);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
 .btn.pri{background:var(--gold);border-color:var(--gold);color:#1a1204;font-weight:700}
 .btn.sm{padding:5px 9px;font-size:12px}
 .pill{display:inline-block;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:700;letter-spacing:.03em;vertical-align:1px}
 /* 地图 */
 #mapwrap{position:relative;min-height:0}
-#map{position:absolute;inset:0;background:#0b1220}
-.leaflet-container{background:#0b1220;font-family:inherit}
-.wp{color:#9fb0cc;font-size:10px;font-weight:600;background:none;border:none;box-shadow:none;padding:0;text-shadow:0 0 3px #000}
+#map{position:absolute;inset:0;background:var(--sea)}
+.leaflet-container{background:var(--sea);font-family:inherit}
+.wp{color:var(--wp);font-size:10px;font-weight:600;background:none;border:none;box-shadow:none;padding:0;text-shadow:var(--sh)}
 .wp:before{display:none}
 #map.far .wp{display:none}
-.apl{background:rgba(10,16,30,.85);border:1px solid var(--line);color:var(--text);font-size:11px;font-weight:700;padding:1px 4px;border-radius:4px;box-shadow:none}
+.wp.firwp{color:var(--fir);font-size:11.5px;font-weight:900}
+#atd.dirty{border-color:var(--amber);box-shadow:0 0 0 2px rgba(243,177,60,.35)}
+#sheet .in{background:var(--card)}
+.apl{background:var(--hud);border:1px solid var(--line);color:var(--text);font-size:11px;font-weight:700;padding:1px 4px;border-radius:4px;box-shadow:none}
 .apl:before{display:none}
 #hud{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;z-index:500;pointer-events:none}
-#hud .c{background:rgba(10,16,30,.88);border:1px solid var(--line);border-radius:10px;padding:6px 10px;pointer-events:auto}
+#hud .c{background:var(--hud);border:1px solid var(--line);border-radius:10px;padding:6px 10px;pointer-events:auto}
 #hud .k{font-size:10px;color:var(--dim);letter-spacing:.06em}
 #hud .v{font-size:17px;font-weight:600}
 #recenter{position:absolute;right:10px;top:10px;z-index:500;display:none}
@@ -49,9 +56,9 @@ button{font-family:inherit}
 #side{min-height:0;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel)}
 @media (orientation:portrait){#side{border-left:none;border-top:1px solid var(--line)}}
 #tabs{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
-#tabs .btn.on{background:#24375a;border-color:#3a5584}
+#tabs .btn.on{background:var(--on);border-color:#3a5584}
 #list{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px 8px 20px}
-.ap{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:6px 0;background:#0f182a;cursor:pointer}
+.ap{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--card);cursor:pointer}
 .ap .h{display:flex;align-items:baseline;gap:8px}
 .ap .id{font-size:17px;font-weight:700}
 .ap .nm{font-size:12px;color:var(--dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -64,17 +71,17 @@ button{font-family:inherit}
 .tag{border:1px solid #3a4b6c;color:#bcd0f0;border-radius:5px;font-size:10.5px;padding:0 5px;margin-left:4px;white-space:nowrap}
 .cat{display:inline-block;min-width:26px;text-align:center;border-radius:6px;padding:1px 5px;font-size:12px;font-weight:800;color:#0b1220;vertical-align:2px}
 .cat.cD{background:#14a04f;color:#fff}.cat.cA1{background:#8ff0a8}.cat.cA2{background:#f7dc2a}.cat.cCA{background:#ff8c1a}.cat.cEA{background:#ff3b30;color:#fff}.cat.cX{background:#6d0000;color:#fff}.cat.cN{background:#4a5570;color:#c9d3e6}
-#legend{position:absolute;left:10px;top:10px;z-index:500;background:rgba(10,16,30,.88);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:11px;line-height:1.7;color:var(--dim)}
+#legend{position:absolute;left:10px;top:10px;z-index:500;background:var(--hud);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:11px;line-height:1.7;color:var(--dim)}
 #legend .cat{font-size:10px;min-width:22px;margin-right:3px}
 #map.far5 .apl.x5{display:none}
 .hint{font-size:12px;margin-top:3px;line-height:1.45}
 /* 详情 */
 #sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:2000}
 #sheet.open{display:block}
-#sheet .in{position:absolute;right:0;top:0;bottom:0;width:min(560px,100%);background:#0f182a;border-left:1px solid var(--line);overflow:auto;padding:16px 16px 40px;-webkit-overflow-scrolling:touch}
+#sheet .in{position:absolute;right:0;top:0;bottom:0;width:min(560px,100%);background:var(--card);border-left:1px solid var(--line);overflow:auto;padding:16px 16px 40px;-webkit-overflow-scrolling:touch}
 #sheet h2{margin:0 0 2px;font-size:22px}
 #sheet h3{margin:16px 0 6px;font-size:13px;color:var(--dim);letter-spacing:.08em;font-weight:600}
-#sheet .raw{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#9fb0cc;white-space:pre-wrap;background:#0b1220;border-radius:8px;padding:8px;margin-top:4px}
+#sheet .raw{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--wp);white-space:pre-wrap;background:var(--input);border-radius:8px;padding:8px;margin-top:4px}
 #sheet table{border-collapse:collapse;width:100%;font-size:13px}
 #sheet td,#sheet th{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left}
 details summary{cursor:pointer;color:var(--blue);font-size:12px;margin-top:3px}
@@ -84,29 +91,29 @@ details summary{cursor:pointer;color:var(--blue);font-size:12px;margin-top:3px}
 #load .in{width:min(640px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
 #load h1{margin:0 0 6px;font-size:22px}
 #load p{color:var(--dim);font-size:14px;line-height:1.55;margin:6px 0}
-#load textarea{width:100%;height:150px;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
-#load input[type=text]{background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:15px;width:100%}
+#load textarea{width:100%;height:150px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+#load input[type=text]{background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:15px;width:100%}
 #load .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center}
 #msg{font-size:13px;color:var(--amber);margin-top:8px;white-space:pre-wrap}
 #atdbox{display:flex;align-items:center;gap:6px}
-#atd{width:86px;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;text-align:center}
+#atd{width:86px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;text-align:center}
 .disc{font-size:10.5px;color:#6f7d98;padding:6px 10px;border-top:1px solid var(--line)}
 .en{color:#8d9ab3;font-size:.86em;font-weight:400;margin-left:4px}
 div.en,.wl .en{display:block;margin-left:0}
 #tabs .btn .en{display:block;margin-left:0;font-size:10px}
-.sum{border:1px solid #3a5584;background:#13213a;border-radius:12px;padding:9px 11px;margin:6px 0 4px}
+.sum{border:1px solid #3a5584;background:var(--sum);border-radius:12px;padding:9px 11px;margin:6px 0 4px}
 .sum .t{font-size:14px;font-weight:700}
 .sum .s{font-size:12px;color:var(--dim);margin-top:2px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
-.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#0f182a;border-radius:9px;padding:4px 7px;font-size:13px;font-weight:700;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--card);border-radius:9px;padding:4px 7px;font-size:13px;font-weight:700;cursor:pointer}
 .chip small{font-weight:400;color:var(--dim);font-size:11px}
 .ap.cur{box-shadow:0 0 0 1.5px #ffffffaa inset}
-.rlab{color:#e2b964;font-size:11px;font-weight:700;white-space:nowrap;text-shadow:0 0 3px #000,0 0 3px #000}
+.rlab{color:#e2b964;font-size:11px;font-weight:700;white-space:nowrap;text-shadow:var(--sh)}
 .rlab.r2{color:#9fb0cc}
 #b-upd.new{border-color:var(--green);color:var(--green)}
 #b-rings{position:absolute;right:10px;top:48px;z-index:500}
 #b-rings.off{opacity:.55}
-#prev{position:absolute;left:50%;transform:translateX(-50%);top:10px;z-index:600;display:none;background:rgba(30,46,80,.95);border:1px solid #4d6fae;border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap}
+#prev{position:absolute;left:50%;transform:translateX(-50%);top:10px;z-index:600;display:none;background:var(--hud);border:1px solid #4d6fae;border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap}
 #prev .btn{margin-left:6px}
 .firm{display:flex;align-items:center;gap:5px;white-space:nowrap}
 .firm i{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#d63bff;border:2.5px solid #fff;box-shadow:0 0 0 3px rgba(214,59,255,.35),0 0 10px #d63bff;font-style:normal;font-size:13px;line-height:1}
@@ -116,19 +123,19 @@ div.en,.wl .en{display:block;margin-left:0}
 #hud .c.fir.soon{background:#7a1f99;animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{background:#d63bff}}
 .apl.hot{font-size:12px;border:none;box-shadow:0 1px 4px #000}
-.dpm{color:#ff5d55;font-weight:900;font-size:13px;text-shadow:0 0 3px #000}
+.dpm{color:#ff5d55;font-weight:900;font-size:13px;text-shadow:var(--sh)}
 .tr{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line);padding:6px 4px;cursor:pointer;font-size:13px}
 .tr .tm{font-variant-numeric:tabular-nums;color:var(--dim);width:46px;flex:none}
 .tr .ic{font-weight:800;font-size:14px;width:44px;flex:none}
 .tr .nm2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim);font-size:12px}
 .tr .xd{font-variant-numeric:tabular-nums;font-size:12px;color:var(--dim);white-space:nowrap}
 .tr.past{opacity:.4}
-.tr.in1{background:#13213a}
+.tr.in1{background:var(--sum)}
 .tr .hn{font-size:11px}
 .nowbar{background:var(--gold);color:#1a1204;font-weight:800;font-size:12px;border-radius:6px;padding:3px 8px;margin:4px 0}
 .firrow{font-size:11.5px;color:#f2b8ff;padding:3px 4px;border-bottom:1px dashed #5a3a6a}
 .disc a{color:var(--gold);font-weight:700;text-decoration:none;font-size:13px;float:right;margin-left:8px}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:4000;background:#1d2b46;border:1px solid #3a5584;border-radius:10px;padding:8px 14px;font-size:14px;display:none}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:4000;background:var(--btn);border:1px solid #3a5584;border-radius:10px;padding:8px 14px;font-size:14px;display:none}
 /* Today Brief */
 #brief{position:fixed;inset:0;z-index:3500;background:#5b6474;display:none;overflow:auto;-webkit-overflow-scrolling:touch}
 #brief.open{display:block}
@@ -169,9 +176,10 @@ div.en,.wl .en{display:block;margin-left:0}
     <span class="fl" id="t-fl">Flight Assist</span>
     <span class="rt" id="t-rt" data-i="载入 OFP 开始|Load an OFP to start"></span>
     <span class="sp"></span>
-    <span id="atdbox"><span style="font-size:12px;color:var(--dim)">ATD</span><input id="atd" inputmode="numeric" maxlength="4" placeholder="HHMM"><span style="font-size:12px;color:var(--dim)">Z</span><button class="btn sm" id="b-now" data-i="现在起飞|Airborne now"></button></span>
+    <span id="atdbox"><span style="font-size:12px;color:var(--dim)">ATD</span><input id="atd" inputmode="numeric" maxlength="4" placeholder="HHMM"><span style="font-size:12px;color:var(--dim)">Z</span><button class="btn sm pri" id="b-atdok" data-i="确定|OK"></button><button class="btn sm" id="b-now" data-i="现在起飞|Airborne now"></button></span>
     <span id="utc" class="num">--:--<small>UTC</small></span>
     <button class="btn sm" id="b-upd">⟳</button>
+    <button class="btn sm" id="b-theme" style="min-width:38px"></button>
     <button class="btn sm" id="b-lang" style="min-width:52px"></button>
     <button class="btn sm" id="b-load">OFP</button>
   </div>
@@ -216,9 +224,9 @@ div.en,.wl .en{display:block;margin-left:0}
     <div id="msg"></div>
     <details style="margin-top:12px"><summary data-i="设置（语言、机型、时钟、授权表）|Settings (language, type, clock, table)"></summary>
       <p data-i="语言：|Language:"></p>
-      <div class="row"><select id="s-lang" style="font-size:15px;padding:6px;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px"><option value="zh">中文</option><option value="en">English</option><option value="both">中文 + English</option></select></div>
+      <div class="row"><select id="s-lang" style="font-size:15px;padding:6px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px"><option value="zh">中文</option><option value="en">English</option><option value="both">中文 + English</option></select></div>
       <p data-i="机型（决定用公司机场授权表里哪一栏）：|Aircraft type (which column of the authorisation table):"></p>
-      <div class="row"><select id="s-type" style="font-size:15px;padding:6px;background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:8px"><option value="" data-i="自动（按 OFP）|Auto (from OFP)"></option></select></div>
+      <div class="row"><select id="s-type" style="font-size:15px;padding:6px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px"><option value="" data-i="自动（按 OFP）|Auto (from OFP)"></option></select></div>
       <p data-i="时钟网址（Apps Script /exec）和口令：|Clock URL (Apps Script /exec) and key:"></p>
       <input type="text" id="s-clock" placeholder="https://script.google.com/macros/s/…/exec">
       <div class="row"><input type="text" id="s-key" placeholder="口令" style="max-width:220px"></div>
@@ -279,9 +287,21 @@ try { S.ofp = JSON.parse(lsGet('ofp') || 'null'); } catch (e) {}
 S.atd = +lsGet('atd') || null;
 
 /* ---------------- 地图（离线：内置世界地图） ---------------- */
+/* ---------------- 白天 / 夜间 ---------------- */
+let THEME = lsGet('theme') || 'dark', L_land = null;
+const MAPC = () => THEME === 'light'
+  ? { land: { color: '#b9b3a6', fillColor: '#f5f2ea' }, route: '#5a6f96', done: '#c27f00', r2: '#5d708f', wp: '#46597a', fir: '#b01fd6' }
+  : { land: { color: '#33425f', fillColor: '#18233a' }, route: '#6f87b3', done: '#e2b964', r2: '#9fb0cc', wp: '#9fb0cc', fir: '#e26bff' };
+function applyTheme() {
+  document.documentElement.dataset.theme = THEME;
+  $('b-theme').textContent = THEME === 'light' ? '☀' : '☾';
+  $('b-theme').title = tt(THEME === 'light' ? '白天模式（点一下换夜间）' : '夜间模式（点一下换白天）', THEME === 'light' ? 'Day mode (tap for night)' : 'Night mode (tap for day)');
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = THEME === 'light' ? '#f7f9fc' : '#0b1220';
+  if (L_land) L_land.setStyle(MAPC().land);
+}
 const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 2, maxZoom: 10, zoomSnap: .5, worldCopyJump: true }).setView([24, 80], 4);
 fetch('data/countries.json').then(r => r.json()).then(topo => {
-  L.geoJSON(topojson.feature(topo, topo.objects.countries), { style: { color: '#33425f', weight: .8, fillColor: '#18233a', fillOpacity: 1 }, interactive: false }).addTo(map);
+  L_land = L.geoJSON(topojson.feature(topo, topo.objects.countries), { style: Object.assign({ weight: .8, fillOpacity: 1 }, MAPC().land), interactive: false }).addTo(map);
   drawRoute();
 }).catch(() => {});
 let L_route, L_done, L_plane, L_wps = [], L_aps = [], L_apm = {};
@@ -289,6 +309,8 @@ const R1 = 410, R2 = 820;                                                 // 1 �
 const ringOpt = (c, w) => ({ radius: 1, color: c, weight: w, dashArray: '7 7', fill: false, interactive: false });
 const L_r1 = L.circle([0, 0], Object.assign(ringOpt('#e2b964', 1.6), { radius: R1 * 1852 }));
 const L_r2 = L.circle([0, 0], Object.assign(ringOpt('#9fb0cc', 1.2), { radius: R2 * 1852 }));
+$('b-theme').onclick = () => { THEME = THEME === 'light' ? 'dark' : 'light'; lsSet('theme', THEME); applyTheme(); L_r2.setStyle({ color: MAPC().r2 }); if (S.ofp) drawRoute(); lastList = 0; tick(); };
+applyTheme(); L_r2.setStyle({ color: MAPC().r2 });
 const L_r1t = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<span class="rlab">1h · 410 nm</span>', iconSize: [90, 14], iconAnchor: [45, 16] }), interactive: false });
 const L_r2t = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<span class="rlab r2">2h · 820 nm</span>', iconSize: [90, 14], iconAnchor: [45, 16] }), interactive: false });
 const L_hl = L.layerGroup().addTo(map);
@@ -414,7 +436,7 @@ function ekHints(e, t) {
   const o = { red: 0, amber: 1, info: 2 }; return out.sort((a, b) => o[a.lv] - o[b.lv]);
 }
 function drawLegend() {
-  const rings = '<br><span class="rlab">- - 1h · 410 nm</span><br><span class="rlab r2">- - 2h · 820 nm</span><br><span style="font-size:10px">' + th('圈内机场变大、标签按类别上色', 'Inside rings: enlarged, label in category colour') + '<br><span style="color:#e26bff">📻</span> ' + th('FIR 移交点 = 换频率', 'FIR boundary = change frequency') + '</span>';
+  const rings = '<br><span class="rlab">- - 1h · 410 nm</span><br><span class="rlab r2">- - 2h · 820 nm</span><br><span style="font-size:10px">' + th('圈内机场变大、标签按类别上色', 'Inside rings: enlarged, label in category colour') + '<br><span style="color:var(--fir)">●</span> ' + th('紫色航路点 = FIR 移交点（换频率）', 'Purple waypoint = FIR boundary (change freq.)') + '</span>';
   if (!S.EK) { $('legend').innerHTML = '<span class="t-amber">' + th('还没导入公司机场授权表', 'Authorisation table not imported') + '</span><br><span style="font-size:10px">OFP → ' + th('设置', 'Settings') + ' → OMA 12.2.5</span>' + rings; return; }
   $('legend').innerHTML = '<b style="color:var(--text)">' + TYPES[typeIdx()] + '</b><br>' +
     ['D', 'A1', 'A2', 'CA', 'EA'].map(c => catTag(c) + (c === 'CA' ? '' : catName(c))).join('<br>') + '<br>' + catTag('-') + th('未评估 / 不在表里', 'not evaluated / not listed') + '<br><span style="font-size:10px">' + th('外圈颜色 = 到达时天气', 'Outline = WX at arrival') + '</span>' + rings;
@@ -464,23 +486,21 @@ function drawRoute() {
   const line = []; let prev = null;
   S.pts.forEach(p => { let lo = p.pos[1]; if (prev != null) { while (lo - prev > 180) lo -= 360; while (lo - prev < -180) lo += 360; } prev = lo; line.push([p.pos[0], lo]); });
   S.line = line; S.tl = null;
-  L_route = L.polyline(line, { color: '#6f87b3', weight: 2, dashArray: '6 6' }).addTo(map);
+  L_route = L.polyline(line, { color: MAPC().route, weight: 2, dashArray: '6 6' }).addTo(map);
   // 航路上每 5 分钟一个点（算各机场离航路多远、什么时候经过）
   S.samp = []; for (let m = 0; m <= (o.times.trip || 0); m += 5) { const q = posAt(m); if (q) S.samp.push({ t: m, pos: q.pos }); }
-  // FIR 移交点
-  (o.firs || []).forEach(f => {
-    const pt = S.pts.find(x => x.id === f.wp); if (!pt) return;
-    L_wps.push(L.marker(pt.pos, { icon: L.divIcon({ className: '', html: '<div class="firm"><i>📻</i><span>' + f.wp + ' ▸ ' + f.name.replace(/ FIR$/, '') + ' <small>' + f.code + ' ' + hmZ(tb() + f.t * MIN) + '</small></span></div>', iconSize: [200, 24], iconAnchor: [12, 12] }), interactive: false, zIndexOffset: 900 }).addTo(map));
-  });
   // 释压改航点 DP
   (o.dp || []).forEach(d => {
     const m = /DP\s+([NS]\d{4}\.\d)\s+([EW]\d{5}\.\d)/.exec(d[0] || ''); if (!m) return;
     L_wps.push(L.marker([OFP.ll(m[1]), OFP.ll(m[2])], { icon: L.divIcon({ className: '', html: '<span class="dpm">✕ DP</span>', iconSize: [40, 14], iconAnchor: [6, 7] }), interactive: false }).addTo(map));
   });
-  L_done = L.polyline([], { color: '#e2b964', weight: 3 }).addTo(map);
+  L_done = L.polyline([], { color: MAPC().done, weight: 3 }).addTo(map);
+  const FIRWP = {}; (o.firs || []).forEach(f => { if (f.wp) FIRWP[f.wp] = f; });
   S.pts.forEach((p, k) => {
-    if (p.interp || /^(TOC|TOD)$/.test(p.id)) return;
-    L_wps.push(L.circleMarker(line[k], { radius: 2, color: '#9fb0cc', weight: 1, fillOpacity: 1, interactive: false }).bindTooltip(p.id, { permanent: true, direction: 'right', className: 'wp', offset: [4, 0] }).addTo(map));
+    if ((p.interp && !FIRWP[p.id]) || /^(TOC|TOD)$/.test(p.id)) return;
+    const fx = FIRWP[p.id];
+    L_wps.push(L.circleMarker(line[k], fx ? { radius: 5, color: '#fff', weight: 1.5, fillColor: MAPC().fir, fillOpacity: 1, interactive: false } : { radius: 2, color: MAPC().wp, weight: 1, fillOpacity: 1, interactive: false })
+      .bindTooltip(fx ? p.id + ' ▸' + fx.code : p.id, { permanent: true, direction: 'right', className: fx ? 'wp firwp' : 'wp', offset: [fx ? 6 : 4, 0] }).addTo(map));
   });
   const tEta = (S.atd || o.times.std || Date.now()) + (o.times.trip || 0) * MIN;
   candidates().sort((a, b) => (a.ofp ? 1 : 0) - (b.ofp ? 1 : 0)).forEach(c => {
@@ -780,16 +800,26 @@ function setATD(t) {
   S.atd = t; lsSet('atd', t || ''); $('atd').value = t ? hmZ(t).slice(0, 4) : ''; S.drag = null;
   S.follow = true; $('recenter').style.display = 'none'; lastList = 0; S.firToast = null; if (L_route) drawRoute(); tick(); if (t) fitRing();
 }
-$('atd').onchange = () => {
-  const v = $('atd').value.trim();
+$('atd').oninput = () => $('atd').classList.toggle('dirty', $('atd').value.trim() !== (S.atd ? hmZ(S.atd).slice(0, 4) : ''));
+$('atd').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); confirmATD(); } };
+$('b-atdok').onclick = () => confirmATD();
+// 手动输入起飞时间（UTC），按「确定」后飞机按计划时间比例推到对应航路位置
+function confirmATD() {
+  const v = $('atd').value.trim().replace(/[^0-9]/g, '');
+  $('atd').classList.remove('dirty'); $('atd').blur();
+  if (v === '') { setATD(null); toast(th('已清除起飞时间', 'Takeoff time cleared')); return; }
+  if (!/^\d{4}$/.test(v) || +v.slice(0, 2) > 23 || +v.slice(2) > 59) { toast(th('请输入 4 位 UTC 时间，例如 0510', 'Enter 4-digit UTC time, e.g. 0510')); return; }
+  if (!S.ofp) { toast(th('先载入 OFP', 'Load an OFP first')); return; }
   if (!/^\d{4}$/.test(v) || !S.ofp) { setATD(null); return; }
   // 以计划撤轮挡那天为准；若输入时间比 STD 早很多，就算第二天
   const std = S.ofp.times.std || S.ofp.flight.dateUTC;
   const d0 = new Date(std); let t = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate(), +v.slice(0, 2), +v.slice(2));
   if (t < std - 6 * 3600e3) t += 864e5;
   setATD(t);
-};
-$('b-now').onclick = () => setATD(Math.floor(now() / MIN) * MIN);
+  const el = (now() - t) / MIN, q = posAt(el), nx = q && q.next;
+  toast('✈ ATD <b>' + hmZ(t) + '</b> · ' + (el < 0 ? th('还没到起飞时间', 'not yet airborne') : el >= S.ofp.times.trip ? th('按计划已经落地', 'landed per plan') : th('已飞 ', 'flown ') + dur(el) + (nx ? ' · ' + th('下一点 ', 'next ') + nx.id + ' ' + hmZ(t + nx.t * MIN) : '')), 5000);
+}
+$('b-now').onclick = () => { setATD(Math.floor(now() / MIN) * MIN); $('atd').classList.remove('dirty'); };
 
 /* ---------------- 载入 OFP ---------------- */
 TYPES.forEach((x, i) => { const op = document.createElement('option'); op.value = i; op.textContent = x; $('s-type').appendChild(op); });
