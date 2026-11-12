@@ -78,6 +78,8 @@ function postJson_(text) {
   }
   // 联网解读：用 Google Gemini（打开 Google 搜索）把 OFP 里的一段用白话讲清楚。Key 放在「项目设置 → 脚本属性」GEMINI_KEY
   if (j.action === 'explain') return JSON.stringify(explain_(j));
+  // 学到的东西：所有设备共用（iPad、电脑），下载到设备上离线用
+  if (j.action === 'kb') return JSON.stringify(kbGet_());
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -713,16 +715,16 @@ function explain_(j) {
   const text = String(j.text || '').slice(0, 6000), lang = j.lang === 'en' ? 'en' : 'zh';
   if (!text.trim()) return { ok: false, error: 'empty' };
   const cache = CacheService.getScriptCache(), ck = 'ex_' + lang + '_' + hash_(text + '|' + (j.word || ''));
-  const hit = cache.get(ck); if (hit) return { ok: true, out: hit, cached: true };
+  const hit = cache.get(ck); if (hit) return finish_(hit, j, lang, true);
   const prompt = (lang === 'zh'
     ? '你是一位经验丰富的波音 777 机长兼签派员。下面是阿联酋航空 LIDO 格式 OFP（运行飞行计划）里的一段，所在部分：' + (j.section || '未知') + '。\n'
       + '请先联网搜索确认不认识的缩写、航路点、机场、空域和规定，然后用简体中文「说人话」把这一整段讲清楚：它在说什么、对机组意味着什么、要注意什么。'
       + '数字要读对（例如 236/063 是风向 236° 风速 63 节，-37 是气温零下 37°C，321 这类是高度层）。不要逐字翻译，不要中英混杂，专有名词第一次出现时可以括号注英文。'
-      + (j.word ? '机长点的是「' + j.word + '」，先用一句话解释它，再讲整段。' : '') + '只输出解读本身，简洁，分短段。\n\n'
+      + (j.word ? '机长点的是「' + j.word + '」，先用一句话解释它，再讲整段。' : '') + '只输出解读本身，简洁，分短段。\n\n' + LEARN_ZH_
     : 'You are an experienced Boeing 777 captain and dispatcher. Below is part of an Emirates LIDO-format OFP (section: ' + (j.section || 'unknown') + ').\n'
       + 'Search the web to confirm any abbreviation, waypoint, airport, airspace or rule you are unsure of, then explain the whole passage in plain English: what it says, what it means for the crew, and what to watch out for. '
       + 'Read numbers correctly (e.g. 236/063 = wind 236° at 63 kt, -37 = minus 37 °C, 321 = flight level). Do not translate word by word. '
-      + (j.word ? 'The captain tapped "' + j.word + '": explain that in one sentence first, then the whole passage. ' : '') + 'Output only the explanation, concise, short paragraphs.\n\n')
+      + (j.word ? 'The captain tapped "' + j.word + '": explain that in one sentence first, then the whole passage. ' : '') + 'Output only the explanation, concise, short paragraphs.\n\n' + LEARN_EN_)
     + '---\n' + text + '\n---';
   const models = [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
   const call = function (model, search) {
@@ -742,7 +744,39 @@ function explain_(j) {
     const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
     if (!out) { last = models[m] + ' empty'; continue; }
     try { cache.put(ck, out, 21600); } catch (e) {}
-    return { ok: true, out: out, model: models[m], searched: searched };
+    const res = finish_(out, j, lang, false); res.model = models[m]; res.searched = searched; return res;
   }
   return { ok: false, error: 'no model: ' + last };
+}
+
+// ======== 学习：AI 每次解读时顺便整理出「词条」，存在后台；所有设备下载后离线使用 ========
+const LEARN_ZH_ = '最后另起一行写 ===LEARN===，后面写一个 JSON 数组，列出这段里值得记住的缩写、代码、航路点、空域、程序名、术语（最多 8 个，被点的词一定要有）：[{"t":"原文写法","zh":"不超过 40 字的中文解释","en":"English, max 20 words"}]。解释要通用（以后别的航班也适用），不要写今天的具体数字。\n\n';
+const LEARN_EN_ = 'Finally, on a new line write ===LEARN=== followed by a JSON array of the abbreviations, codes, waypoints, airspace, procedure names and terms worth remembering from this passage (max 8; always include the tapped word): [{"t":"as written","zh":"Chinese, max 40 characters","en":"English, max 20 words"}]. Keep them generic (valid for other flights), no flight-specific numbers.\n\n';
+function finish_(raw, j, lang, cached) {
+  const parts = String(raw).split(/\n?\s*===LEARN===\s*/);
+  const out = parts[0].trim();
+  let learn = [];
+  if (parts[1]) { try { const m = parts[1].match(/\[[\s\S]*\]/); if (m) learn = JSON.parse(m[0]); } catch (e) {} }
+  learn = (Array.isArray(learn) ? learn : []).filter(function (x) { return x && x.t && (x.zh || x.en); }).slice(0, 10)
+    .map(function (x) { return { t: String(x.t).toUpperCase().trim().slice(0, 40), zh: String(x.zh || '').slice(0, 120), en: String(x.en || '').slice(0, 200) }; });
+  if (!cached) { try { kbSave_(learn, j.key, lang, out); } catch (e) {} }
+  return { ok: true, out: out, learn: learn, cached: cached };
+}
+function kbSave_(learn, k, lang, out) {
+  const props = PropertiesService.getScriptProperties(), now = Date.now(), put = {};
+  learn.forEach(function (x) { put['kb_' + x.t] = JSON.stringify({ zh: x.zh, en: x.en, t: now }); });
+  if (k && /^[\w-]{1,40}$/.test(k)) put['ka_' + k] = JSON.stringify({ o: out.slice(0, 8000), t: now });
+  props.setProperties(put, false);
+  // 后台空间有限（约 500 KB）：超过 400 KB 时删掉最老的整段解读
+  const all = props.getProperties(); let size = 0; const ka = [];
+  Object.keys(all).forEach(function (key) { size += key.length + all[key].length; if (key.indexOf('ka_') === 0) { let t = 0; try { t = JSON.parse(all[key]).t; } catch (e) {} ka.push([key, t, all[key].length]); } });
+  ka.sort(function (a, b) { return a[1] - b[1]; });
+  for (let i = 0; size > 400000 && i < ka.length; i++) { props.deleteProperty(ka[i][0]); size -= ka[i][0].length + ka[i][2]; }
+}
+function kbGet_() {
+  const all = PropertiesService.getScriptProperties().getProperties(), terms = {}, ai = {};
+  Object.keys(all).forEach(function (key) {
+    try { if (key.indexOf('kb_') === 0) terms[key.slice(3)] = JSON.parse(all[key]); else if (key.indexOf('ka_') === 0) ai[key.slice(3)] = JSON.parse(all[key]); } catch (e) {}
+  });
+  return { ok: true, terms: terms, ai: ai };
 }
