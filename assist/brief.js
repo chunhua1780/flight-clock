@@ -3,7 +3,7 @@
 'use strict';
 function briefFull() {
   const o = S.ofp, f = o.flight, T = o.times, F = o.fuel || {}, W = o.weights || {};
-  const T0 = tb(), ETA = T0 + (T.trip || 0) * MIN;
+  const T0 = tb(), ETA = atP(T.trip || 0);
   const t1 = n => n == null ? '—' : (n / 1000).toFixed(1) + ' t';
   const mm = m => m == null ? '' : dur(m);
   const C = {}; candidates().forEach(c => { C[c.icao] = c; });
@@ -38,10 +38,10 @@ function briefFull() {
       candidates().forEach(c => { if (!usable(c) || c.icao === f.dep && h > 0) return; const d = distNm(q.pos, c.pos); if (d <= R1 && (!set[c.icao] || d < set[c.icao].d)) set[c.icao] = { c, d, m }; });
     }
     const WR = { green: 0, amber: 1, none: 2, red: 3 }, CR = { D: 0, A1: 1, A2: 2, CA: 3, EA: 4 };
-    const list = Object.values(set).map(x => { const t = T0 + x.m * MIN, a = assess(x.c, t), cat = x.c.ek ? catAt(x.c.ek, t) : '-'; return Object.assign(x, { t, a, cat, bad: ekHints(x.c.ek, t).some(z => z.lv === 'red') }); })
+    const list = Object.values(set).map(x => { const t = atP(x.m), a = assess(x.c, t), cat = x.c.ek ? catAt(x.c.ek, t) : '-'; return Object.assign(x, { t, a, cat, bad: ekHints(x.c.ek, t).some(z => z.lv === 'red') }); })
       .filter(x => x.cat !== '-' || !S.EK)
       .sort((p, q) => (p.bad - q.bad) || (WR[p.a.rate] - WR[q.a.rate]) || ((CR[p.cat] ?? 5) - (CR[q.cat] ?? 5)) || (p.d - q.d));
-    hours.push({ h, from: T0 + h * 60 * MIN, to: T0 + Math.min((h + 1) * 60, T.trip) * MIN, list });
+    hours.push({ h, from: atP(h * 60), to: atP(Math.min((h + 1) * 60, T.trip)), list });
   }
   // 航路天气：离航路 820 nm 以内、经过时天气要注意/差的机场
   const sig = [];
@@ -49,8 +49,8 @@ function briefFull() {
     if (!c.ofp) return;
     let best = 1e9, bt = 0; S.samp.forEach(q => { const d = distNm(q.pos, c.pos); if (d < best) { best = d; bt = q.t; } });
     if (best > R2) return;
-    const a = assess(c, T0 + bt * MIN);
-    if (a.rate === 'amber' || a.rate === 'red') sig.push({ c, a, t: T0 + bt * MIN, x: best });
+    const a = assess(c, atP(bt));
+    if (a.rate === 'amber' || a.rate === 'red') sig.push({ c, a, t: atP(bt), x: best });
   });
   sig.sort((p, q) => p.t - q.t);
 
@@ -72,7 +72,7 @@ function briefFull() {
     sayE.push('Arrival ' + nm(dst.c) + ' at ' + hmZ(ETA) + ': ' + wxz(dst.a, 'en').join('; ') + ', expect runway ' + (dst.rwy || '—') + '.' + (n.length ? ' Note: ' + n.map(x => x.en || x.zh).join(', ') + '.' : ''));
   }
   if (alts.length) { sayZ.push('目的地备降场：' + alts.map(x => x.c.icao + '（' + rateTxt(x.a.rate).replace(/<[^>]+>.*$/, '') + '）').join('，') + '。'); sayE.push('Destination alternates: ' + alts.map(x => x.c.icao + ' (' + { green: 'OK', amber: 'caution', red: 'poor', none: 'n/a' }[x.a.rate] + ')').join(', ') + '.'); }
-  if ((o.firs || []).length) { sayZ.push('航路经过：' + o.firs.map(x => x.name.replace(' FIR', '') + '（' + x.wp + ' ' + hmZ(T0 + x.t * MIN) + '）').join(' → ') + '。'); sayE.push('FIRs: ' + o.firs.map(x => x.name.replace(' FIR', '') + ' (' + x.wp + ' ' + hmZ(T0 + x.t * MIN) + ')').join(' → ') + '.'); }
+  if ((o.firs || []).length) { sayZ.push('航路经过：' + o.firs.map(x => x.name.replace(' FIR', '') + '（' + x.wp + ' ' + hmZ(atP(x.t)) + '）').join(' → ') + '。'); sayE.push('FIRs: ' + o.firs.map(x => x.name.replace(' FIR', '') + ' (' + x.wp + ' ' + hmZ(atP(x.t)) + ')').join(' → ') + '.'); }
   (o.dp || []).forEach(d => { sayZ.push('释压改航点：' + d[0] + '；' + d.slice(1).join('；') + '。'); sayE.push('Depressurisation: ' + d.join('; ') + '.'); });
   // 只说主要危险：雷暴 / CB / 低能见 / 低云 / 大风
   const hz0 = (a, en) => { const c = [a.w.main].concat(a.w.maybe.map(m => m.c)); const k = new Set();
@@ -111,7 +111,7 @@ function briefFull() {
   h += '<h2>' + th('机场', 'Airports') + '</h2><table><tr><th>' + th('机场', 'Airport') + '</th><th>' + th('时间', 'Time') + '</th><th>' + th('天气', 'Weather') + '</th><th>' + th('跑道', 'RWY') + '</th><th>' + th('NOTAM / 公司限制', 'NOTAM / company') + '</th></tr>' +
     apBlock(th('起飞', 'Departure'), dep) + apBlock(th('目的地', 'Destination'), dst) +
     alts.map((x, i) => apBlock(th('目的地备降', 'Dest altn') + ' ' + (i + 1), x, '<br><span class="small">+' + mm(o.alternates[i].time) + ' · ' + o.alternates[i].dist + ' nm · FL' + o.alternates[i].fl + '</span>')).join('') + '</table>';
-  if ((o.firs || []).length) h += '<h2>' + th('FIR 移交点', 'FIR boundaries') + '</h2><table><tr><th>' + th('时间', 'Time') + '</th><th>' + th('移交点', 'Point') + '</th><th>' + th('进入', 'Entering') + '</th></tr>' + o.firs.map(x => '<tr><td class="num">' + hmZ(T0 + x.t * MIN) + ' <span class="small">+' + mm(x.t) + '</span></td><td><b>' + x.wp + '</b></td><td>' + x.name + ' (' + x.code + ')</td></tr>').join('') + '</table>';
+  if ((o.firs || []).length) h += '<h2>' + th('FIR 移交点', 'FIR boundaries') + '</h2><table><tr><th>' + th('时间', 'Time') + '</th><th>' + th('移交点', 'Point') + '</th><th>' + th('进入', 'Entering') + '</th></tr>' + o.firs.map(x => '<tr><td class="num">' + hmZ(atP(x.t)) + ' <span class="small">+' + mm(x.t) + '</span></td><td><b>' + x.wp + '</b></td><td>' + x.name + ' (' + x.code + ')</td></tr>').join('') + '</table>';
   h += '<h2>' + th('航路备降场（每小时，1 小时 / 410 nm 以内）', 'Enroute alternates by hour (within 1h / 410 nm)') + '</h2><table><tr><th>' + th('时段', 'Period') + '</th><th>' + th('机场（按 天气 → 类别 → 距离）', 'Airports (weather → category → distance)') + '</th></tr>' +
     hours.map(x => '<tr><td class="num" style="white-space:nowrap">' + hmZ(x.from) + '–' + hmZ(x.to) + '<br><span class="small">' + (x.h) + '–' + (x.h + 1) + 'h</span></td><td>' +
       (x.list.length ? x.list.slice(0, 8).map(y => { const hs = ekHints(y.c.ek, y.t).filter(z => z.lv !== 'info').slice(0, 1), nn = y.a.notes.filter(z => z.lv === 'red').slice(0, 1);
@@ -143,7 +143,7 @@ const flNote = key => { try { return localStorage.getItem('fa.flnote.' + key) ||
 
 function briefOne() {
   const o = S.ofp, f = o.flight, T = o.times, F = o.fuel || {}, W = o.weights || {};
-  const T0 = tb(), ETA = T0 + (T.trip || 0) * MIN;
+  const T0 = tb(), ETA = atP(T.trip || 0);
   const L2 = (zh, en) => LANG === 'en' ? en : zh;
   const t1 = n => n == null ? '—' : (n / 1000).toFixed(1) + ' t';
   const mm = m => m == null ? '' : dur(m);
@@ -170,7 +170,7 @@ function briefOne() {
     if (!c.ofp || c.icao === f.dep || c.icao === f.arr) return;
     let best = 1e9, bt = 0; (S.samp || []).forEach(q => { const d = distNm(q.pos, c.pos); if (d < best) { best = d; bt = q.t; } });
     if (best > 250) return;
-    const a = assess(c, T0 + bt * MIN), h = hz(a);
+    const a = assess(c, atP(bt)), h = hz(a);
     if (h.some(x => /雷暴|TS/.test(x))) hits.push({ m: bt, c });
   });
   hits.sort((a, b) => a.m - b.m);
