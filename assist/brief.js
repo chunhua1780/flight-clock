@@ -122,113 +122,123 @@ function briefFull() {
   return h;
 }
 
-/* ---------- 一页版：给机组 / 客舱机组做简报用，A4 一页 ---------- */
-// 特殊空域（冲突区、安全警告等）——按 FIR 代码
+/* ---------- 一页版 Today Brief：竖版 A4，表格，言简意赅；主要影响自动上色 ---------- */
 const SPECIAL_FIR = {
   OIIX: ['伊朗', 'Iran'], ORBB: ['伊拉克', 'Iraq'], OAKX: ['阿富汗', 'Afghanistan'], OYSC: ['也门', 'Yemen'], OSTT: ['叙利亚', 'Syria'],
-  LLLL: ['以色列', 'Israel'], OLBB: ['黎巴嫩', 'Lebanon'], OJAC: ['约旦', 'Jordan'], HSSX: ['苏丹', 'Sudan'], HLLL: ['利比亚', 'Libya'],
+  LLLL: ['以色列', 'Israel'], OLBB: ['黎巴嫩', 'Lebanon'], HSSX: ['苏丹', 'Sudan'], HLLL: ['利比亚', 'Libya'], UMMV: ['白俄罗斯', 'Belarus'],
   UKBV: ['乌克兰', 'Ukraine'], UKDV: ['乌克兰', 'Ukraine'], UKLV: ['乌克兰', 'Ukraine'], UKOV: ['乌克兰', 'Ukraine'], UKFV: ['乌克兰', 'Ukraine'],
-  UMMV: ['白俄罗斯', 'Belarus'], ZKKP: ['朝鲜', 'North Korea'], OPKR: ['巴基斯坦', 'Pakistan'], OPLR: ['巴基斯坦', 'Pakistan'],
-  HCSM: ['索马里', 'Somalia'], HAAA: ['埃塞俄比亚', 'Ethiopia'], VYYF: ['缅甸', 'Myanmar'], HECC: ['埃及', 'Egypt'], OEJD: ['沙特', 'Saudi Arabia']
+  ZKKP: ['朝鲜', 'North Korea'], OPKR: ['巴基斯坦', 'Pakistan'], OPLR: ['巴基斯坦', 'Pakistan'], HCSM: ['索马里', 'Somalia'], VYYF: ['缅甸', 'Myanmar']
 };
-const FIR_RULES = [
-  [/CONFLICT ZONE|HAZARDOUS SITUATION|SECURITY WARNING|MISSILE|ROCKET|HOSTILE|ARMED CONFLICT|WEAPON/, '冲突 / 安全警告', 'conflict / security warning', 2],
-  [/GNSS|GPS/, 'GPS 干扰', 'GNSS interference', 1],
-  [/ARTILLERY|FIRING|EXER|PARA DROP|MILITARY|DANGER AREA|TEMPO RESTRICTED|TRA\d|TSA/, '军事活动 / 临时限制区', 'military activity / restricted areas', 1],
-  [/FLOW CONTROL|CONGESTION/, '流量控制', 'flow control', 0]
+// 机场「已知问题」：从 NOTAM 里自动认出来的 + 机组自己记下的（每个机场一份，存在这台 iPad 上）
+const KNOWN = [
+  [/BIRD/, '鸟击风险', 'Bird strike risk'], [/WIND\s?SHEAR/, '风切变', 'Wind shear'], [/HOT\s?SPOT|RWY INCURSION|CONFUSION/, '跑道侵入热点', 'Runway incursion hotspots'],
+  [/GNSS|GPS/, 'GPS 干扰', 'GNSS interference'], [/FOLLOW-ME|TOWED|TOW\b/, '机坪特殊程序（引导 / 拖行）', 'Special apron procedures'],
+  [/TWY[^.]{0,30}CLSD|TAXIWAY[^.]{0,30}CLSD/, '滑行道关闭', 'Taxiway closures'], [/CRANE|OBST/, '障碍物 / 吊车', 'Obstacles / cranes'],
+  [/CURFEW|NOISE/, '宵禁 / 噪音限制', 'Curfew / noise'], [/FUEL\b[^.]{0,30}(NOT AVBL|SHORTAGE|LTD)/, '燃油受限', 'Fuel limited'], [/DRONE|UAS|UAV|LASER/, '无人机 / 激光', 'Drones / lasers']
 ];
-function firRisks(code) {
-  const out = []; const seen = {};
-  (S.ofp.notams[code] || []).forEach(n => FIR_RULES.forEach(([re, zh, en, lv]) => { if (re.test(n.text) && !seen[zh]) { seen[zh] = 1; out.push({ zh, en, lv }); } }));
-  return out.sort((a, b) => b.lv - a.lv);
-}
+const apNote = icao => { try { return localStorage.getItem('fa.apnote.' + icao) || ''; } catch (e) { return ''; } };
+function saveApNote(icao, el) { try { localStorage.setItem('fa.apnote.' + icao, el.innerText.trim()); } catch (e) {} }
+function saveFlNote(key, el) { try { localStorage.setItem('fa.flnote.' + key, el.innerText.trim()); } catch (e) {} }
+const flNote = key => { try { return localStorage.getItem('fa.flnote.' + key) || ''; } catch (e) { return ''; } };
+
 function briefOne() {
-  const o = S.ofp, f = o.flight, T = o.times, F = o.fuel || {};
+  const o = S.ofp, f = o.flight, T = o.times, F = o.fuel || {}, W = o.weights || {};
   const T0 = tb(), ETA = T0 + (T.trip || 0) * MIN;
-  const L2 = (zh, en) => LANG === 'en' ? en : zh;                      // 句子：一页纸放不下两种语言，中英模式用中文
+  const L2 = (zh, en) => LANG === 'en' ? en : zh;
   const t1 = n => n == null ? '—' : (n / 1000).toFixed(1) + ' t';
   const mm = m => m == null ? '' : dur(m);
   const C = {}; candidates().forEach(c => { C[c.icao] = c; });
-  const fl = (T.plndFl || '').split(/\s+/).filter(Boolean).map(x => { const m = /^(?:(\w+)\/)?(\d{3})$/.exec(x); return m ? (m[1] ? 'FL' + m[2] + ' (' + m[1] + ')' : 'FL' + m[2]) : x; });
-  const wx1 = a => a.w && a.src !== 'none' ? WX.say(a.w, LANG === 'en' ? 'en' : 'zh') : [L2('没有这个时间的预报', 'no forecast for this time')];
-  // 天气里的危险
+  const fl = (T.plndFl || '').split(/\s+/).filter(Boolean).map(x => { const m = /^(?:(\w+)\/)?(\d{3})$/.exec(x); return m ? m[2] : x; });
   const hz = a => { if (!a || !a.w) return []; const k = new Set();
     [a.w.main].concat(a.w.maybe.map(m => m.c)).forEach(x => { if (!x) return; const wx = (x.wx || []).join(' ');
-      if (/TS/.test(wx) || x.cb) k.add(L2('雷暴/CB', 'TS/CB')); if (x.vis != null && x.vis < 3000) k.add(L2('低能见度', 'low vis') + ' ' + x.vis + 'm'); if (x.ceil != null && x.ceil < 1000) k.add(L2('低云', 'low ceiling') + ' ' + x.ceil + 'ft');
-      if (x.wind && Math.max(x.wind.spd, x.wind.gust || 0) >= 25) k.add(L2('大风', 'wind') + ' ' + x.wind.spd + (x.wind.gust ? 'G' + x.wind.gust : '') + 'kt'); if (/DU|SA|SS|DS/.test(wx)) k.add(L2('沙尘', 'dust/sand')); if (/FG/.test(wx)) k.add(L2('雾', 'fog')); if (/FZ|SN/.test(wx)) k.add(L2('结冰/雪', 'icing/snow')); });
+      if (/TS/.test(wx) || x.cb) k.add(L2('雷暴', 'TS')); if (x.vis != null && x.vis < 3000) k.add(L2('能见度 ', 'vis ') + x.vis + 'm'); if (x.ceil != null && x.ceil < 1000) k.add(L2('云底 ', 'ceiling ') + x.ceil + 'ft');
+      if (x.wind && Math.max(x.wind.spd, x.wind.gust || 0) >= 25) k.add(L2('大风 ', 'wind ') + x.wind.spd + (x.wind.gust ? 'G' + x.wind.gust : '') + 'kt'); if (/DU|SA|SS|DS/.test(wx)) k.add(L2('沙尘', 'dust')); if (/FG/.test(wx)) k.add(L2('雾', 'fog')); if (/FZ|SN/.test(wx)) k.add(L2('结冰/雪', 'icing/snow')); });
     return [...k]; };
-  const apRisk = (icao, t, rwy) => {
+  const apInfo = (icao, t, rwy) => {
     const c = C[icao]; if (!c) return null;
     const a = assess(c, t), pk = a.rw && a.rw.pick;
-    const risks = hz(a).concat(a.notes.filter(n => n.lv !== 'info').slice(0, 4).map(n => LANG === 'en' ? (n.en || n.zh) : n.zh))
-      .concat(ekHints(c.ek, t).filter(h => h.lv !== 'info').map(h => LANG === 'en' ? h.en : h.zh));
-    return { c, a, t, rwy: rwy || (pk && pk.id), pk, risks };
+    const nt = a.notes.filter(n => n.lv !== 'info').slice(0, 4).map(n => ({ lv: n.lv, s: LANG === 'en' ? (n.en || n.zh) : n.zh }));
+    const known = []; KNOWN.forEach(([re, zh, en]) => { if ((o.notams[icao] || []).some(n => re.test(n.text))) known.push(L2(zh, en)); });
+    return { c, a, t, rwy: rwy || (pk && pk.id), pk, nt, known, elev: c.db ? c.db[5] : null, wxh: hz(a) };
   };
-  const dep = apRisk(f.dep, T0, f.depRwy), dst = apRisk(f.arr, ETA, f.arrRwy);
-  const alts = o.alternates.map(x => apRisk(x.icao, ETA + x.time * MIN)).filter(Boolean);
-  // 航路天气：离航路 300 nm 以内、经过时有雷暴/CB 等
-  const sig = [];
+  const dep = apInfo(f.dep, T0, f.depRwy), dst = apInfo(f.arr, ETA, f.arrRwy);
+  const alts = o.alternates.map(x => apInfo(x.icao, ETA + x.time * MIN)).filter(Boolean);
+
+  // 航路上的雷暴 → 颠簸时段（起飞后几小时几分开始、持续多久）
+  const hits = [];
   candidates().forEach(c => {
     if (!c.ofp || c.icao === f.dep || c.icao === f.arr) return;
     let best = 1e9, bt = 0; (S.samp || []).forEach(q => { const d = distNm(q.pos, c.pos); if (d < best) { best = d; bt = q.t; } });
-    if (best > 300) return;
+    if (best > 250) return;
     const a = assess(c, T0 + bt * MIN), h = hz(a);
-    if (h.length) sig.push({ c, t: T0 + bt * MIN, h, x: best });
+    if (h.some(x => /雷暴|TS/.test(x))) hits.push({ m: bt, c });
   });
-  sig.sort((p, q) => p.t - q.t);
-  const tsW = sig.filter(x => /雷暴|TS/.test(x.h.join(' ')));
-  // 经过的 FIR + 附近（NOTAM 包里有、但航路不经过）的特殊空域
-  const crossed = (o.firs || []).map(x => ({ code: x.code, name: x.name, t: T0 + x.t * MIN, wp: x.wp, risks: firRisks(x.code), sp: SPECIAL_FIR[x.code] }));
-  const crossedSet = new Set(crossed.map(x => x.code));
-  const near = Object.keys(o.firNames || {}).filter(k => !crossedSet.has(k)).map(k => ({ code: k, name: o.firNames[k], risks: firRisks(k), sp: SPECIAL_FIR[k] })).filter(x => x.sp || x.risks.some(r => r.lv === 2));
-  const ul = items => '<ul>' + items.filter(Boolean).map(x => '<li>' + x + '</li>').join('') + '</ul>';
-  const rk = r => r.length ? r.map(esc).join(' · ') : L2('无特别', 'nothing special');
+  hits.sort((a, b) => a.m - b.m);
+  const wins = [];
+  hits.forEach(h => { const w = wins[wins.length - 1]; if (w && h.m - w.to <= 40) { w.to = h.m; w.aps.push(h.c.icao); } else wins.push({ from: h.m, to: h.m, aps: [h.c.icao] }); });
+  wins.forEach(w => { w.from = Math.max(0, w.from - 15); w.to = Math.min(T.trip, w.to + 15); });
 
-  let h = '<h1>Today Brief · ' + f.no + ' · ' + f.date + ' ' + new Date(T.std || f.dateUTC).getUTCFullYear() + ' · ' + f.dep + '/' + f.depIata + ' → ' + f.arr + '/' + f.arrIata + '</h1>';
-  h += '<div class="hd"><span>' + th('注册号', 'Reg') + ' <b>' + f.reg + '</b> ' + f.type + '</span><span>' + th('停机位', 'Bay') + ' <b>' + (f.bay || '______') + '</b></span>' +
-    '<span>STD <b>' + hmZ(T.std) + '</b></span><span>' + th('起飞', 'T/O') + ' <b>' + hmZ(T0) + '</b>' + (S.atd ? '' : ' (' + L2('计划', 'plan') + ')') + '</span><span>' + th('落地', 'Land') + ' <b>' + hmZ(ETA) + '</b></span>' +
-    '<span>' + th('飞行时间', 'Flight time') + ' <b>' + mm(T.trip) + '</b></span><span>' + th('高度', 'Levels') + ' <b>' + (fl.join(' → ') || T.crzFl || '—') + '</b></span>' +
-    (T.avgWind ? '<span>' + th('平均风', 'Avg wind') + ' <b>' + (T.avgWind[0] === 'M' ? L2('逆风 ', 'HW ') : L2('顺风 ', 'TW ')) + (+T.avgWind.slice(1)) + ' kt</b></span>' : '') + '<span class="small">UTC</span></div>';
+  // 主要影响（自动上色）
+  const chips = [];
+  const chip = (lv, zh, en) => chips.push({ lv, s: L2(zh, en) });
+  const mg = (k, lab, labE) => { const w = W[k]; if (!w) return; const m = w[1] - w[0], p = m / w[1];
+    if (m < 2000 || p < .01) chip('r', lab + ' 接近最大（余 ' + t1(m) + '）', labE + ' near max (' + t1(m) + ' margin)');
+    else if (p < .04) chip('a', lab + ' 偏重（余 ' + t1(m) + '）', labE + ' heavy (' + t1(m) + ' margin)'); };
+  mg('etow', '起飞重量', 'TOW'); mg('elwt', '落地重量', 'LW'); mg('ezfw', '无油重量', 'ZFW');
+  if (W.etow && W.etow[1] - W.etow[0] >= 2000 && (W.etow[1] - W.etow[0]) / W.etow[1] >= .04) chip('g', '起飞重量 ' + t1(W.etow[0]) + '（余 ' + t1(W.etow[1] - W.etow[0]) + '）', 'TOW ' + t1(W.etow[0]) + ' (' + t1(W.etow[1] - W.etow[0]) + ' margin)');
+  if (F.extra && F.extra.fuel) chip(F.extra.time >= 30 ? 'b' : 'g', '额外油 ' + t1(F.extra.fuel) + '（' + F.extra.time + ' 分）' + (F.extra.label ? ' ' + F.extra.label : ''), 'Extra ' + t1(F.extra.fuel) + ' (' + F.extra.time + ' min)' + (F.extra.label ? ' ' + F.extra.label : ''));
+  [[dep, '起飞', 'DEP'], [dst, '落地', 'ARR']].forEach(([x, z, e]) => { if (!x) return;
+    if (x.elev >= 5000) chip('r', z + '机场高原 ' + x.elev + ' ft', e + ' high altitude ' + x.elev + ' ft'); else if (x.elev >= 2500) chip('a', z + '机场标高 ' + x.elev + ' ft', e + ' elevation ' + x.elev + ' ft');
+    if (x.wxh.length) chip(x.wxh.some(h => /雷暴|TS|雾|fog|能见度|vis/.test(h)) ? 'r' : 'a', z + '：' + x.wxh.join('、'), e + ': ' + x.wxh.join(', '));
+    x.nt.filter(n => n.lv === 'red').slice(0, 2).forEach(n => chip('r', z + '：' + n.s, e + ': ' + n.s));
+    if (x.known.length) chip('a', z + '：' + x.known.slice(0, 2).join('、'), e + ': ' + x.known.slice(0, 2).join(', ')); });
+  wins.forEach(w => chip('r', '起飞后 ' + mm(w.from) + ' 起约 ' + mm(w.to - w.from) + ' 雷暴区，可能颠簸', 'T/O+' + mm(w.from) + ' for ~' + mm(w.to - w.from) + ': TS area, turbulence likely'));
+  const legs = firLegs();
+  legs.forEach(l => { const r = firNotams(l.code, l.tIn, l.tOut); if (r.some(x => /冲突|Conflict/.test(x.zh + x.en))) chip('r', l.name.replace(/ (FIR|UIR)$/, '') + '：冲突 / 安全警告', l.name.replace(/ (FIR|UIR)$/, '') + ': conflict / security'); });
+  const gn = [...new Set(legs.filter(l => firNotams(l.code, l.tIn, l.tOut).some(x => /GPS/.test(x.zh))).map(l => l.code))];
+  if (gn.length) chip('a', 'GPS 干扰：' + gn.join(' '), 'GNSS interference: ' + gn.join(' '));
+  const nearSp = Object.keys(o.firNames || {}).filter(k => !legs.some(l => l.code === k) && (SPECIAL_FIR[k] || firNotams(k).some(x => x.lv === 'red')));
+  nearSp.forEach(k => chip('r', '附近 ' + (SPECIAL_FIR[k] ? SPECIAL_FIR[k][0] : k) + '（' + k + '）：不要偏航进入', 'Nearby ' + (SPECIAL_FIR[k] ? SPECIAL_FIR[k][1] : k) + ' (' + k + '): do not stray in'));
+  const ord = { r: 0, a: 1, b: 2, g: 3 }; chips.sort((a, b) => ord[a.lv] - ord[b.lv]);
 
-  h += '<div class="cols"><div>';
-  // 燃油
+  const H = (zh, en) => th(zh, en);
+  const key = f.no + f.date;
+  let h = '<div class="b1"><div class="b1t">TODAY BRIEF</div><div class="b1f">' + f.no + ' · ' + f.date + ' ' + new Date(T.std || f.dateUTC).getUTCFullYear() + '</div><div class="b1g">UTC · ' + L2('生成', 'gen') + ' ' + hmZ(Date.now()) + '</div></div>';
+  // 1. 航班
+  h += '<table class="bt"><tr><th>' + H('航班', 'Flight') + '</th><th>' + H('注册号', 'Reg') + '</th><th>' + H('航线', 'Route') + '</th><th>' + H('停机位', 'Bay') + '</th><th>' + H('飞行时间', 'Flight time') + '</th><th>' + H('高度', 'Levels') + '</th></tr>' +
+    '<tr class="big"><td>' + f.no + '</td><td>' + f.reg + '<small> ' + f.type + '</small></td><td>' + f.depIata + ' → ' + f.arrIata + '<small> ' + f.dep + '–' + f.arr + '</small></td><td>' + (f.bay || '<span class="blank"></span>') + '</td><td>' + mm(T.trip) + '</td><td>FL' + (fl.join('/') || (T.crzFl || '').replace('FL', '')) + '</td></tr>' +
+    '<tr><th>STD</th><th>' + H('起飞', 'T/O') + '</th><th>' + H('落地', 'Land') + '</th><th>STA</th><th>' + H('平均风', 'Avg wind') + '</th><th>' + H('距离', 'Dist') + '</th></tr>' +
+    '<tr class="big"><td>' + hmZ(T.std) + '</td><td>' + hmZ(T0) + (S.atd ? '' : '<small> ' + L2('计划', 'plan') + '</small>') + '</td><td>' + hmZ(ETA) + '</td><td>' + hmZ(T.sta) + '</td><td>' + (T.avgWind ? (T.avgWind[0] === 'M' ? 'HW ' : 'TW ') + (+T.avgWind.slice(1)) + ' kt' : '—') + '</td><td>' + (T.groundDist || '—') + ' nm</td></tr></table>';
+  // 2. 今天的主要影响
+  h += '<div class="bh">' + H('今天的主要影响', 'Key threats today') + '</div><div class="chips2">' + (chips.length ? chips.map(c => '<span class="ch ' + c.lv + '">' + esc(c.s) + '</span>').join('') : '<span class="ch g">' + L2('没有特别影响', 'Nothing significant') + '</span>') + '</div>';
+  // 3. 客舱 / 颠簸
+  h += '<table class="bt"><tr><th style="width:24%">' + H('客舱简报', 'Cabin brief') + '</th><td>' +
+    L2('飞行 <b>' + mm(T.trip) + '</b>，约 <b>' + hmZ(ETA) + '</b> 落地。', 'Flight <b>' + mm(T.trip) + '</b>, landing about <b>' + hmZ(ETA) + '</b>. ') +
+    (wins.length ? wins.map(w => L2('<b class="kr">起飞后 ' + mm(w.from) + ' 开始，约 ' + mm(w.to - w.from) + '</b> 经过雷暴区（' + w.aps.slice(0, 3).join('/') + ' 附近），可能颠簸。', '<b class="kr">From T/O+' + mm(w.from) + ' for about ' + mm(w.to - w.from) + '</b> thunderstorm area (' + w.aps.slice(0, 3).join('/') + '), turbulence likely. ')).join('') +
+      L2('服务安排在起飞后 ' + mm(wins[0].from) + ' 以前完成或之后再做。', 'Plan service before T/O+' + mm(wins[0].from) + ' or after.') : L2('航路沿线预报没有雷暴。', 'No thunderstorms forecast along the route.')) +
+    (dst && dst.wxh.length ? L2(' 下降落地：<b>' + dst.wxh.join('、') + '</b>，可能颠簸。', ' Descent: <b>' + dst.wxh.join(', ') + '</b>, possible bumps.') : '') + '</td></tr></table>';
+  // 4. 起飞 / 目的地
+  const col = (lab, x) => !x ? '<td></td>' : '<td><div class="ap2">' + lab + ' <b>' + x.c.icao + '</b> ' + catTag(x.c.ek ? catAt(x.c.ek, x.t) : null) + ' <span class="sm">' + hmZ(x.t) + (x.rwy ? ' · RWY ' + esc(x.rwy) : '') + (x.elev != null ? ' · ' + x.elev + ' ft' : '') + '</span></div>' +
+    '<div><span class="' + ({ green: 'kg', amber: 'ka', red: 'kr' }[x.a.rate] || '') + '">●</span> ' + esc((x.a.w && x.a.src !== 'none' ? WX.say(x.a.w, LANG === 'en' ? 'en' : 'zh') : [L2('没有预报', 'no forecast')]).join(' · ')) + '</div>' +
+    (x.nt.length ? '<div class="sm2">' + x.nt.map(n => '<span class="' + (n.lv === 'red' ? 'kr' : 'ka') + '">▪ ' + esc(n.s) + '</span>').join('<br>') + '</div>' : '') +
+    (x.known.length ? '<div class="sm2"><b>' + L2('已知问题', 'Known issues') + '：</b>' + esc(x.known.join('、')) + '</div>' : '') +
+    '<div class="note" contenteditable="true" data-ph="' + L2('机组经验（会记住，下次自动出现）', 'Crew notes (remembered for next time)') + '" oninput="saveApNote(\'' + x.c.icao + '\', this)">' + esc(apNote(x.c.icao)) + '</div></td>';
+  h += '<table class="bt"><tr><th style="width:50%">' + H('起飞机场', 'Departure') + '</th><th>' + H('目的地机场', 'Destination') + '</th></tr><tr>' + col('DEP', dep) + col('ARR', dst) + '</tr>' +
+    '<tr><td colspan="2" class="sm2"><b>' + L2('备降', 'Alternates') + '：</b>' + alts.map(x => x.c.icao + ' <span class="' + ({ green: 'kg', amber: 'ka', red: 'kr' }[x.a.rate] || '') + '">●</span>').join('  ') + '</td></tr></table>';
+  // 5. 燃油
   if (F.ramp) {
     const cx = (F.cont ? F.cont.fuel : 0) + (F.extra ? F.extra.fuel : 0), cxm = (F.cont ? F.cont.time || 0 : 0) + (F.extra ? F.extra.time || 0 : 0);
-    const r = (a, x, note, key) => '<tr' + (key ? ' class="key"' : '') + '><th>' + a + '</th><td class="num">' + (x && x.fuel != null ? t1(x.fuel) : '—') + '</td><td class="num">' + (x && x.time != null ? mm(x.time) : '') + '</td><td class="small">' + (note || '') + '</td></tr>';
-    h += '<h2>' + th('燃油', 'Fuel') + '</h2><table class="fuel">' + r(th('总油', 'Block'), F.ramp, L2('可飞', 'endur.') + ' ' + mm(F.ramp.time)) + r(th('航程', 'Trip'), F.trip) +
-      r(th('应急', 'Contingency'), F.cont, F.cont && F.cont.label, true) + r(th('额外', 'Extra'), F.extra, (F.extra && F.extra.label || '') + (F.reason ? ' · ' + F.reason : ''), true) +
-      r(th('备降', 'Alternate'), F.altn, F.altn && F.altn.icao) + r(th('最后储备', 'Final res.'), F.frsv) +
-      '<tr class="key"><th>' + th('应急+额外', 'Cont+Extra') + '</th><td class="num"><b>' + t1(cx) + '</b></td><td class="num"><b>' + mm(cxm) + '</b></td><td class="small">' + L2('可用于等待/绕飞', 'for holding / deviation') + '</td></tr></table>';
+    h += '<table class="bt fuel2"><tr><th>' + H('总油', 'Block') + '</th><th>' + H('航程', 'Trip') + '</th><th class="hl">' + H('应急', 'Cont') + '</th><th class="hl">' + H('额外', 'Extra') + '</th><th>' + H('备降', 'Altn') + '</th><th>' + H('储备', 'FRSV') + '</th><th class="hl">' + H('应急+额外', 'Cont+Extra') + '</th></tr>' +
+      '<tr class="big"><td>' + t1(F.ramp.fuel) + '<small> ' + mm(F.ramp.time) + '</small></td><td>' + t1(F.trip && F.trip.fuel) + '</td><td class="hl">' + t1(F.cont && F.cont.fuel) + '<small> ' + (F.cont ? F.cont.time + "'" : '') + '</small></td><td class="hl">' + t1(F.extra && F.extra.fuel) + '<small> ' + (F.extra ? F.extra.time + "'" : '') + '</small></td><td>' + t1(F.altn && F.altn.fuel) + '<small> ' + (F.altn ? F.altn.icao : '') + '</small></td><td>' + t1(F.frsv && F.frsv.fuel) + '</td><td class="hl"><b>' + t1(cx) + '</b><small> ' + cxm + "'</small></td></tr>" +
+      (F.reason ? '<tr><td colspan="7" class="sm2">' + L2('额外油原因', 'Extra fuel reason') + '：' + esc(F.reason) + (o.dispatch || []).filter(x => /FUEL|HLDNG|HOLD/i.test(x)).slice(0, 2).map(x => ' · ' + esc(x)).join('') + '</td></tr>' : '') + '</table>';
   }
-  // 客舱简报
-  const ts0 = tsW[0], tsN = tsW[tsW.length - 1];
-  h += '<h2>' + th('客舱简报', 'Cabin crew brief') + '</h2>' + ul([
-    L2('飞行时间 <b>' + mm(T.trip) + '</b>，' + hmZ(T0) + ' 起飞，约 <b>' + hmZ(ETA) + '</b> 落地。', 'Flight time <b>' + mm(T.trip) + '</b>, takeoff ' + hmZ(T0) + ', landing about <b>' + hmZ(ETA) + '</b>.'),
-    L2('巡航高度 ' + (fl.join(' → ') || T.crzFl) + '。', 'Cruise ' + (fl.join(' → ') || T.crzFl) + '.'),
-    tsW.length ? L2('约 <b>' + hmZ(ts0.t - 20 * MIN) + '–' + hmZ(tsN.t + 20 * MIN) + '</b> 航路附近有雷暴（' + tsW.slice(0, 4).map(x => x.c.icao).join('/') + ' 一带），<b>可能颠簸</b>，服务安排避开这段，客舱设备固定好。', 'About <b>' + hmZ(ts0.t - 20 * MIN) + '–' + hmZ(tsN.t + 20 * MIN) + '</b> thunderstorms near the route (' + tsW.slice(0, 4).map(x => x.c.icao).join('/') + '), <b>turbulence possible</b> — plan service around it, keep cabin secured.') : L2('航路附近机场的预报里没有雷暴。', 'No thunderstorms in TAFs near the route.'),
-    dst ? L2('落地 ' + f.arr + '：' + (hz(dst.a).length ? '<b>' + hz(dst.a).join('、') + '</b>，下降和进近可能颠簸。' : '天气好。'), 'Arrival ' + f.arr + ': ' + (hz(dst.a).length ? '<b>' + hz(dst.a).join(', ') + '</b>, possible bumps on descent.' : 'good weather.')) : '',
-    dep ? L2('起飞 ' + f.dep + '：' + (hz(dep.a).length ? '<b>' + hz(dep.a).join('、') + '</b>。' : '天气好。'), 'Departure ' + f.dep + ': ' + (hz(dep.a).length ? '<b>' + hz(dep.a).join(', ') + '</b>.' : 'good weather.')) : ''
-  ]);
-  h += '</div><div>';
-  // 起降机场风险
-  const apLine = (lab, x) => !x ? '' : '<h2>' + lab + ' ' + catTag(x.c.ek ? catAt(x.c.ek, x.t) : null) + ' ' + x.c.icao + ' · ' + hmZ(x.t) + (x.rwy ? ' · RWY ' + esc(x.rwy) : '') + '</h2>' +
-    '<div>' + esc(wx1(x.a)[0]) + (wx1(x.a).length > 1 ? '<br><span class="small">' + esc(wx1(x.a).slice(1).join('; ')) + '</span>' : '') + '</div><div><b>' + L2('风险', 'Risks') + '：</b>' + rk(x.risks) + '</div>';
-  h += apLine(th('起飞', 'Departure'), dep) + apLine(th('目的地', 'Destination'), dst);
-  if (alts.length) h += '<div style="margin-top:3px"><b>' + L2('备降', 'Alternates') + '：</b>' + alts.map(x => x.c.icao + ' ' + { green: L2('好', 'OK'), amber: '<span class="ka">' + L2('注意', 'caution') + '</span>', red: '<span class="kr">' + L2('差', 'poor') + '</span>', none: '—' }[x.a.rate]).join(' · ') + '</div>';
-  // 航路风险
-  const gnss = [...new Set(crossed.filter(x => x.risks.some(r => /GPS|GNSS/.test(r.zh + r.en))).map(x => x.code))];
-  h += '<h2>' + th('航路风险', 'Enroute risks') + '</h2>' + ul([
-    tsW.length ? '<b>' + L2('雷暴/CB', 'TS/CB') + '</b>：' + tsW.slice(0, 5).map(x => x.c.icao + ' ' + hmZ(x.t)).join(', ') : '',
-    sig.filter(x => !tsW.includes(x)).length ? L2('其他天气', 'Other weather') + '：' + sig.filter(x => !tsW.includes(x)).slice(0, 4).map(x => x.c.icao + ' ' + x.h.join('/')).join('; ') : '',
-    gnss.length ? '<b>' + L2('GPS 干扰', 'GNSS interference') + '</b>：' + gnss.join(', ') : '',
-    (o.dp || []).length ? L2('释压改航点 ', 'Depress. point ') + '<b>' + esc((o.dp[0][0] || '').replace(/^DP\s+\S+\s+\S+\s+-\s+/, '')) + '</b>：' + L2('之前返回 ' + f.dep + '，之后继续 ' + f.arr, 'before: return to ' + f.dep + ', after: continue to ' + f.arr) : '',
-    ...(o.dispatch || []).filter(x => /GEO\s*POLITICAL|CONFLICT|AIRSPACE|RESTRICT|EXTRA FUEL/i.test(x)).slice(0, 2).map(x => L2('签派', 'Dispatch') + '：' + esc(x))
-  ]);
-  // 特殊空域
-  h += '<h2>' + th('经过的空域 / 特殊区域', 'Airspace / special areas') + '</h2><table class="fuel">' +
-    crossed.map(x => '<tr' + (x.sp || x.risks.some(r => r.lv === 2) ? ' class="key"' : '') + '><td class="num">' + hmZ(x.t) + '</td><td><b>' + x.wp + '</b> ▸ ' + x.name.replace(/ FIR$/, '') + (x.sp ? ' <span class="flag">' + L2(x.sp[0], x.sp[1]) + '</span>' : '') + '</td><td class="small">' + x.risks.map(r => r.lv === 2 ? '<span class="flag">' + L2(r.zh, r.en) + '</span>' : L2(r.zh, r.en)).join(' · ') + '</td></tr>').join('') +
-    near.map(x => '<tr class="key"><td class="small">' + L2('附近', 'nearby') + '</td><td>' + x.name.replace(/ FIR$/, '') + ' (' + x.code + ')' + (x.sp ? ' <span class="flag">' + L2(x.sp[0], x.sp[1]) + '</span>' : '') + '</td><td class="small">' + x.risks.map(r => r.lv === 2 ? '<span class="flag">' + L2(r.zh, r.en) + '</span>' : L2(r.zh, r.en)).join(' · ') + ' · ' + L2('不经过，注意不要偏航进入', 'not crossed — avoid deviating into it') + '</td></tr>').join('') + '</table>';
-  h += '</div></div>';
-  h += '<div class="small" style="margin-top:6px;border-top:1px solid #bbb;padding-top:3px">' + L2('仅供辅助了解情况，以公司 OFP / EFB / 签派 / ATC 为准 · NOTAM 按关键词挑出，以原文为准 · ', 'Awareness aid only — company OFP / EFB / dispatch / ATC prevail · NOTAM items are keyword-based · ') + L2('生成 ', 'Generated ') + hmZ(Date.now()) + '</div>';
+  // 6. 航路 / 管制区
+  h += '<table class="bt"><tr><th style="width:14%">' + H('时间', 'Time') + '</th><th style="width:30%">' + H('管制区', 'FIR') + '</th><th>' + H('重要通告', 'Significant NOTAMs') + '</th></tr>' +
+    legs.map(l => { const r = firSummary(firNotams(l.code, l.tIn, l.tOut).filter(x => x.lv !== 'info')); const sp = SPECIAL_FIR[l.code];
+      return '<tr' + (r.some(x => x.lv === 'red') || sp ? ' class="rw"' : '') + '><td>' + hmZ(l.tIn) + '<small> +' + mm(l.from) + '</small></td><td><b>' + l.wp + '</b> ▸ ' + esc(l.name.replace(/ (FIR|UIR)$/, '')) + (sp ? ' <span class="kr">' + L2(sp[0], sp[1]) + '</span>' : '') + '</td><td class="sm2">' + (r.map(x => '<span class="' + (x.lv === 'red' ? 'kr' : 'ka') + '">' + L2(x.zh, x.en) + '</span>').join(' · ') || '—') + '</td></tr>'; }).join('') +
+    ((o.dp || []).length ? '<tr><td colspan="3" class="sm2"><b>DP</b> ' + esc((o.dp[0][0] || '').replace(/^DP\s+\S+\s+\S+\s+-\s+/, '')) + ' — ' + L2('之前返回 ' + f.dep + '，之后继续 ' + f.arr, 'before: return ' + f.dep + ', after: continue ' + f.arr) + '</td></tr>' : '') + '</table>';
+  // 7. 机组补充
+  h += '<div class="bh">' + H('机组补充（其他可能的影响）', 'Crew additions (other threats)') + '</div><div class="note big" contenteditable="true" data-ph="' + L2('在这里写今天的其他威胁和对策……', 'Write other threats and mitigations here…') + '" oninput="saveFlNote(\'' + key + '\', this)">' + esc(flNote(key)) + '</div>';
+  h += '<div class="foot">' + L2('仅供辅助了解情况，以公司 OFP / EFB / 签派 / ATC 为准 · NOTAM 按关键词挑出，以原文为准', 'Awareness aid only — company OFP / EFB / dispatch / ATC prevail · NOTAM items are keyword-based') + '</div>';
   return h;
 }

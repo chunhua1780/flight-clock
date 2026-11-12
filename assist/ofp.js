@@ -4,6 +4,7 @@
  */
 (function (root) {
   'use strict';
+  const PV = 4;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
   const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
   const hhmm = s => s ? (+s.slice(0, 2)) * 60 + (+s.slice(2, 4)) : null;      // "0752" → 472 分钟
   const ll = s => {                                                          // "N2151.5" / "E11232.8" → 度
@@ -26,7 +27,7 @@
   function parse(text) {
     const L = clean(text);
     const T = L.join('\n');
-    const out = { ok: false, flight: null, route: '', times: {}, navlog: [], fixes: {}, alternates: [], airports: {}, notams: {}, warnings: [] };
+    const out = { pv: PV, ok: false, flight: null, route: '', times: {}, navlog: [], fixes: {}, alternates: [], airports: {}, notams: {}, warnings: [] };
 
     // ---------- 1. 航班抬头 ----------
     const h = /\b(?:EK|UAE)?\s?(\d{1,5})\s+(\d{2})([A-Z]{3})\s+([A-Z]{4})\/([A-Z]{3})\s*-\s*([A-Z]{4})\/([A-Z]{3})(?:\s+(\S+))?(?:\s+([A-Z0-9]{1,2}-[A-Z0-9]{3,5}))?/.exec(T);
@@ -210,6 +211,6 @@
     return out;
   }
 
-  root.OFP = { parse, clean, hhmm, ll };
+  root.OFP = { parse, clean, hhmm, ll, PV };
   if (typeof module !== 'undefined') module.exports = root.OFP;
 })(typeof window !== 'undefined' ? window : globalThis);

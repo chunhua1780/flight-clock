@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
 <style>
 :root{--bg:#0b1220;--panel:#111a2b;--line:#22304a;--text:#e9eef7;--dim:#8d9ab3;--gold:#e2b964;--green:#3fcf7f;--amber:#f3b13c;--red:#ff5d55;--blue:#6fb4ff;
-  --top:var(--top);--btn:var(--btn);--card:var(--card);--input:#0b1220;--hud:var(--hud);--sum:var(--sum);--on:var(--on);--wp:#9fb0cc;--sh:0 0 3px #000;--sea:#0b1220;--fir:#e26bff}
+  --top:#0e1626;--btn:#16223a;--card:#0f182a;--input:#0b1220;--hud:rgba(10,16,30,.88);--sum:#13213a;--on:#24375a;--wp:#9fb0cc;--sh:0 0 3px #000;--sea:#0b1220;--fir:#e26bff}
 :root[data-theme=light]{--bg:#e9eef5;--panel:#ffffff;--line:#c9d3e2;--text:#0f1b2d;--dim:#56657e;--gold:#a8740d;--green:#16924a;--amber:#b97700;--red:#d0302a;--blue:#1f6fd1;
   --top:#f7f9fc;--btn:#eef2f8;--card:#f8fafd;--input:#ffffff;--hud:rgba(255,255,255,.93);--sum:#e6eefb;--on:#d4e2fb;--wp:#46597a;--sh:0 0 3px #fff,0 0 2px #fff;--sea:#cfe0f0;--fir:#b01fd6}
 *{box-sizing:border-box}
@@ -44,14 +44,13 @@ button{font-family:inherit}
 #map.far .wp{display:none}
 .wp.firwp{color:var(--fir);font-size:11.5px;font-weight:900}
 #atd.dirty{border-color:var(--amber);box-shadow:0 0 0 2px rgba(243,177,60,.35)}
-#sheet .in{background:var(--card)}
 .apl{background:var(--hud);border:1px solid var(--line);color:var(--text);font-size:11px;font-weight:700;padding:1px 4px;border-radius:4px;box-shadow:none}
 .apl:before{display:none}
 #hud{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;z-index:500;pointer-events:none}
 #hud .c{background:var(--hud);border:1px solid var(--line);border-radius:10px;padding:6px 10px;pointer-events:auto}
 #hud .k{font-size:10px;color:var(--dim);letter-spacing:.06em}
 #hud .v{font-size:17px;font-weight:600}
-#recenter{position:absolute;right:10px;top:10px;z-index:500;display:none}
+#recenter{position:absolute;right:10px;top:48px;z-index:500;display:none}
 /* 右侧面板 */
 #side{min-height:0;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel)}
 @media (orientation:portrait){#side{border-left:none;border-top:1px solid var(--line)}}
@@ -110,10 +109,20 @@ div.en,.wl .en{display:block;margin-left:0}
 .ap.cur{box-shadow:0 0 0 1.5px #ffffffaa inset}
 .rlab{color:#e2b964;font-size:11px;font-weight:700;white-space:nowrap;text-shadow:var(--sh)}
 .rlab.r2{color:#9fb0cc}
-#b-upd.new{border-color:var(--green);color:var(--green)}
+#b-upd{flex:none;display:flex;align-items:center;gap:6px;border:1.5px solid var(--green);background:transparent;color:var(--green);border-radius:20px;padding:6px 12px 6px 10px;font-size:15px;font-weight:700;cursor:pointer;margin-right:14px}
+#b-upd span{font-size:12px}
+#b-upd.busy{opacity:.6}
+#b-upd.busy::first-letter{display:inline-block}
+#firpop{position:absolute;right:10px;top:86px;z-index:640;width:min(400px,62%);background:var(--hud);border:1.5px solid #d63bff;border-radius:14px;padding:10px 12px;box-shadow:0 4px 18px rgba(0,0,0,.35);display:none;font-size:13px}
+#firpop .t{font-weight:800;font-size:14px;color:var(--fir);display:flex;align-items:center;gap:8px}
+#firpop .t .x{margin-left:auto;cursor:pointer;color:var(--dim);font-size:18px}
+#firpop .it{margin-top:5px;line-height:1.4}
+#firpop .ft{margin-top:7px;display:flex;gap:8px}
+#hud .c.cur{cursor:pointer;border-color:#7d5a99}
+.firrow{cursor:pointer}
 #updbar{position:absolute;left:50%;transform:translateX(-50%);bottom:84px;z-index:650;background:var(--green);color:#06210f;font-weight:800;border-radius:12px;padding:9px 16px;font-size:14px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.4);white-space:nowrap}
 #syncst{font-size:13px;margin-top:6px}
-#b-rings{position:absolute;right:10px;top:48px;z-index:500}
+#b-rings{position:absolute;right:10px;top:10px;z-index:500}
 #b-rings.off{opacity:.55}
 #prev{position:absolute;left:50%;transform:translateX(-50%);top:10px;z-index:600;display:none;background:var(--hud);border:1px solid #4d6fae;border-radius:12px;padding:6px 10px;font-size:13px;white-space:nowrap}
 #prev .btn{margin-left:6px}
@@ -151,7 +160,29 @@ div.en,.wl .en{display:block;margin-left:0}
 #brief .cat{color:#fff}#brief .cat.cA1,#brief .cat.cA2{color:#111}
 #brief .num{font-variant-numeric:tabular-nums}
 #brief .small{font-size:11px;color:#555}
-#brief .pg.one{font-size:11px;line-height:1.42;padding:22px 26px}
+#brief .pg.one{font-size:11px;line-height:1.38;padding:22px 26px;width:210mm;max-width:100%;min-height:297mm;box-sizing:border-box}
+#brief .one .b1{display:flex;align-items:baseline;gap:14px;border-bottom:3px solid #111;padding-bottom:4px;margin-bottom:6px}
+#brief .one .b1t{font-size:20px;font-weight:900;letter-spacing:.08em}#brief .one .b1f{font-size:17px;font-weight:700}#brief .one .b1g{margin-left:auto;color:#666;font-size:10px}
+#brief .one .bt{width:100%;border-collapse:collapse;margin:5px 0}
+#brief .one .bt th{background:#1f2a3d;color:#fff;font-weight:600;font-size:10px;padding:3px 6px;text-align:left;border:1px solid #1f2a3d}
+#brief .one .bt th .en{color:#c7d0de}
+#brief .one .bt td{border:1px solid #c5cbd5;padding:4px 6px;vertical-align:top}
+#brief .one .bt tr.big td{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+#brief .one .bt td small{font-size:10px;font-weight:500;color:#555}
+#brief .one .bt .hl{background:#fff4d6}#brief .one .bt th.hl{background:#a86c00;border-color:#a86c00}
+#brief .one .bt tr.rw td{background:#fdeceb}
+#brief .one .bh{font-size:12px;font-weight:800;margin:8px 0 3px;border-left:4px solid #1f2a3d;padding-left:6px}
+#brief .one .chips2{display:flex;flex-wrap:wrap;gap:4px}
+#brief .one .ch{border-radius:5px;padding:3px 8px;font-size:11px;font-weight:700;border:1px solid}
+#brief .one .ch.r{background:#fde2e1;border-color:#d6463e;color:#9d1c15}#brief .one .ch.a{background:#fff1d6;border-color:#d79a1f;color:#7a5200}
+#brief .one .ch.b{background:#e3eefc;border-color:#3d7bd6;color:#1d4f99}#brief .one .ch.g{background:#e3f6e9;border-color:#3aa364;color:#1d6b3c}
+#brief .one .ap2{font-size:12px;margin-bottom:2px}#brief .one .sm{font-size:10px;color:#555}#brief .one .sm2{font-size:10.5px;margin-top:3px}
+#brief .one .note{min-height:30px;border:1px dashed #b9c0cc;border-radius:4px;margin-top:4px;padding:3px 6px;font-size:10.5px;outline:none;white-space:pre-wrap}
+#brief .one .note.big{min-height:80px;background:repeating-linear-gradient(#fff 0 19px,#e3e7ee 19px 20px)}
+#brief .one .note:empty:before{content:attr(data-ph);color:#9aa3b2}
+#brief .one .blank{display:inline-block;width:60px;border-bottom:1.5px solid #333;height:14px}
+#brief .one .foot{margin-top:6px;font-size:9px;color:#666;border-top:1px solid #ccc;padding-top:3px}
+#brief .one .kr{color:#c0221b}#brief .one .ka{color:#a86400}#brief .one .kg{color:#13843f}
 #brief .one h1{font-size:17px}#brief .one h2{font-size:12px;margin:8px 0 3px;border-bottom-width:1.5px}
 #brief .one .hd{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;margin:4px 0 6px}
 #brief .one .hd b{font-size:13px}
@@ -167,7 +198,9 @@ div.en,.wl .en{display:block;margin-left:0}
   #brief{position:static!important;display:block!important;background:#fff!important;overflow:visible!important}
   #brief .pg{box-shadow:none;margin:0;padding:0;max-width:none}
   #brief h2{break-after:avoid}#brief tr{break-inside:avoid}
-  #brief .pg.one{padding:0;font-size:10.5px}
+  #brief .pg.one{padding:0;font-size:10.5px;width:auto;min-height:0}
+  #brief .one .note:empty:before{content:''}
+  #brief .one .ch,#brief .one .bt th,#brief .one .hl,#brief .one tr.rw td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .cat{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
@@ -175,13 +208,13 @@ div.en,.wl .en{display:block;margin-left:0}
 <body>
 <div id="app">
   <div id="top">
+    <button id="b-upd" title="Refresh">⟳<span id="b-upd-t"></span></button>
     <span class="fl" id="t-fl">Flight Assist</span>
     <span class="rt" id="t-rt" data-i="载入 OFP 开始|Load an OFP to start"></span>
     <span class="sp"></span>
     <span id="atdbox"><span style="font-size:12px;color:var(--dim)">ATD</span><input id="atd" inputmode="numeric" maxlength="4" placeholder="HHMM"><span style="font-size:12px;color:var(--dim)">Z</span><button class="btn sm pri" id="b-atdok" data-i="确定|OK"></button></span>
     <span id="utc" class="num">--:--<small>UTC</small></span>
-    <button class="btn sm" id="b-upd">⟳</button>
-    <button class="btn sm" id="b-theme" style="min-width:38px"></button>
+        <button class="btn sm" id="b-theme" style="min-width:38px"></button>
     <button class="btn sm" id="b-lang" style="min-width:52px"></button>
     <button class="btn sm" id="b-load">OFP</button>
   </div>
@@ -192,6 +225,7 @@ div.en,.wl .en{display:block;margin-left:0}
     <button class="btn sm" id="b-rings">◯ 1h / 2h</button>
     <div id="prev"></div>
     <div id="updbar" style="display:none"></div>
+    <div id="firpop"></div>
     <div id="hud"></div>
   </div>
   <div id="side">
@@ -288,6 +322,12 @@ function brg(a, b) {
 const S = { ofp: null, atd: null, AP: {}, EK: null, tab: 'now', follow: true, pts: [], drag: null, dragging: false, dragAt: 0, userScroll: 0, showRings: lsGet('rings') !== '0', tl: null };
 const toast = (h, ms) => { const e = $('toast'); e.innerHTML = h; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', ms || 3500); };
 try { S.ofp = JSON.parse(lsGet('ofp') || 'null'); } catch (e) {}
+// 解析规则更新过：用保存的 OFP 原文重新读一遍（移交点、油量等新内容才会出现）
+if (S.ofp && S.ofp.pv !== OFP.PV) {
+  const raw = lsGet('ofptext');
+  if (raw) { try { const r = OFP.parse(raw); if (r.ok) { S.ofp = r; lsSet('ofp', JSON.stringify(r)); } } catch (e) {} }
+  else S.ofpOld = true;
+}
 S.atd = +lsGet('atd') || null;
 
 /* ---------------- 地图（离线：内置世界地图） ---------------- */
@@ -503,8 +543,10 @@ function drawRoute() {
   S.pts.forEach((p, k) => {
     if ((p.interp && !FIRWP[p.id]) || /^(TOC|TOD)$/.test(p.id)) return;
     const fx = FIRWP[p.id];
-    L_wps.push(L.circleMarker(line[k], fx ? { radius: 5, color: '#fff', weight: 1.5, fillColor: MAPC().fir, fillOpacity: 1, interactive: false } : { radius: 2, color: MAPC().wp, weight: 1, fillOpacity: 1, interactive: false })
-      .bindTooltip(fx ? p.id + ' ▸' + fx.code : p.id, { permanent: true, direction: 'right', className: fx ? 'wp firwp' : 'wp', offset: [fx ? 6 : 4, 0] }).addTo(map));
+    const mk = L.circleMarker(line[k], fx ? { radius: 6, color: '#fff', weight: 1.5, fillColor: MAPC().fir, fillOpacity: 1, interactive: true, bubblingMouseEvents: false } : { radius: 2, color: MAPC().wp, weight: 1, fillOpacity: 1, interactive: false })
+      .bindTooltip(fx ? p.id + ' ▸' + fx.code : p.id, { permanent: true, direction: 'right', className: fx ? 'wp firwp' : 'wp', offset: [fx ? 6 : 4, 0] }).addTo(map);
+    if (fx) mk.on('click', () => openFir(fx.code));
+    L_wps.push(mk);
   });
   const tEta = (S.atd || o.times.std || Date.now()) + (o.times.trip || 0) * MIN;
   candidates().sort((a, b) => (a.ofp ? 1 : 0) - (b.ofp ? 1 : 0)).forEach(c => {
@@ -561,6 +603,65 @@ function assess(c, t) {
   return { w, rate, notes, rw, closed, src: w ? w.src : 'none' };
 }
 
+/* ---------------- 管制区（FIR）航行通告 ---------------- */
+const FIRN = [
+  [/CONFLICT ZONE|HAZARDOUS SITUATION|SECURITY WARNING|MISSILE|ROCKET|HOSTILE|WEAPON|ARMED CONFLICT/, 'red', '冲突区 / 安全警告', 'Conflict zone / security warning'],
+  [/VOLCANIC|\bVA\s+(CLOUD|ERUPTION)/, 'red', '火山灰', 'Volcanic ash'],
+  [/(?:RTE|ROUTE|SEGMENT|AWY)S?\b[^.]{0,80}\bCLSD|AIRSPACE\s+CLSD|FIR\s+(?:IS\s+)?CLSD/, 'red', '航路 / 空域关闭', 'Route / airspace closed'],
+  [/GNSS|\bGPS\b/, 'amber', 'GPS 干扰', 'GNSS interference'],
+  [/(?:FREQ|HF)[^.]{0,120}\bU\/S\b|RADAR[^.]{0,80}(?:U\/S|NOT AVBL)|CPDLC[^.]{0,40}(?:U\/S|NOT AVBL)|ADS-C[^.]{0,40}NOT AVBL/, 'amber', 'ATC 频率 / 雷达部分不可用', 'ATC frequency / radar partly U/S'],
+  [/CONTACT[^.]{0,60}(?:ACC|CTR|CONTROL)[^.]{0,80}(?:PRIOR|BEFORE|NOT LESS THAN)/, 'amber', '进入前要提前联系 ATC', 'Contact ATC before entry'],
+  [/ARTILLERY|FIRING|EXER|PARA DROP|MILITARY|DANGER AREA|DNG AREA|RESTRICTED AREA|\bTRA\d|\bTSA\b|AIRSPACE RESERVATION|PROHIBITED/, 'amber', '军事活动 / 临时限制区', 'Military activity / restricted area'],
+  [/FLOW CONTROL|FLOW CTL|CONGESTION|\bMIT\b|MINUTES SEPARATION/, 'info', '流量控制', 'Flow control'],
+  [/\bTOS\b|TRAFFIC ORIENTATION SCHEME/, 'info', '航路方向规定（TOS）', 'Traffic orientation scheme'],
+  [/COMPANY NOTAM/, 'info', '公司通告', 'Company NOTAM']
+];
+// 某 FIR 在时间段 [t1, t2] 内有效的通告，按影响分级
+function firNotams(code, t1, t2) {
+  const out = [];
+  ((S.ofp && S.ofp.notams[code]) || []).forEach(n => {
+    if (t1 != null && ((n.to != null && n.to < t1 - 30 * MIN) || (n.from != null && n.from > (t2 || t1) + 30 * MIN))) return;
+    const r = FIRN.find(x => x[0].test(n.text));
+    out.push({ lv: r ? r[1] : 'info', zh: r ? r[2] : '一般通告', en: r ? r[3] : 'General', n });
+  });
+  const o = { red: 0, amber: 1, info: 2 };
+  return out.sort((a, b) => o[a.lv] - o[b.lv]);
+}
+// 航路上经过的 FIR：进入 / 离开时间
+function firLegs() {
+  const F = (S.ofp && S.ofp.firs) || [], T0 = tb(), trip = S.ofp ? S.ofp.times.trip : 0;
+  return F.map((f, i) => ({ code: f.code, name: (S.ofp.firNames && S.ofp.firNames[f.code]) || f.name, wp: f.wp, from: f.t, to: i + 1 < F.length ? F[i + 1].t : trip, tIn: T0 + f.t * MIN, tOut: T0 + (i + 1 < F.length ? F[i + 1].t : trip) * MIN }));
+}
+const firFor = el => { const L = firLegs(); let c = null; L.forEach(x => { if (x.from <= el) c = x; }); return c; };
+function firSummary(items) {                                // 同类合并：「GPS 干扰 ×2」
+  const g = {}; items.forEach(x => { const k = x.zh; (g[k] = g[k] || Object.assign({ ids: [] }, x)).ids.push(x.n.id); });
+  return Object.values(g);
+}
+function showFirPop(leg, auto) {
+  const its = firSummary(firNotams(leg.code, leg.tIn, leg.tOut).filter(x => x.lv !== 'info'));
+  if (auto && !its.length) return;
+  $('firpop').innerHTML = '<div class="t">📻 ' + esc(leg.name) + ' · ' + leg.code + '<span class="x" onclick="hideFirPop()">✕</span></div><div style="font-size:12px;color:var(--dim)">' + tt('进入管制区', 'Entering FIR') + ' · ' + hmZ(leg.tIn) + '–' + hmZ(leg.tOut) + '</div>' +
+    (its.length ? its.slice(0, 5).map(x => '<div class="it"><span class="t-' + x.lv + '">● ' + th(x.zh, x.en) + '</span>' + (x.ids.length > 1 ? ' <span style="color:var(--dim)">×' + x.ids.length + '</span>' : '') + '</div>').join('')
+      : '<div class="it" style="color:var(--dim)">' + th('没有重大影响的通告', 'No significant NOTAMs') + '</div>') +
+    '<div class="ft"><button class="btn sm" onclick="openFir(\'' + leg.code + '\')">' + th('看详细', 'Details') + '</button></div>';
+  $('firpop').style.display = 'block';
+  clearTimeout(showFirPop.t); showFirPop.t = setTimeout(hideFirPop, auto ? 90000 : 30000);
+}
+function hideFirPop() { $('firpop').style.display = 'none'; }
+function openFir(code) {
+  hideFirPop();
+  const leg = firLegs().find(x => x.code === code) || { code, name: (S.ofp.firNames && S.ofp.firNames[code]) || code, tIn: null, tOut: null, wp: '' };
+  const all = firNotams(code, leg.tIn, leg.tOut), sig = all.filter(x => x.lv !== 'info'), oth = all.filter(x => x.lv === 'info');
+  const it = x => '<div style="margin:8px 0"><span class="t-' + x.lv + '">● ' + th(x.zh, x.en) + '</span> <span style="color:var(--dim);font-size:11px">' + esc(x.n.id) + ' · ' + hmZ(x.n.from) + '–' + (x.n.to ? hmZ(x.n.to) : 'UFN') + '</span><div style="font-size:12px;color:var(--dim);margin-top:2px">' + esc(x.n.text.slice(0, 140)) + (x.n.text.length > 140 ? '…' : '') + '</div>' + (x.n.text.length > 140 ? '<details><summary>' + th('原文', 'Full text') + '</summary><div class="raw">' + esc(x.n.text) + '</div></details>' : '') + '</div>';
+  $('sheet-in').innerHTML = '<button class="btn sm" style="float:right" onclick="closeSheet()">' + th('关闭', 'Close') + '</button>' +
+    '<h2>📻 ' + esc(leg.name) + ' <span style="color:var(--dim);font-size:16px">' + code + '</span></h2>' +
+    (leg.tIn ? '<div style="color:var(--dim);font-size:13px">' + th('进入', 'Enter') + ' ' + (leg.wp || '') + ' ' + hmZ(leg.tIn) + ' · ' + th('离开', 'Exit') + ' ' + hmZ(leg.tOut) + '</div>' : '<div style="color:var(--dim);font-size:13px">' + th('航路不经过（附近）', 'Not crossed (nearby)') + '</div>') +
+    '<h3>' + th('重大影响', 'Significant') + '（' + sig.length + '）</h3>' + (sig.length ? sig.map(it).join('') : '<div style="color:var(--dim)">' + th('没有', 'None') + '</div>') +
+    (oth.length ? '<details style="margin-top:10px"><summary>' + th('其他通告', 'Other NOTAMs') + '（' + oth.length + '）</summary>' + oth.map(it).join('') + '</details>' : '') +
+    ((S.ofp.notams[code] || []).length ? '' : '<div style="color:var(--dim);margin-top:8px">' + th('OFP 里没有这个管制区的通告', 'No NOTAMs for this FIR in the OFP') + '</div>');
+  $('sheet').classList.add('open');
+}
+
 /* ---------------- 主循环 ---------------- */
 function now() { return Date.now() + (S.sim || 0); }
 // 起飞时间：有 ATD 用 ATD，否则用计划（STD + 滑行）
@@ -604,6 +705,9 @@ function tick() {
   const eta = S.atd ? S.atd + o.times.trip * MIN : null;
   const remain = S.atd ? Math.max(0, o.times.trip - el) : o.times.trip;
   const nf = (o.firs || []).find(f => f.t != null && f.t > el);
+  const cf = firFor(el);
+  if (!pv && S.atd && cf && S.lastFir !== cf.code) { if (S.lastFir !== undefined) showFirPop(cf, true); S.lastFir = cf.code; }
+  if (!S.atd) S.lastFir = undefined;
   if (nf && !pv && S.atd && nf.t - el <= 5 && S.firToast !== nf.wp) { S.firToast = nf.wp; toast('📻 <b>' + th('准备换频率', 'Change frequency') + '</b> · ' + nf.wp + ' ' + hmZ(tb() + nf.t * MIN) + ' ▸ ' + nf.name, 15000); }
   if (pv) setTimeout(() => { if (S.drag != null && !S.dragging) tick(); }, 1000);
   $('hud').innerHTML =
@@ -612,6 +716,7 @@ function tick() {
     '<div class="c"><div class="k">' + th('已飞 / 剩余', 'Flown / To go') + '</div><div class="v num">' + (S.atd ? dur(Math.max(0, el)) + ' / ' + dur(remain) : '— / ' + dur(o.times.trip)) + '</div></div>' +
     '<div class="c"><div class="k">' + th('下一点', 'Next') + '</div><div class="v num">' + (p.next ? p.next.id + ' ' + hmZ(S.atd + p.next.t * MIN) : '—') + '</div></div>' +
     '<div class="c"><div class="k">GS</div><div class="v num">' + (p.gs ? Math.round(p.gs) + ' kt' : '—') + '</div></div>' +
+    (cf ? '<div class="c cur" onclick="openFir(\'' + cf.code + '\')"><div class="k" style="color:#f2b8ff">' + th('当前管制区', 'Current FIR') + ' ⓘ</div><div class="v">' + esc(cf.name.replace(/ (FIR|UIR)$/, '')) + ' <span style="font-size:12px;color:var(--dim)">' + cf.code + '</span>' + (firNotams(cf.code, cf.tIn, cf.tOut).some(x => x.lv === 'red') ? ' <span class="t-red">●</span>' : firNotams(cf.code, cf.tIn, cf.tOut).some(x => x.lv === 'amber') ? ' <span class="t-amber">●</span>' : '') + '</div></div>' : '') +
     (nf ? '<div class="c fir' + (nf.t - el <= 10 ? ' soon' : '') + '"><div class="k" style="color:#f2b8ff">📻 ' + (nf.t - el <= 10 ? th('准备换频率', 'Change frequency') + ' · ' + Math.max(0, Math.round(nf.t - el)) + ' min' : th('下个移交', 'Next FIR')) + '</div><div class="v num">' + nf.wp + ' ▸ ' + nf.name.replace(/ FIR$/, '') + ' ' + hmZ(tb() + nf.t * MIN) + '</div></div>' : '');
   renderList();
 }
@@ -719,6 +824,7 @@ function updateMap(p, in2) {
   });
 }
 // 航路时间线：离航路 820 nm 以内的机场，按经过（最近点）的时间排；已经过去的变淡，列表跟着时间往上走
+const firDot = code => { const l = firLegs().find(x => x.code === code), a = firNotams(code, l && l.tIn, l && l.tOut); const r = a.filter(x => x.lv === 'red').length, m = a.filter(x => x.lv === 'amber').length; return (r ? ' <span class="t-red">● ' + r + '</span>' : '') + (m ? ' <span class="t-amber">● ' + m + '</span>' : ''); };
 function buildTL(usable) {
   const rows = [];
   candidates().forEach(c => {
@@ -736,7 +842,7 @@ function timeline(usable) {
   let nowDone = false;
   const nowbar = () => '<div class="nowbar">▶ ' + (S.drag != null ? th('预览', 'Preview') : th('现在', 'Now')) + ' ' + hmZ(S.tview) + ' · +' + dur(Math.max(0, el)) + '</div>';
   S.tl.forEach(r => {
-    while (firs.length && firs[0].t != null && firs[0].t <= r.t) { const f = firs.shift(); if (!nowDone && f.t > el) { html += nowbar(); nowDone = true; } html += '<div class="firrow">◆ ' + hmZ(T0 + f.t * MIN) + ' ' + f.wp + ' ▸ ' + f.name + ' (' + f.code + ')</div>'; }
+    while (firs.length && firs[0].t != null && firs[0].t <= r.t) { const f = firs.shift(); if (!nowDone && f.t > el) { html += nowbar(); nowDone = true; } html += '<div class="firrow" onclick="openFir(\'' + f.code + '\')">◆ ' + hmZ(T0 + f.t * MIN) + ' ' + f.wp + ' ▸ ' + f.name + ' (' + f.code + ')' + firDot(f.code) + '</div>'; }
     const tt0 = T0 + r.t * MIN, cat = r.c.ek ? catAt(r.c.ek, tt0) : null;
     if (r.c.ek ? cat === '-' : !r.c.ofp) return;
     if (!nowDone && r.t >= el) { html += nowbar(); nowDone = true; }
@@ -747,7 +853,7 @@ function timeline(usable) {
     html += '<div class="tr' + (r.t < el - 1 ? ' past' : '') + (dnow <= R1 ? ' in1' : '') + '" onclick="openSheet(\'' + r.c.icao + '\')"><span class="tm">' + hmZ(tt0) + '</span>' + catTag(cat) +
       '<span class="dot ' + { green: 'g', amber: 'a', red: 'r', none: 'x' }[r.a.rate] + '"></span><span class="ic">' + r.c.icao + '</span><span class="nm2">' + esc((r.c.db && r.c.db[2]) || r.c.name || '') + warn + '</span><span class="xd">' + th('离航路', 'off') + ' ' + Math.round(r.x) + ' nm' + (dnow <= R2 ? '<br>' + th('现距', 'now') + ' ' + Math.round(dnow) : '') + '</span></div>';
   });
-  firs.forEach(f => { if (!nowDone && f.t > el) { html += nowbar(); nowDone = true; } html += '<div class="firrow">◆ ' + hmZ(T0 + (f.t || 0) * MIN) + ' ' + f.wp + ' ▸ ' + f.name + ' (' + f.code + ')</div>'; });
+  firs.forEach(f => { if (!nowDone && f.t > el) { html += nowbar(); nowDone = true; } html += '<div class="firrow" onclick="openFir(\'' + f.code + '\')">◆ ' + hmZ(T0 + (f.t || 0) * MIN) + ' ' + f.wp + ' ▸ ' + f.name + ' (' + f.code + ')' + firDot(f.code) + '</div>'; });
   if (!nowDone) html += nowbar();
   return html;
 }
@@ -845,7 +951,7 @@ $('b-close').onclick = () => $('load').classList.remove('open');
 function useText(txt) {
   const r = OFP.parse(txt);
   if (!r.ok) { $('msg').textContent = tt('没读出来', 'Could not read') + ': ' + r.warnings.join('; '); return false; }
-  S.ofp = r; lsSet('ofp', JSON.stringify(r)); lsSet('ofptext1', txt.slice(0, 6000));
+  S.ofp = r; lsSet('ofp', JSON.stringify(r)); lsSet('ofptext1', txt.slice(0, 6000)); lsSet('ofptext', txt);   // 原文也存着：以后解析规则改进了可以自动重新读
   if (S.atd && Math.abs(S.atd - (r.times.std || 0)) > 18 * 3600e3) setATD(null);
   $('t-fl').textContent = r.flight.no + ' · ' + r.flight.date;
   delete $('t-rt').dataset.i; $('t-rt').textContent = r.flight.dep + '/' + r.flight.depIata + ' → ' + r.flight.arr + '/' + r.flight.arrIata + ' · ' + r.flight.reg + ' · STD ' + hmZ(r.times.std) + ' · TRIP ' + dur(r.times.trip);
@@ -942,10 +1048,29 @@ async function forceReload() {
 }
 $('b-force').onclick = e => { e.preventDefault(); forceReload(); };
 // 「⟳」：有网络时立即下载最新版本（删掉旧的），然后重新打开
-$('b-upd').onclick = () => forceReload();
+// 「⟳ 刷新」：先确认真的有网络；有网 → 后台重新下载全部文件（并检查新版本、补发给时钟），完成后换上
+async function online() {
+  if (!navigator.onLine) return false;
+  try { const c = new AbortController(); setTimeout(() => c.abort(), 6000); const r = await fetch('index.html?ping=' + Date.now(), { method: 'HEAD', cache: 'no-store', signal: c.signal }); return r.ok; } catch (e) { return false; }
+}
+$('b-upd').onclick = async () => {
+  const b = $('b-upd'); if (b.classList.contains('busy')) return;
+  b.classList.add('busy'); $('b-upd-t').textContent = ' ' + tt('检查网络…', 'Checking…');
+  if (!(await online())) { b.classList.remove('busy'); $('b-upd-t').textContent = ''; toast('📵 ' + th('当前无网络，继续使用离线版本', 'No network — using the offline version')); return; }
+  $('b-upd-t').textContent = ' ' + tt('更新中…', 'Updating…');
+  flushClock(true);
+  try { if (REG) await REG.update(); } catch (e) {}
+  const c = navigator.serviceWorker && navigator.serviceWorker.controller;
+  if (!c) { location.reload(); return; }
+  const done = new Promise(res => { const h = e => { if (e.data === 'refreshed' || /^refresh-failed/.test(e.data)) { navigator.serviceWorker.removeEventListener('message', h); res(e.data); } }; navigator.serviceWorker.addEventListener('message', h); setTimeout(() => res('timeout'), 60000); });
+  c.postMessage('refresh');
+  const r = await done;
+  if (r === 'refreshed') { lsSet('lastRefresh', Date.now()); toast('✅ ' + th('已更新到最新', 'Up to date'), 2000); setTimeout(() => location.reload(), 900); }
+  else { b.classList.remove('busy'); $('b-upd-t').textContent = ''; toast('⚠️ ' + th('更新没完成，继续使用离线版本', 'Update incomplete — keeping offline version') + '<br><small>' + esc(String(r)) + '</small>', 6000); }
+};
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v9';
+const APPV = 'v10';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -999,6 +1124,7 @@ Promise.all([apReady, ekReady]).then(() => {
   } else openLoad();
   tick(); setInterval(tick, 5000);
   flushClock(true);
+  if (S.ofpOld) toast('⚠️ ' + th('这份 OFP 是用旧版本读入的，请重新载入一次 OFP，才会显示移交点、油量等新内容。', 'This OFP was read by an older version — please load it again to see FIR boundaries, fuel, etc.'), 20000);
 });
 // 测试用：?sim=分钟 把时间设到起飞后多少分钟
 const SIM = new URLSearchParams(location.search).get('sim');
