@@ -659,6 +659,7 @@ function posAt(m) {
 
 function drawRoute() {
   [L_route, L_done, L_plane].concat(L_wps, L_aps).forEach(l => l && map.removeLayer(l));
+  if (S.L_firc) { map.removeLayer(S.L_firc); S.L_firc = null; }
   L_wps.forEach(l => map.removeLayer(l));
   L_wps = []; L_aps = []; L_apm = {}; L_hl.clearLayers();
   drawLegend();
@@ -707,7 +708,29 @@ function drawRoute() {
   L_plane.on('dragstart', () => { S.dragging = true; S.follow = false; });
   L_plane.on('drag', e => { const m = snapRoute(e.latlng); if (m == null) return; S.drag = m; S.dragAt = Date.now(); if (Date.now() - lastDR > 250) { lastDR = Date.now(); lastList = 0; S.userScroll = 0; tick(); } });
   L_plane.on('dragend', () => { S.dragging = false; S.dragAt = Date.now(); lastList = 0; S.userScroll = 0; tick(); });
+  drawFirCircles();
   map.fitBounds(L_route.getBounds(), { padding: [30, 30] });
+}
+// 每个管制区：以进入点和移交点为直径画一个圆，点圆里任何地方 → 这个管制区的通告
+function drawFirCircles() {
+  if (S.L_firc) { map.removeLayer(S.L_firc); S.L_firc = null; }
+  if (!S.ofp || !S.pts || !S.pts.length) return;
+  if (!map.getPane('firc')) { const pn = map.createPane('firc'); pn.style.zIndex = 390; }
+  const g = L.layerGroup(), trip = S.ofp.times.trip || 0, C = [];
+  firLegs().forEach(f => {
+    const a = posAt(f.from != null ? f.from : 0), b = posAt(f.to != null ? f.to : trip); if (!a || !b || !a.pos || !b.pos) return;
+    const A = L.latLng(a.pos), B = L.latLng(b.pos); let lo = B.lng; while (lo - A.lng > 180) lo -= 360; while (lo - A.lng < -180) lo += 360;
+    const r = map.distance(A, L.latLng(B.lat, lo)) / 2; if (r < 2000) return;
+    const all = firNotams(f.code, f.tIn, f.tOut), lv = all.some(x => x.lv === 'red') ? 'red' : all.some(x => x.lv === 'amber') ? 'amber' : '';
+    const col = lv === 'red' ? '#ff5d55' : lv === 'amber' ? '#f3b13c' : '#d63bff';
+    C.push({ f, r, all, col, c: [(A.lat + B.lat) / 2, (A.lng + lo) / 2] });
+  });
+  C.sort((x, y) => y.r - x.r).forEach(({ f, r, all, col, c }) => {   // 大圆先画，小圆在上面也点得到
+    L.circle(c, { radius: r, pane: 'firc', color: col, weight: 1.2, opacity: .55, dashArray: '5 7', fillColor: col, fillOpacity: .05, bubblingMouseEvents: false })
+      .bindTooltip(esc(f.name) + ' · ' + f.code + (all.length ? ' · ' + th(all.length + ' 条通告', all.length + ' NOTAMs') : ''), { sticky: true, direction: 'top', opacity: .9 })
+      .on('click', () => openFir(f.code)).addTo(g);
+  });
+  S.L_firc = g.addTo(map);
 }
 
 /* ---------------- 候选机场：OFP 里有天气的 + 分类表里的 ---------------- */
@@ -1265,7 +1288,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v25';
+const APPV = 'v26';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
