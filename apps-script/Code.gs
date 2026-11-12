@@ -82,6 +82,9 @@ function postJson_(text) {
   if (j.action === 'kb') return JSON.stringify(kbGet_());
   // 飞行记录本：云端保存（你自己 Google Drive 里的一个表格）
   if (j.action === 'lbsync') return JSON.stringify(lbSync_(j));
+  // 邮箱里的 OFP PDF：列出最近的附件 + 排班上的航段；按需下载
+  if (j.action === 'ofpmail') return JSON.stringify(ofpMail_(j));
+  if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -842,4 +845,32 @@ function lbSync_(j) {
     const out = []; rows.forEach(function (r) { if (+r[2]) out.push({ k: r[0], u: +r[1], del: true }); else { try { const e = JSON.parse(r[3]); e.u = +r[1]; out.push(e); } catch (x) {} } });
     return { ok: true, entries: out, set: set, setU: setU, url: ss.getUrl(), t: Date.now() };
   } finally { lock.releaseLock(); }
+}
+
+// ======== 邮箱里的 OFP（PDF）：飞行助手来取，在 iPad 上读 ========
+// 在 Lido 里把 OFP 的 PDF 用邮件发给自己（发到这个 Google 账号）就行。
+function ofpMail_(j) {
+  const days = Math.min(10, Math.max(1, +j.days || 4)), out = [];
+  GmailApp.search('has:attachment filename:pdf newer_than:' + days + 'd', 0, 30).forEach(function (th) {
+    th.getMessages().forEach(function (m) {
+      m.getAttachments({ includeInlineImages: false }).forEach(function (a, i) {
+        const name = a.getName() || '';
+        if (!/\.pdf$/i.test(name) && !/pdf/i.test(a.getContentType())) return;
+        if (a.getSize() > 15e6) return;
+        out.push({ id: m.getId() + ':' + i, name: name, subject: String(m.getSubject() || '').slice(0, 120), t: m.getDate().getTime(), size: a.getSize() });
+      });
+    });
+  });
+  out.sort(function (a, b) { return b.t - a.t; });
+  // 排班上前后几天的航段（航班号、起降机场、计划起飞）：让 iPad 判断这份 OFP 是不是我的
+  const now = Date.now(), legs = [];
+  try { events_(new Date(now - 2 * 864e5), new Date(now + 4 * 864e5)).forEach(function (ev) { legsOf_(ev).forEach(function (l) { legs.push({ digits: l.digits, origin: l.origin, dest: l.dest, std: l.std, sta: l.sta }); }); }); } catch (e) {}
+  return { ok: true, files: out.slice(0, 20), legs: legs };
+}
+function ofpGet_(j) {
+  const p = String(j.id || '').split(':'), m = GmailApp.getMessageById(p[0]);
+  if (!m) return { ok: false, error: 'not found' };
+  const a = m.getAttachments({ includeInlineImages: false })[+p[1] || 0];
+  if (!a) return { ok: false, error: 'no attachment' };
+  return { ok: true, name: a.getName(), b64: Utilities.base64Encode(a.getBytes()) };
 }
