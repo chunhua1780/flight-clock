@@ -88,6 +88,7 @@ function postJson_(text) {
   if (j.action === 'diagget') return JSON.stringify({ ok: true, log: JSON.parse(PropertiesService.getScriptProperties().getProperty('diag_log') || '[]') });
   if (j.action === 'ofpmail') return JSON.stringify(ofpMail_(j));
   if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
+  if (j.action === 'relay') return JSON.stringify(relay_(true));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -371,6 +372,7 @@ function poll() {
     });
   });
   cleanup_();
+  try { relay_(false); } catch (e) {}   // 把邮箱里的 OFP 复制到 GitHub 私有仓库（中国能连）
 }
 
 // ======== 实际动态（起飞/落地）存取 ========
@@ -877,4 +879,42 @@ function ofpGet_(j) {
   const a = m.getAttachments({ includeInlineImages: false })[+p[1] || 0];
   if (!a) return { ok: false, error: 'no attachment' };
   return { ok: true, name: a.getName(), b64: Utilities.base64Encode(a.getBytes()) };
+}
+
+// ======== 中国也能拿到 OFP：后台每 10 分钟把邮箱里（最近 6 天、排班上的）OFP 复制到你的 GitHub 私有仓库 ========
+// 设置：脚本属性 GITHUB_TOKEN = 只给 flight-box 仓库「Contents 读写」权限的 token；GITHUB_REPO = 你的用户名/flight-box
+const GITHUB_TOKEN_INLINE = '', GITHUB_REPO_INLINE = 'chunhua1780/flight-box';
+function gh_(method, path, body) {
+  const pr = PropertiesService.getScriptProperties(), tok = pr.getProperty('GITHUB_TOKEN') || GITHUB_TOKEN_INLINE, repo = pr.getProperty('GITHUB_REPO') || GITHUB_REPO_INLINE;
+  if (!tok) return null;
+  const r = UrlFetchApp.fetch('https://api.github.com/repos/' + repo + '/contents/' + path, { method: method, muteHttpExceptions: true, contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, payload: body ? JSON.stringify(body) : undefined });
+  return { code: r.getResponseCode(), j: (function () { try { return JSON.parse(r.getContentText()); } catch (e) { return null; } })() };
+}
+function relay_(force) {
+  const pr = PropertiesService.getScriptProperties(); if (!(pr.getProperty('GITHUB_TOKEN') || GITHUB_TOKEN_INLINE)) return { ok: false, error: 'no GITHUB_TOKEN' };
+  const cache = CacheService.getScriptCache(); if (!force && cache.get('relay_t')) return { ok: true, skipped: true }; cache.put('relay_t', '1', 600);
+  const LIDO = /EK\.?\s?(\d{3,4})\.(\d{2}[A-Za-z]{3}\d{4})\.([A-Z]{3})\.([A-Z]{3})/, l4 = function (d) { return String(d || '').replace(/\D/g, '').slice(-4).replace(/^0+/, ''); };
+  const m = ofpMail_({ days: 6 }), legs = m.legs || [];
+  const cur = gh_('get', 'ofp/index.json'); if (cur && cur.code === 401) return { ok: false, error: 'GitHub token wrong' };
+  let idx = [], sha = null; if (cur && cur.code === 200 && cur.j) { sha = cur.j.sha; try { idx = JSON.parse(Utilities.newBlob(Utilities.base64Decode(cur.j.content)).getDataAsString()); } catch (e) { idx = []; } }
+  const have = {}; idx.forEach(function (x) { have[x.name + '|' + x.size] = 1; });
+  let added = 0;
+  m.files.forEach(function (f) {
+    const mm = LIDO.exec(f.name || ''); if (!mm && !/\bOFP\b/i.test((f.name || '') + ' ' + (f.subject || ''))) return;
+    if (mm && legs.length && !legs.some(function (l) { return l4(l.digits) === l4(mm[1]) && l.dest === mm[4]; })) return;   // 只要排班上的
+    if (have[f.name + '|' + f.size] || added >= 4) return;
+    const a = ofpGet_({ id: f.id }); if (!a.ok) return;
+    const path = 'ofp/' + f.t + '-' + String(f.name).replace(/[^\w.\-]/g, '_');
+    const put = gh_('put', path, { message: 'OFP ' + f.name, content: a.b64 });
+    if (put && (put.code === 200 || put.code === 201)) { idx.push({ name: f.name, subject: f.subject, t: f.t, size: f.size, path: path }); have[f.name + '|' + f.size] = 1; added++; }
+  });
+  // 10 天前的删掉
+  const keep = [], now = Date.now();
+  idx.forEach(function (x) { if (now - x.t > 10 * 864e5) { const g = gh_('get', x.path); if (g && g.code === 200) gh_('delete', x.path, { message: 'old', sha: g.j.sha }); } else keep.push(x); });
+  if (added || keep.length !== idx.length || !sha) {
+    const body = { message: 'index', content: Utilities.base64Encode(JSON.stringify(keep.concat([]).sort(function (a, b) { return b.t - a.t; })), Utilities.Charset.UTF_8) }; if (sha) body.sha = sha;
+    gh_('put', 'ofp/index.json', body);
+  }
+  return { ok: true, added: added, total: keep.length };
 }

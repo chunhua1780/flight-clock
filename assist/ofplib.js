@@ -48,64 +48,96 @@
   // 只认 OFP：Lido 的文件名（EK.9873.11Nov2026.CAN.DWC.pdf）或者邮件主题 / 文件名里有 OFP；别的私人文件不显示、不下载
   const LIDO = /EK\.?\s?(\d{3,4})\.(\d{2}[A-Za-z]{3}\d{4})\.([A-Z]{3})\.([A-Z]{3})/;
   const isOfp = f => LIDO.test(f.name || '') || /\bOFP\b/i.test(f.name || '') || /\bOFP\b/i.test(f.subject || '');
+  // 邮箱来源：先走 Google 后台；连不上（例如在中国）就走你的 GitHub 私有仓库（后台每 10 分钟把 OFP 复制过去）
+  const GH = () => ({ tok: ls('ghtok') || '', repo: ls('ghrepo') || 'chunhua1780/flight-box' });
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+  let SRC = 'google';
+  async function listMail(days) {
+    if (ls('key')) { try { const j = await withTimeout(postK({ action: 'ofpmail', days }), 12000); if (j && j.ok) { SRC = 'google'; return j; } } catch (e) {} }
+    const g = GH(); if (!g.tok) return { ok: false, error: T('连不上 Google（在中国？）。设置里填了 GitHub 同步码就能在中国收 OFP。', 'Cannot reach Google. Add the GitHub sync key in Settings to receive OFPs in China.') };
+    try { const r = await withTimeout(fetch('https://api.github.com/repos/' + g.repo + '/contents/ofp/index.json?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + g.tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' }), 20000);
+      if (r.status === 404) return { ok: true, files: [], legs: [], src: 'github' };
+      if (!r.ok) return { ok: false, error: 'GitHub ' + r.status };
+      const idx = await r.json(); SRC = 'github';
+      return { ok: true, src: 'github', legs: [], files: idx.map(x => ({ id: 'gh:' + x.path, name: x.name, subject: x.subject || 'OFP', t: x.t, size: x.size, roster: true })) };
+    } catch (e) { return { ok: false, error: T('Google 和 GitHub 都连不上', 'Neither Google nor GitHub is reachable') }; }
+  }
+  async function getFile(id) {
+    if (/^gh:/.test(id)) { const g = GH(); const r = await fetch('https://api.github.com/repos/' + g.repo + '/contents/' + id.slice(3), { headers: { Authorization: 'Bearer ' + g.tok, Accept: 'application/vnd.github.raw+json' } });
+      if (!r.ok) throw new Error('GitHub ' + r.status); return new Uint8Array(await r.arrayBuffer()); }
+    const a = await postK({ action: 'ofpget', id }); if (!a.ok || !a.b64) throw new Error(a.error || T('下载失败', 'Download failed'));
+    return Uint8Array.from(atob(a.b64), c => c.charCodeAt(0));
+  }
   const postK = body => fetch(clockUrl() + '?k=' + encodeURIComponent(ls('key')), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch (e) { return { ok: false, error: t.slice(0, 120) }; } });
-  // 从邮箱里自己选一份 OFP
-  async function pick() {
+  // 最近 6 天的 OFP 列表：iPad 上已有的 + 邮箱里还没下载的，点哪份用哪份；「📧 收邮件」再查一次
+  let ML = (() => { try { return JSON.parse(ls('maillist') || '[]'); } catch (e) { return []; } })(), MLmsg = '';
+  async function pick(refresh) {
     const box = document.getElementById('mailpick'); if (!box) return;
-    box.classList.add('open');
-    if (!navigator.onLine) { box.innerHTML = '<div class="mp-h">📧 ' + T('邮箱里的 OFP', 'OFPs in your mail') + '<span class="mp-x" onclick="OFL.pickClose()">✕</span></div><div class="mp-e">📵 ' + T('当前无网络', 'No network') + '</div>'; return; }
-    if (!ls('key')) { box.innerHTML = '<div class="mp-h">📧 ' + T('邮箱里的 OFP', 'OFPs in your mail') + '<span class="mp-x" onclick="OFL.pickClose()">✕</span></div><div class="mp-e">' + T('这台设备还没填后台口令', 'No backend password on this device') + '</div>'; return; }
-    box.innerHTML = '<div class="mp-h">📧 ' + T('邮箱里的 OFP', 'OFPs in your mail') + '<span class="mp-x" onclick="OFL.pickClose()">✕</span></div><div class="mp-e">⏳ ' + T('正在看邮箱…', 'Checking mail…') + '</div>';
-    const j = await postK({ action: 'ofpmail', days: 10 });
-    if (!j.ok) { box.querySelector('.mp-e').textContent = '⚠️ ' + (j.error || ''); return; }
-    const legs = j.legs || [], lib = new Set((await all()).map(e => e.name).filter(Boolean)), seenId = new Set();
-    const L = (j.files || []).filter(isOfp).filter(f => { const k = f.name + '|' + f.size; if (seenId.has(k)) return false; seenId.add(k); return true; });   // 同一份转发多次只列一次
-    const z2 = n => String(n).padStart(2, '0'), when = t => { const d = new Date(t); return z2(d.getDate()) + '/' + z2(d.getMonth() + 1) + ' ' + z2(d.getHours()) + ':' + z2(d.getMinutes()); };
-    box.innerHTML = '<div class="mp-h">📧 ' + T('邮箱里的 OFP（最近 10 天）', 'OFPs in your mail (last 10 days)') + '<span class="mp-x" onclick="OFL.pickClose()">✕</span></div>' +
-      (L.length ? L.map(f => { const m = LIDO.exec(f.name || ''), rost = m && legs.some(l => last4(l.digits) === last4(m[1]) && l.dest === m[4]);
-        return '<div class="mp-i" data-id="' + esc(f.id) + '" data-n="' + esc(f.name) + '"><div class="mp-t">' + (m ? '<b>EK' + m[1] + '</b> ' + m[2].slice(0, 5).toUpperCase() + ' · ' + m[3] + '→' + m[4] : '<b>' + esc(f.name) + '</b>') +
-          (rost ? ' <span class="mp-b g">' + T('排班上有', 'on roster') + '</span>' : '') + (lib.has(f.name) ? ' <span class="mp-b">' + T('已在 iPad 上', 'on this iPad') + '</span>' : '') + '</div>' +
-          '<div class="mp-s">' + esc(f.subject || '') + ' · ' + T('收到', 'received') + ' ' + when(f.t) + ' · ' + (f.size / 1e6).toFixed(1) + ' MB</div></div>'; }).join('')
-        : '<div class="mp-e">' + T('最近 10 天邮箱里没有 OFP。在 Lido 里把 OFP 发到你的邮箱，再点上面的 ✕ 重新打开。', 'No OFP in the last 10 days. Email the OFP from Lido to yourself.') + '</div>');
-    box.querySelectorAll('.mp-i').forEach(el => el.onclick = async () => {
+    box.classList.add('open'); await drawPick();
+    if (refresh === false) return;
+    if (!navigator.onLine) { MLmsg = '📵 ' + T('离线：显示的是上次收到的', 'Offline — showing the last list'); drawPick(); return; }
+    MLmsg = '⏳ ' + T('正在收邮件…', 'Checking mail…'); drawPick();
+    const j = await listMail(6);
+    if (!j.ok) { MLmsg = '⚠️ ' + (j.error || ''); drawPick(); return; }
+    const legs = j.legs || [], seenK = new Set();
+    ML = (j.files || []).filter(isOfp).filter(f => { const k = f.name + '|' + f.size; if (seenK.has(k)) return false; seenK.add(k); return true; })
+      .map(f => { const m = LIDO.exec(f.name || ''); return Object.assign({}, f, { roster: f.roster || !!(m && legs.some(l => last4(l.digits) === last4(m[1]) && l.dest === m[4])) }); });
+    ls('maillist', JSON.stringify(ML)); MLmsg = (j.src === 'github' ? '🌏 ' + T('经 GitHub 收到（Google 连不上）', 'via GitHub (Google unreachable)') + ' · ' : '') + T('刚刚收过', 'checked just now');
+    drawPick();
+    mail(true);   // 排班上的顺便自动下载
+  }
+  async function drawPick() {
+    const box = document.getElementById('mailpick'); if (!box) return;
+    const lib = (await all()).filter(e => Date.now() - (e.std || 0) < 6 * 864e5 || endOf(e) > Date.now()).sort((a, b) => a.std - b.std), cur = ls('ofpk');
+    const libNames = new Set(lib.map(e => e.name).filter(Boolean)), z2 = n => String(n).padStart(2, '0');
+    const when = t => { const d = new Date(t); return z2(d.getDate()) + '/' + z2(d.getMonth() + 1) + ' ' + z2(d.getHours()) + ':' + z2(d.getMinutes()); };
+    const hm = t => t ? z2(new Date(t).getUTCHours()) + z2(new Date(t).getUTCMinutes()) + 'Z' : '';
+    const rowsLib = lib.map(e => '<div class="mp-i lib' + (e.k === cur ? ' on' : '') + '" data-k="' + esc(e.k) + '"><div class="mp-t"><b>' + esc(e.no) + '</b> ' + esc(e.date) + ' · ' + esc(e.dep) + '→' + esc(e.arr) + ' · STD ' + hm(e.std) + (e.k === cur ? ' <span class="mp-b g">' + T('正在用', 'in use') + '</span>' : ' <span class="mp-b">' + T('在 iPad 上', 'on iPad') + '</span>') + (e.src === 'mail' ? ' 📧' : '') + '</div></div>').join('');
+    const mailOnly = ML.filter(f => !libNames.has(f.name));
+    const rowsMail = mailOnly.map(f => { const m = LIDO.exec(f.name || '');
+      return '<div class="mp-i" data-id="' + esc(f.id) + '" data-n="' + esc(f.name) + '"><div class="mp-t">' + (m ? '<b>EK' + m[1] + '</b> ' + m[2].slice(0, 5).toUpperCase() + ' · ' + m[3] + '→' + m[4] : '<b>' + esc(f.name) + '</b>') +
+        (f.roster ? ' <span class="mp-b g">' + T('排班上有', 'on roster') + '</span>' : '') + ' <span class="mp-b m">' + T('邮箱里，点一下下载', 'in mail — tap to download') + '</span></div>' +
+        '<div class="mp-s">' + esc(f.subject || '') + ' · ' + T('收到', 'received') + ' ' + when(f.t) + ' · ' + (f.size / 1e6).toFixed(1) + ' MB</div></div>'; }).join('');
+    box.innerHTML = '<div class="mp-h">✈️ ' + T('最近 6 天的 OFP', 'OFPs — last 6 days') + '<button class="btn sm" style="margin-left:auto" onclick="OFL.pick()">📧 ' + T('收邮件', 'Check mail') + '</button><span class="mp-x" onclick="OFL.pickClose()">✕</span></div>' +
+      (rowsLib + rowsMail || '<div class="mp-e">' + T('还没有 OFP。在 Lido 里把 OFP 发到你的邮箱，再点「收邮件」。', 'No OFP yet. Email the OFP from Lido, then tap “Check mail”.') + '</div>') +
+      (MLmsg ? '<div class="mp-m">' + MLmsg + '</div>' : '');
+    box.querySelectorAll('.mp-i.lib').forEach(el => el.onclick = () => activate(el.dataset.k));
+    box.querySelectorAll('.mp-i:not(.lib)').forEach(el => el.onclick = async () => {
       if (el.classList.contains('busy')) return; el.classList.add('busy'); const s0 = el.querySelector('.mp-s'); s0.textContent = '⏳ ' + T('下载中…（大文件要 10–30 秒）', 'Downloading… (10–30 s)');
-      const a = await postK({ action: 'ofpget', id: el.dataset.id });
-      if (!a.ok || !a.b64) { el.classList.remove('busy'); s0.textContent = '⚠️ ' + (a.error || T('下载失败', 'Download failed')); return; }
+      let bin; try { bin = await getFile(el.dataset.id); } catch (e) { el.classList.remove('busy'); s0.textContent = '⚠️ ' + e.message; return; }
       s0.textContent = '⏳ ' + T('读取中…', 'Reading…');
-      const bin = Uint8Array.from(atob(a.b64), c => c.charCodeAt(0));
       const ok = await useFile(new File([bin], el.dataset.n || 'ofp.pdf'), el.dataset.n);
-      if (ok) { const k = ls('ofpk'); if (k) { const e = await get(k); if (e) { e.name = el.dataset.n; e.src = 'mail'; await put(e); } } box.classList.remove('open'); }
+      if (ok) { const k = ls('ofpk'); if (k) { const e = await get(k); if (e) { e.name = el.dataset.n; e.src = 'mail'; await put(e); } } drawPick(); }
       else { el.classList.remove('busy'); s0.textContent = '⚠️ ' + T('这个文件读不出 OFP', 'Could not read an OFP from this file'); }
     });
   }
+
+
+  // ---------- 自动收：排班上的 OFP 自动下载到 iPad（Google 或 GitHub） ----------
   let mailBusy = false, mailMsg = '';
   async function mail(quiet) {
-    if (mailBusy) return; if (!navigator.onLine || !ls('key')) { mailMsg = !navigator.onLine ? T('离线', 'offline') : T('没填口令', 'no key'); menuRefresh(); if (!quiet) toast(mailMsg); return; }
-    mailBusy = true; mailMsg = T('正在查邮箱…', 'Checking mail…'); menuRefresh();
-    const post = body => fetch(clockUrl() + '?k=' + encodeURIComponent(ls('key')), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch (e) { return { ok: false, error: t.slice(0, 120) }; } });
-    let got = 0;
+    if (mailBusy) return;
+    if (!navigator.onLine || (!ls('key') && !ls('ghtok'))) { mailMsg = !navigator.onLine ? T('离线', 'offline') : T('没填口令', 'no key'); menuRefresh(); if (!quiet) toast(mailMsg); return; }
+    mailBusy = true; let got = 0;
     try {
-      const j = await post({ action: 'ofpmail', days: 4 });
-      if (!j.ok) { mailMsg = /缺少航班|数据格式/.test(j.error || '') ? T('后台是旧版：请更新 Code.gs', 'Backend is old — update Code.gs') : '⚠️ ' + (j.error || ''); if (!quiet) toast(mailMsg, 5000); return; }
-      const seen = new Set(JSON.parse(ls('mailseen') || '[]')), legs = j.legs || [];
-      const mine = r => { const f = r.flight, std = r.times.std || f.dateUTC;
-        if (!legs.length) return Math.abs(std - Date.now()) < 3 * 864e5;                       // 读不到排班：只看日期
-        return legs.some(l => last4(l.digits) === last4(f.digits) && (l.dest === f.arrIata || l.dest === f.arr) && Math.abs(l.std - std) < 12 * 36e5); };
-      const nameOk = n => { const m = LIDO.exec(n || ''); if (!m || !legs.length) return !!m; return legs.some(l => last4(l.digits) === last4(m[1]) && l.dest === m[4]); };
-      for (const f of (j.files || []).filter(isOfp).slice(0, 8)) {
-        if (seen.has(f.id) || !nameOk(f.name)) continue;
-        mailMsg = T('下载 ', 'Downloading ') + f.name; menuRefresh();
-        const a = await post({ action: 'ofpget', id: f.id }); if (!a.ok || !a.b64) continue;
-        const bin = Uint8Array.from(atob(a.b64), c => c.charCodeAt(0));
-        let text = ''; try { text = (await DOCR.readAny(new Blob([bin]), f.name, pdfText)).text; } catch (e) { continue; }   // PDF / Word / RTF / 文字都行
+      const j = await listMail(6);
+      if (!j.ok) { mailMsg = '⚠️ ' + (j.error || ''); if (!quiet) toast(mailMsg, 5000); return; }
+      const legs = j.legs || [], seen = new Set(JSON.parse(ls('mailseen') || '[]')), libNames = new Set((await all()).map(e => e.name).filter(Boolean));
+      const onRoster = (digits, dest, std) => !legs.length ? true : legs.some(l => last4(l.digits) === last4(digits) && l.dest === dest && (std == null || Math.abs(l.std - std) < 12 * 36e5));
+      for (const f of (j.files || []).filter(isOfp).slice(0, 12)) {
+        if (seen.has(f.id) || libNames.has(f.name)) continue;
+        const m = LIDO.exec(f.name || ''); if (j.src !== 'github' && (!m || !onRoster(m[1], m[4]))) continue;   // 只自动收排班上的
+        let bin; try { bin = await getFile(f.id); } catch (e) { continue; }
+        let text = ''; try { text = (await DOCR.readAny(new Blob([bin]), f.name, pdfText)).text; } catch (e) { continue; }
         const r = OFP.parse(text); seen.add(f.id);
-        if (!r.ok || !mine(r)) continue;                                                       // 不是 OFP / 不是排班上的航班：不收
-        await save(text, 'mail', f.name, r); got++;
+        if (!r.ok || (j.src !== 'github' && !onRoster(r.flight.digits, r.flight.arrIata, r.times.std || r.flight.dateUTC))) continue;
+        const e = await save(text, 'mail', f.name, r); if (e) { libNames.add(f.name); got++; }
       }
       ls('mailseen', JSON.stringify([...seen].slice(-200)));
-      mailMsg = got ? '📧 ' + T('收到 ' + got + ' 份 OFP', got + ' OFP(s) received') : T('邮箱里没有新的 OFP', 'No new OFP in mail');
-      if (got) { toast(mailMsg, 3500); await auto(); } else if (!quiet) toast(mailMsg, 2500);
-    } catch (e) { mailMsg = T('没连上后台', 'Could not reach the backend'); if (!quiet) toast(mailMsg); }
+      mailMsg = got ? '📧 ' + T('收到 ' + got + ' 份 OFP', got + ' OFP(s) received') : T('没有新的 OFP', 'No new OFP');
+      if (got) { toast(mailMsg, 3500); await auto(); const b = document.getElementById('mailpick'); if (b && b.classList.contains('open')) drawPick(); }
+      else if (!quiet) toast(mailMsg, 2500);
+    } catch (e) { mailMsg = T('没连上', 'Could not connect'); if (!quiet) toast(mailMsg); }
     finally { mailBusy = false; menuRefresh(); }
   }
 
@@ -131,5 +163,6 @@
   window.addEventListener('online', () => mail(true));
   setTimeout(() => { auto(); mail(true); }, 5000);
   setInterval(() => { auto(); }, 5 * 60e3);
-  setInterval(() => mail(true), 15 * 60e3);
+  setInterval(() => mail(true), 10 * 60e3);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { auto(); mail(true); } });
 })();

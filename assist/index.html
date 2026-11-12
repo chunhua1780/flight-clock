@@ -266,6 +266,7 @@ div.en,.wl .en{display:block;margin-left:0}
 #mailpick .mp-i{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}#mailpick .mp-i:hover{background:var(--input)}#mailpick .mp-i.busy{opacity:.7;cursor:wait}
 #mailpick .mp-t{font-size:15px}#mailpick .mp-s{font-size:12px;color:var(--dim);margin-top:2px}
 #mailpick .mp-b{font-size:10.5px;padding:1px 6px;border-radius:6px;background:var(--line);color:var(--text);margin-left:4px}#mailpick .mp-b.g{background:#1f6f45;color:#d8ffe9}
+#mailpick .mp-b.m{background:rgba(111,180,255,.2);color:var(--blue)}#mailpick .mp-i.lib.on{background:rgba(63,207,127,.08)}#mailpick .mp-m{padding:8px 12px;font-size:12px;color:var(--dim)}
 #mailpick .mp-e{padding:14px 12px;color:var(--dim)}
 .ltile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:110px;padding:12px;border:2px dashed var(--line);border-radius:14px;background:var(--input);cursor:pointer;text-align:center;outline:none;caret-color:transparent;user-select:none;-webkit-user-select:none}
 .ltile i{font-style:normal;font-size:30px}.ltile b{font-size:15px;color:var(--text)}.ltile span{font-size:11.5px;color:var(--dim)}
@@ -464,6 +465,8 @@ div.en,.wl .en{display:block;margin-left:0}
       <p><span data-i="公司 OFP 解读（OM 10.1.7「EK-OFP Decodes」）：从手册整段复制粘贴到下面，点「导入」。只保存在这台 iPad 上；有网时会翻成中文，离线也能看。|Company OFP decodes (OM 10.1.7 EK-OFP Decodes): paste the whole section and tap Import. Stored on this iPad only; translated when online."></span><span id="om-st"></span></p>
       <textarea id="s-om" style="height:90px" placeholder="EK-OFP Decodes&#10;1.&#10;EK701: Flight Number.&#10;…"></textarea>
       <div class="row"><button class="btn" id="b-om" data-i="导入公司解读|Import decodes"></button><button class="btn sm" id="b-omclr" data-i="删除|Delete"></button></div>
+      <p><span data-i="中国同步码（GitHub）：在中国连不上 Google 时，从你的 GitHub 私有仓库收 OFP。|China sync key (GitHub): receive OFPs from your private GitHub repo when Google is blocked."></span></p>
+      <div class="row"><input type="password" id="s-gh" placeholder="github_pat_…" style="max-width:320px" autocomplete="off"><button class="btn sm" id="b-gh" data-i="保存|Save"></button></div>
       <div class="row"><button class="btn" id="b-save" data-i="保存设置|Save settings"></button></div>
       <p class="small" style="margin-top:14px;color:var(--dim)"><span id="verlbl"></span> · <a href="#" id="b-force" style="color:var(--amber)" data-i="网页一直不更新？点这里强制重新下载（需要网络）|Stuck on an old version? Force re-download (needs network)"></a></p>
     </details>
@@ -496,7 +499,7 @@ const dur = m => Math.floor(m / 60) + 'h' + z2(Math.round(m % 60));
 
 /* ---------------- 语言：中文 / English / 中英 ---------------- */
 // 专用链接 …/assist/#k=口令：打开一次就把口令存在这台设备上（口令不写在网站代码里），然后从地址栏去掉
-(() => { const m = /[#&]k=([^&]+)/.exec(location.hash); if (!m) return; try { localStorage.setItem('fa.key', decodeURIComponent(m[1])); } catch (e) {} history.replaceState(null, '', location.pathname + location.search); })();
+(() => { const m = /[#&]k=([^&]+)/.exec(location.hash), g = /[#&]g=([^&]+)/.exec(location.hash); if (!m && !g) return; try { if (m) localStorage.setItem('fa.key', decodeURIComponent(m[1])); if (g) localStorage.setItem('fa.ghtok', decodeURIComponent(g[1])); } catch (e) {} history.replaceState(null, '', location.pathname + location.search); })();
 let LANG = lsGet('lang') || 'both';
 const tt = (zh, en) => LANG === 'zh' ? zh : LANG === 'en' ? en : zh + ' · ' + en;          // 纯文字
 const th = (zh, en) => LANG === 'zh' ? zh : LANG === 'en' ? en : zh + '<span class="en">' + en + '</span>';   // HTML
@@ -1237,7 +1240,7 @@ $('b-ek').onclick = () => {
 };
 $('b-ekclr').onclick = () => { if (!confirm(tt('删除这台 iPad 上的机场授权表？', 'Delete the authorisation table from this iPad?'))) return; S.EK = null; try { localStorage.removeItem('fa.ek'); } catch (e) {} ekStatus(); drawRoute(); lastList = 0; tick(); };
 function openLoad() { ekStatus(); omStatus(); syncStatus(); $('verlbl').textContent = tt('版本', 'Version') + ' ' + APPV; $('load').classList.add('open'); $('s-clock').value = clockUrl(); $('s-key').value = lsGet('key') || ''; $('s-type').value = lsGet('type') || ''; $('s-lang').value = LANG; }
-$('b-load').onclick = openLoad;
+$('b-load').onclick = () => { openLoad(); try { OFL.pick(); } catch (e) {} };   // 打开载入页就列出最近 6 天的 OFP，并收一次邮件
 $('b-close').onclick = () => $('load').classList.remove('open');
 function useText(txt) {
   const r = OFP.parse(txt);
@@ -1494,7 +1497,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v44';
+const APPV = 'v45';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1643,6 +1646,7 @@ $('b-om').onclick = () => {
   $('msg').style.color = 'var(--green)'; $('msg').textContent = '✅ ' + tt('导入 ' + r.n + ' 条公司解读', r.n + ' entries imported');
   translateOM();
 };
+$('b-gh').onclick = () => { lsSet('ghtok', $('s-gh').value.trim()); $('s-gh').value = ''; $('msg').style.color = 'var(--green)'; $('msg').textContent = '✅ ' + tt('中国同步码已保存在这台 iPad 上', 'China sync key saved on this iPad'); };
 $('b-omclr').onclick = () => { if (!confirm(tt('删除这台 iPad 上的公司解读？', 'Delete company decodes from this iPad?'))) return; OM = null; try { localStorage.removeItem('fa.om'); } catch (e) {} omStatus(); };
 window.addEventListener('online', () => translateOM(true));
 // 点到的字 / 这一行 → 公司手册里对应的条目
