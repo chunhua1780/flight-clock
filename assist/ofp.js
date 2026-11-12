@@ -38,7 +38,8 @@
     out.flight = { no: 'EK' + h[1], digits: h[1], date: h[2] + h[3], dateUTC, dep: h[4], depIata: h[5], arr: h[6], arrIata: h[7], type: h[8] || '', reg: h[9] || '' };
 
     // ---------- 2. 时间 / 油量 ----------
-    const g = (re, i = 1) => { const m = re.exec(T); return m ? m[i] : null; };
+    const T1 = T.replace(/[ \t]{2,}/g, ' ');                                   // PDF 提取的文字词之间可能有两个空格
+    const g = (re, i = 1) => { const m = re.exec(T1); return m ? m[i] : null; };
     const dep = g(/\bDEP\s+(\d{4})\b/), arr = g(/\bARR\s+(\d{4})\b/);
     const trip = /\bTRIP\s+([A-Z]{4})\s+(\d+)\s+(\d{4})\b/.exec(T);
     const taxi = /\bTAXI\s+(\d+)\s+(\d{4})\b/.exec(T);
@@ -54,10 +55,38 @@
     t.crzFl = g(/CRZ FL\/TEMP\s+(FL\d{3})/);
     t.avgWind = g(/AV W\/C\s+([PM]\d{3})/);
     t.rampFuel = g(/RAMP FUEL\s+([\d.]+)/);
+    t.avgTrk = g(/AV TRK\s+(\d{3})/); t.avgIsa = g(/AV ISA\s+([PM]\d{2,3})/);
+    t.plndFl = g(/PLND FL:\s*([^\n]+)/); if (t.plndFl) t.plndFl = t.plndFl.trim();
+    // 油量表（kg；RAMP 是吨）
+    const fl = (re) => { const m = re.exec(T1); return m ? { fuel: +m[1], time: m[2] ? hhmm(m[2]) : null } : null; };
+    const fuel = out.fuel = {};
+    fuel.trip = trip ? { fuel: +trip[2], time: hhmm(trip[3]) } : null;
+    const cm = /\bCONT\s+([^\n]*?)\s+(\d+)\s+(\d{4})\b/.exec(T1);
+    fuel.cont = cm ? { label: cm[1].trim(), fuel: +cm[2], time: hhmm(cm[3]) } : null;
+    fuel.altn = altn ? { icao: altn[1], fuel: +altn[2], time: hhmm(altn[3]) } : null;
+    fuel.frsv = fl(/\bFRSV\s+(\d+)\s+(\d{4})\b/);
+    const ex = /\bEXTRA\s*([A-Z ]*?)\s+(\d+)\s+(\d{4})\b/.exec(T1);
+    fuel.extra = ex ? { label: ex[1].trim(), fuel: +ex[2], time: hhmm(ex[3]) } : null;
+    fuel.tof = fl(/\bT\/O FUEL\s+(\d+)()/);
+    fuel.taxi = taxi ? { fuel: +taxi[1], time: hhmm(taxi[2]) } : null;
+    const rf = /\bRAMP FUEL\s+([\d.]+)\s+(\d{4})/.exec(T1);
+    fuel.ramp = rf ? { fuel: Math.round(+rf[1] * (+rf[1] < 1000 ? 1000 : 1)), time: hhmm(rf[2]) } : null;
+    fuel.reason = g(/DISCR FUEL REASON:\s*([^\n]+)/);
+    fuel.tanker = g(/\n\s*((?:NO )?TANKERING[^(\n]*)/);
+    out.weights = {};
+    [['ezfw', /EZFW\s+(\d+)\s+MZFW\s+(\d+)/], ['etow', /ETOW\s+(\d+)\s+MTOW\s+(\d+)/], ['elwt', /ELWT\s+(\d+)\s+MLWT\s+(\d+)/]].forEach(([k, re]) => { const m = re.exec(T1); if (m) out.weights[k] = [+m[1], +m[2]]; });
+    // 签派简报 / 释压改航点
+    const di = L.findIndex(l => /DISPATCH\s+BRIEFING\s+INFO/.test(l));
+    out.dispatch = [];
+    if (di >= 0) for (let i = di + 1; i < L.length && !/CREW\s+NOTES/.test(L[i]); i++) { const x = L[i].trim().replace(/\s+/g, ' '); if (!x) continue; if (/^-\s/.test(x)) out.dispatch.push(x.slice(2)); else if (out.dispatch.length) out.dispatch[out.dispatch.length - 1] += ' ' + x; }
+    out.dp = [];
+    L.forEach((l, i) => { if (/\*\*\*\s*DEPRESSURI[SZ]ATION\s+DIVERSION/.test(l)) out.dp.push([L[i + 1], L[i + 2], L[i + 3]].map(x => (x || '').trim().replace(/\s+/g, ' ')).filter(Boolean)); });
 
     // ---------- 3. 航路（ATC 放行那一行，可能跨行） ----------
     const rr = new RegExp('\\b' + out.flight.dep + '\\/\\w+\\s+([\\s\\S]+?)\\s' + out.flight.arr + '\\/\\w+').exec(T);
     if (rr) out.route = rr[1].replace(/\s+/g, ' ').trim();
+    out.flight.depRwy = g(new RegExp('\\b' + out.flight.dep + '\\/(\\d{2}[LRC]?)\\b'));
+    out.flight.arrRwy = g(new RegExp('\\b' + out.flight.arr + '\\/(\\d{2}[LRC]?)\\b'));
 
     // ---------- 4. 目的地备降场表 ----------
     const ai = L.findIndex(l => /DEST\s+ALTN\s+DIST\s+TRK\s+FL/.test(l));
@@ -72,10 +101,14 @@
     // ---------- 5. 导航日志：航路点 + 计划累计时间 + 航段距离 ----------
     const ns = L.findIndex(l => /^\s*AWY\s+TRM\s+DIST/.test(l));
     if (ns >= 0) {
-      let pendDist = 0, cumDist = 0;
+      let pendDist = 0, cumDist = 0, eq = false, sepSince = null;
+      const pendSep = [];
+      out.firs = [];
       for (let i = ns; i < L.length; i++) {
         const l = L[i];
         if (/ROUTE TO DESTINATION ALTERNATE/.test(l)) break;
+        const sp = /^-{5,}\s*([A-Z][A-Z ]+?)\s+(FIR|UIR)\/([A-Z]{4})\s*-{5,}$/.exec(l.trim());
+        if (sp && sp[2] === 'FIR') { const f = { name: sp[1].trim() + ' FIR', code: sp[3], afterIdx: out.navlog.length }; out.firs.push(f); sepSince = f; continue; }
         if (/^\s*(AWY|WPT)\s/.test(l) || /^-{5,}/.test(l.trim())) continue;
         // 航路点行：名字 … 累计时间 hhmm 后面跟 "...." 两组
         const w = /^\s*([A-Z0-9_]{2,8})(?:\/\w+)?\b.*?\s(\d{4})\s+\.{4}\s+\.{4}/.exec(l);
@@ -84,16 +117,26 @@
         if (w) {
           cumDist += pendDist; pendDist = 0;
           const mora = /\s(\d{2,3})\s+[PM]\d{3}\b/.exec(l);
-          out.navlog.push({ id: w[1], t: hhmm(w[2]), dist: cumDist, mora: mora ? +mora[1] : null });
+          out.navlog.push({ id: w[1], t: hhmm(w[2]), dist: cumDist, mora: mora ? +mora[1] : null, eq });
+          eq = false; sepSince = null;
           continue;
         }
         // 航路行：航路名 [=]? [航向]? 距离 风/
         const a = /^\s*(\S+)\s+(?:=\s*)?(?:(\d{3})\s+)?(\d{3})\s+(?:\d{2}\/\d{3}|\d{2}\/[PM]\d{2})/.exec(l);
-        if (a) pendDist += +a[3];
+        if (a) { pendDist += +a[3]; eq = /^\s*\S+\s+=/.test(l); }
       }
       // 最后一行是目的地机场（OMDW/30 … 0752）
       const last = out.navlog[out.navlog.length - 1];
       if (last && last.id === out.flight.arr.slice(0, last.id.length)) last.id = out.flight.arr;
+      // 移交点：航路行上有「=」的那个航路点就是 FIR 边界点；对应的 FIR 是它前面或后面最近的分隔线
+      out.firs.forEach(f => {
+        const N = out.navlog;
+        let k = -1;
+        if (N[f.afterIdx - 1] && N[f.afterIdx - 1].eq && !(f.afterIdx - 2 >= 0 && out.firs.some(g => g !== f && g.afterIdx === f.afterIdx - 1))) k = f.afterIdx - 1;   // 分隔线在边界点后面
+        if (N[f.afterIdx] && N[f.afterIdx].eq) k = f.afterIdx;                         // 分隔线在边界点前面
+        if (k < 0) k = Math.min(f.afterIdx, N.length - 1);
+        f.wp = N[k] ? N[k].id : null; f.t = N[k] ? N[k].t : null; f.idx = k;
+      });
     }
 
     // ---------- 6. 航路点坐标（高空风表：名字一行、纬度一行、经度一行） ----------
