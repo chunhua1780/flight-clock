@@ -1370,7 +1370,7 @@ const PHASE_PREVIEW = Q.get('phase');
 const PHOTO = (() => { try { return JSON.parse(lsGet('fc.photos') || '{}'); } catch (e) { return {}; } })();
 let photoOff = false;
 // 直接在浏览器里查 Pexels（Key 存在本机设置里）
-const PX_PHASE = { dawn: 'sunrise', morning: 'morning', day: '', evening: 'golden hour', dusk: 'sunset', night: 'night' };
+const PX_PHASE = { dawn: 'sunrise', morning: 'morning', day: 'daytime', evening: 'golden hour', dusk: 'sunset', night: 'night' };
 const PX_WX = { rain: 'rain', storm: 'storm', snow: 'snow', fog: 'fog', dust: 'sandstorm', overcast: 'cloudy' };
 const strHash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 let PXC = (() => { try { return JSON.parse(lsGet('fc.px') || '{}'); } catch (e) { return {}; } })();
@@ -1404,8 +1404,15 @@ async function pexelsPhoto(city, phase, cat) {
     // 只要照片描述里提到这个城市或地标的，避免搜「广州」出来别的城市
     const list = all.filter(x => !x.a || words.some(w => x.a.includes(w)));
     if (list.length < 3) continue;
-    const ph = list[strHash(day + '|' + t.q) % list.length];
-    return { url: ph.s + '?auto=compress&cs=tinysrgb&w=1920', wx: t.wx, ph: t.ph, credit: { by: ph.by, license: 'Pexels', url: ph.u } };
+    // 照片描述里写了别的时段（比如白天却写 night / sunset）的不要
+    const BAD = { day: /night|sunset|dusk|evening|twilight|dark|lights at|illuminat/, morning: /night|sunset|dusk|evening|dark/, evening: /night|dark|sunrise|dawn/, night: /daytime|sunny|blue sky|morning|noon|day\b/, dawn: /night\b|noon|midday/, dusk: /noon|midday|morning/ }[phase];
+    const ok = BAD ? list.filter(x => !BAD.test(x.a)) : list;
+    if (!ok.length) continue;
+    const start = strHash(day + '|' + t.q) % ok.length;
+    for (let n = 0; n < Math.min(4, ok.length); n++) {
+      const ph = ok[(start + n) % ok.length], url = ph.s + '?auto=compress&cs=tinysrgb&w=1920';
+      if (await photoFits(url, phase, cat)) return { url, wx: t.wx, ph: t.ph, credit: { by: ph.by, license: 'Pexels', url: ph.u } };
+    }
   }
   return null;
 }
@@ -1417,16 +1424,53 @@ const FLAVORS = {
 };
 // 每 10 分钟换一张；搜索词同时带「时段 + 天气」，例如 Dubai Marina sunset rain
 const photoSlot = () => { const p = parts(Date.now(), HOME_TZ); return ymd(Date.now(), HOME_TZ) + '-' + Math.floor((+p.hour * 60 + +p.minute) / 10); };
-const PH_WORDS = { dawn: ['sunrise', 'dawn'], morning: ['morning'], day: [''], evening: ['golden hour', 'evening'], dusk: ['sunset', 'dusk'], night: ['night', 'night lights'] };
+const PH_WORDS = { dawn: ['sunrise', 'dawn'], morning: ['morning'], day: ['daytime', 'blue sky', 'sunny day'], evening: ['golden hour', 'evening'], dusk: ['sunset', 'dusk'], night: ['night', 'night lights'] };
 const WX_WORDS = { rain: ['rain', 'rainy'], storm: ['thunderstorm', 'storm'], snow: ['snow'], fog: ['fog', 'mist'], dust: ['sandstorm', 'dust storm'], overcast: ['cloudy', 'overcast'] };
 function photoQueries(city, phase, cat, slot) {
   const n = strHash(slot + '|' + city + '|' + phase + '|' + cat);
   const fl = FLAVORS[city] || FLAVORS._, pws = PH_WORDS[phase] || [''], wws = WX_WORDS[cat] || [''];
   const flavor = fl[n % fl.length], pw = pws[(n >>> 4) % pws.length], ww = wws[(n >>> 8) % wws.length];
   const out = [];
-  const add = (...w) => { const q = w.filter(Boolean).join(' '); if (q && !out.some(o => o.q === q)) out.push({ q, ph: !pw || q.indexOf(pw) >= 0, wx: !!ww && q.indexOf(ww) >= 0 }); };
+  const add = (...w) => { const q = w.filter(Boolean).join(' '); if (q && !out.some(o => o.q === q)) out.push({ q, ph: !pws[0] || pws.some(x => x && q.indexOf(x) >= 0), wx: !!ww && q.indexOf(ww) >= 0 }); };
   add(city, flavor, pw, ww); add(city, pw, ww); if (ww) add(city, ww); add(city, flavor, pw); add(city, pw);
-  return out.slice(0, 5);
+  pws.forEach(x => add(city, x, ww)); pws.forEach(x => add(city, x)); pws.forEach(x => add(city, x, 'skyline'));
+  return out.slice(0, 8);
+}
+// 照片是白天还是晚上：下载一张很小的缩略图，算平均亮度和天空颜色，跟当地实际时段对不上就不用
+const PHOTO_OK = (() => { try { return JSON.parse(lsGet('fc.phok') || '{}'); } catch (e) { return {}; } })();
+function thumbOf(url) { return url.replace(/([?&])w=\d+/, '$1w=96').replace(/&q=\d+/, ''); }
+function photoLook(url) {
+  return new Promise(res => {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    const to = setTimeout(() => res(null), 12000);
+    img.onload = () => { clearTimeout(to); try {
+      const W = 48, H = Math.max(8, Math.round(48 * img.height / img.width)), c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0, W, H); const d = g.getImageData(0, 0, W, H).data;
+      let sum = 0, top = 0, tn = 0, dark = 0, warm = 0, blue = 0;
+      for (let k = 0; k < d.length; k += 4) { const r = d[k], gg = d[k + 1], b = d[k + 2], y = 0.299 * r + 0.587 * gg + 0.114 * b; sum += y; if (y < 50) dark++;
+        if (k / 4 < W * H * 0.35) { top += y; tn++; if (b > r + 12 && b > 110) blue++; if (r > b + 30 && r > 120) warm++; } }
+      const n = d.length / 4; res({ y: sum / n, top: top / tn, dark: dark / n, blue: blue / tn, warm: warm / tn });
+    } catch (e) { res(null); } };
+    img.onerror = () => { clearTimeout(to); res(null); };
+    img.src = thumbOf(url);
+  });
+}
+// 返回 true = 跟时段相符；false = 不符；null = 看不出来（算通过）
+function lookFits(L, phase, cat) {
+  if (!L) return null;
+  const nightish = L.y < 70 && L.top < 75 && L.dark > 0.45;
+  if (phase === 'night') return L.y < 110 && L.top < 110;
+  if (phase === 'day') { if (cat === 'storm' || cat === 'rain' || cat === 'fog' || cat === 'dust' || cat === 'overcast') return !nightish && L.top > 70; return !nightish && L.top > 125 && L.y > 90 && L.warm < 0.12; }
+  if (phase === 'morning' || phase === 'evening') return !nightish && L.top > 85;
+  return !(L.top < 45 && L.dark > 0.6);   // 日出 / 日落：只排除漆黑的夜景
+}
+async function photoFits(url, phase, cat) {
+  const k = strHash(url) + '|' + phase + '|' + cat;
+  if (k in PHOTO_OK) return PHOTO_OK[k];
+  const v = lookFits(await photoLook(url), phase, cat);
+  const keys = Object.keys(PHOTO_OK); if (keys.length > 400) keys.slice(0, 200).forEach(x => delete PHOTO_OK[x]);
+  PHOTO_OK[k] = v !== false; lsSet('fc.phok', JSON.stringify(PHOTO_OK));
+  return v !== false;
 }
 function remotePhoto(city, phase, cat, cb) {
   if (!CFG.photos) return null;
@@ -1444,7 +1488,7 @@ function remotePhoto(city, phase, cat, cb) {
     for (const c of qs) {
       let j;
       try { j = await (await fetchT(apiUrl({ action: 'photo', city: c.q, phase: 'day', wx: 'clear', d: slot }), 15000)).json(); } catch (e) { return; }
-      if (j.ok && j.url) return done({ url: j.url, wx: c.wx, ph: c.ph, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } });
+      if (j.ok && j.url) { if (!(await photoFits(j.url, phase, cat))) continue; return done({ url: j.url, wx: c.wx, ph: c.ph, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } }); }
       if (j.flights || j.error === 'no UNSPLASH_KEY') { photoOff = true; return; } // 旧版脚本或还没设 Key：用内置照片
     }
   })();
