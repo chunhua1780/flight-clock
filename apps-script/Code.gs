@@ -871,7 +871,9 @@ function ofpMail_(j) {
   // 排班上前后几天的航段（航班号、起降机场、计划起飞）：让 iPad 判断这份 OFP 是不是我的
   const now = Date.now(), legs = [];
   try { events_(new Date(now - 2 * 864e5), new Date(now + 4 * 864e5)).forEach(function (ev) { legsOf_(ev).forEach(function (l) { legs.push({ digits: l.digits, origin: l.origin, dest: l.dest, std: l.std, sta: l.sta }); }); }); } catch (e) {}
-  return { ok: true, files: out.slice(0, 20), legs: legs };
+  // 顺便把 GitHub 同步码交给 iPad（只有带对口令的请求能拿到）：在中国 Google 连不上时，iPad 自动改从 GitHub 收
+  const pr = PropertiesService.getScriptProperties(), tok = pr.getProperty('GITHUB_TOKEN') || (typeof GITHUB_TOKEN_INLINE !== 'undefined' ? GITHUB_TOKEN_INLINE : '');
+  return { ok: true, files: out.slice(0, 20), legs: legs, gh: tok ? { tok: tok, repo: pr.getProperty('GITHUB_REPO') || GITHUB_REPO_INLINE } : null };
 }
 function ofpGet_(j) {
   const p = String(j.id || '').split(':'), m = GmailApp.getMessageById(p[0]);

@@ -466,7 +466,7 @@ div.en,.wl .en{display:block;margin-left:0}
       <p><span data-i="公司 OFP 解读（OM 10.1.7「EK-OFP Decodes」）：从手册整段复制粘贴到下面，点「导入」。只保存在这台 iPad 上；有网时会翻成中文，离线也能看。|Company OFP decodes (OM 10.1.7 EK-OFP Decodes): paste the whole section and tap Import. Stored on this iPad only; translated when online."></span><span id="om-st"></span></p>
       <textarea id="s-om" style="height:90px" placeholder="EK-OFP Decodes&#10;1.&#10;EK701: Flight Number.&#10;…"></textarea>
       <div class="row"><button class="btn" id="b-om" data-i="导入公司解读|Import decodes"></button><button class="btn sm" id="b-omclr" data-i="删除|Delete"></button></div>
-      <p><span data-i="中国同步码（GitHub）：在中国连不上 Google 时，从你的 GitHub 私有仓库收 OFP。|China sync key (GitHub): receive OFPs from your private GitHub repo when Google is blocked."></span></p>
+      <p><span data-i="中国同步码（GitHub）：一般不用填——有网连得上 Google 时会自动拿到；在中国连不上 Google 时用它从 GitHub 收 OFP。|China sync key (GitHub): normally filled in automatically when Google is reachable; used in China when Google is blocked."></span></p>
       <div class="row"><input type="password" id="s-gh" placeholder="github_pat_…" style="max-width:320px" autocomplete="off"><button class="btn sm" id="b-gh" data-i="保存|Save"></button></div>
       <div class="row"><button class="btn" id="b-save" data-i="保存设置|Save settings"></button></div>
       <p class="small" style="margin-top:14px;color:var(--dim)"><span id="verlbl"></span> · <a href="#" id="b-force" style="color:var(--amber)" data-i="网页一直不更新？点这里强制重新下载（需要网络）|Stuck on an old version? Force re-download (needs network)"></a></p>
@@ -1499,7 +1499,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v46';
+const APPV = 'v47';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {

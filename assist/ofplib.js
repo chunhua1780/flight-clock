@@ -52,8 +52,9 @@
   const GH = () => ({ tok: ls('ghtok') || '', repo: ls('ghrepo') || 'chunhua1780/flight-box' });
   const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
   let SRC = 'google';
+  // Google 通的时候，后台顺便把 GitHub 同步码交给 iPad；去中国时自动改走 GitHub
   async function listMail(days) {
-    if (ls('key')) { try { const j = await withTimeout(postK({ action: 'ofpmail', days }), 12000); if (j && j.ok) { SRC = 'google'; return j; } } catch (e) {} }
+    if (ls('key')) { try { const j = await withTimeout(postK({ action: 'ofpmail', days }), 12000); if (j && j.ok) { SRC = 'google'; if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); } return j; } } catch (e) {} }
     const g = GH();
     if (!g.tok) return ls('key') ? { ok: false, error: T('连不上 Google（在中国？）。填了中国同步码就能从 GitHub 收 OFP。', 'Cannot reach Google. Add the China sync key to receive OFPs via GitHub.') } : { ok: false, nokey: true, error: T('这台设备还没填口令', 'No password on this device') };
     try { const r = await withTimeout(fetch('https://api.github.com/repos/' + g.repo + '/contents/ofp/index.json?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + g.tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' }), 20000);
@@ -100,7 +101,7 @@
         (f.roster ? ' <span class="mp-b g">' + T('排班上有', 'on roster') + '</span>' : '') + ' <span class="mp-b m">' + T('邮箱里，点一下下载', 'in mail — tap to download') + '</span></div>' +
         '<div class="mp-s">' + esc(f.subject || '') + ' · ' + T('收到', 'received') + ' ' + when(f.t) + ' · ' + (f.size / 1e6).toFixed(1) + ' MB</div></div>'; }).join('');
     const keyForm = !ls('key') ? '<div class="mp-k"><b>🔑 ' + T('这台设备还没填口令', 'This device has no password yet') + '</b><div class="ldim">' + T('从桌面图标打开的 Flight Assist 和 Safari 里的是分开存的，要在这里再填一次（只要一次）。', 'The home-screen app keeps its own storage — enter it once here.') + '</div>' +
-      '<div class="row"><input id="mp-key" type="password" placeholder="' + T('口令', 'Password') + '" autocomplete="off"><input id="mp-gh" type="password" placeholder="' + T('中国同步码 github_pat_…（可不填）', 'China sync key (optional)') + '" autocomplete="off"><button class="btn sm pri" onclick="OFL.saveKeys()">' + T('保存并收邮件', 'Save & check mail') + '</button></div></div>' : '';
+      '<div class="row"><input id="mp-key" type="password" placeholder="' + T('口令', 'Password') + '" autocomplete="off"><button class="btn sm pri" onclick="OFL.saveKeys()">' + T('保存并收邮件', 'Save & check mail') + '</button></div></div>' : '';
     box.innerHTML = keyForm + '<div class="mp-h">✈️ ' + T('最近 6 天的 OFP', 'OFPs — last 6 days') + '<button class="btn sm" style="margin-left:auto" onclick="OFL.pick()">📧 ' + T('收邮件', 'Check mail') + '</button><span class="mp-x" onclick="OFL.pickClose()">✕</span></div>' +
       (rowsLib + rowsMail || '<div class="mp-e">' + T('还没有 OFP。在 Lido 里把 OFP 发到你的邮箱，再点「收邮件」。', 'No OFP yet. Email the OFP from Lido, then tap “Check mail”.') + '</div>') +
       (MLmsg ? '<div class="mp-m">' + MLmsg + '</div>' : '');
