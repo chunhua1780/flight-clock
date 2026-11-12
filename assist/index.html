@@ -217,6 +217,8 @@ div.en,.wl .en{display:block;margin-left:0}
 #dec-pop{position:absolute;left:0;right:0;bottom:0;max-height:42vh;overflow:auto;background:var(--card);border-top:2px solid var(--gold);padding:12px 16px 20px;display:none;box-shadow:0 -6px 24px rgba(0,0,0,.35);font-size:15px;line-height:1.6}
 #dec-pop .w{font-size:14px;color:var(--dim);margin-bottom:6px}
 #dec-pop .l{font-size:16px}
+#dec-pop .rf{float:right;margin-right:10px;padding:4px 10px;border:1px solid var(--line);border-radius:14px;font-size:13px;cursor:pointer;color:var(--blue);user-select:none}
+#dec-pop .rf.busy{color:var(--amber)}
 #dec-pop .ai{margin-top:10px;padding:8px 10px;border-left:3px solid var(--green);background:var(--input);border-radius:6px;font-size:14px;line-height:1.55}
 #dec-pop .om{margin-top:10px;padding:8px 10px;border-left:3px solid var(--blue);background:var(--input);border-radius:6px;font-size:14px}
 #dec-pop .x{float:right;cursor:pointer;color:var(--dim);font-size:20px;margin-left:10px}
@@ -1218,7 +1220,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v18';
+const APPV = 'v19';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1501,6 +1503,12 @@ $('dec-body').onclick = e => {
   let word = '';
   const r = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : (document.caretPositionFromPoint ? (p => { const x = document.createRange(); x.setStart(p.offsetNode, p.offset); return x; })(document.caretPositionFromPoint(e.clientX, e.clientY)) : null);
   if (r && r.startContainer && r.startContainer.nodeType === 3) { const t = r.startContainer.textContent, o = r.startOffset; let a = o, b = o; while (a > 0 && /\S/.test(t[a - 1])) a--; while (b < t.length && /\S/.test(t[b])) b++; word = t.slice(a, b); ln.dataset.pos = a; }
+  decShow(i, word);
+};
+let DLAST = null;
+function decShow(i, word) {
+  const ln = $('dec-body').querySelector('.ln[data-i="' + i + '"]'); if (!ln) return;
+  DLAST = { i, word };
   document.querySelectorAll('#dec-body .ln.sel').forEach(x => x.classList.remove('sel')); ln.classList.add('sel');
   const ctx = decCtx(), sec = DSEC[i]; ctx.pos = +ln.dataset.pos || 0;
   const L1 = DEC.lineSay(DL, i, sec, ctx);
@@ -1510,10 +1518,38 @@ $('dec-body').onclick = e => {
   if (!L1 && navigator.onLine && /^(notam|conotam|disp|crew|etops)$/.test(sec)) translateParas();
   const pick = x => x ? (LANG === 'en' ? x.en : LANG === 'zh' ? x.zh : x.zh + '<div style="color:var(--dim);font-size:13px;margin-top:6px;border-top:1px dashed var(--line);padding-top:6px">' + x.en + '</div>') : '';
   const SECN = { head: ['飞行计划首页（油量、时间、重量）', 'OFP front page (fuel, times, weights)'], altn: ['目的地备降场表', 'Destination alternates'], disp: ['签派提示', 'Dispatch notes'], nav: ['导航日志（每个航路点）', 'Navigation log'], navalt: ['去备降场的导航日志', 'Navlog to alternate'], winds: ['高空风温表', 'Winds aloft'], wx: ['天气（METAR / TAF）', 'Weather'], notam: ['航行通告', 'NOTAMs'], crew: ['机组信息', 'Crew info'], conotam: ['公司通告 / 机组须知', 'Company NOTAMs / crew info'], etops: ['ETOPS 信息', 'ETOPS information'] }[sec] || ['', ''];
-  $('dec-pop').innerHTML = '<span class="x" onclick="document.getElementById(\'dec-pop\').style.display=\'none\'">✕</span><div class="w">' + tt(SECN[0], SECN[1]) + (word ? ' · <b style="color:var(--text)">' + esc(word) + '</b>' : '') + '</div>' +
+  $('dec-pop').innerHTML = '<span class="x" onclick="document.getElementById(\'dec-pop\').style.display=\'none\'">✕</span><span class="rf" id="dec-rf" onclick="decRefresh()">⟳ ' + tt('刷新', 'Refresh') + '</span><div class="w">' + tt(SECN[0], SECN[1]) + (word ? ' · <b style="color:var(--text)">' + esc(word) + '</b>' : '') + '</div>' +
     (W1 ? '<div style="margin-bottom:8px;color:var(--dim);font-size:13.5px">' + tt('你点的', 'You tapped') + ' · ' + pick(W1) + '</div>' : '') + (L1 ? '<div class="l">' + pick(L1) + '</div>' : (W1 ? '' : '<div style="color:var(--dim)">' + tt('这一行没有特别的意思（标题、空格或者格式）', 'Nothing special on this line (heading / layout)') + '</div>')) + omHtml(omFor(word, i, +ln.dataset.pos || 0)) + aiHtml(word, sec);
   $('dec-pop').style.display = 'block';
-};
+}
+// ⟳ 刷新：有网 → 马上把这一段翻成中文 + 联网 AI 解读，存在 iPad 上；没网 → 保留原来的离线内容
+async function decRefresh() {
+  if (!DLAST) return; const b = $('dec-rf'); if (!b || b.classList.contains('busy')) return;
+  b.classList.add('busy'); b.textContent = '⟳ ' + tt('联网中…', 'Connecting…');
+  const done = () => { const x = $('dec-rf'); if (x) { x.classList.remove('busy'); x.textContent = '⟳ ' + tt('刷新', 'Refresh'); } };
+  if (!(await online())) { done(); toast('📵 ' + tt('当前无网络，保留离线内容', 'No network — keeping the offline version')); return; }
+  if (!lsGet('key')) { done(); toast(tt('先在设置里填时钟后台口令', 'Set the clock backend key first')); return; }
+  const i = DLAST.i, post = body => fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => JSON.parse(t));
+  let ok = false;
+  try {
+    // 1. 整段翻译（通告 / 公司通告 / 签派提示 / 段落）
+    const id = DNOT && DNOT[i]; let n = null;
+    if (id && S.ofp) Object.values(S.ofp.notams).some(a => (n = a.find(x => x.id === id)));
+    const pa = !n && /^(disp|conotam|crew|etops|notam)$/.test(DSEC[i]) ? paraOf(i) : null;
+    if (n || pa) { b.textContent = '⟳ ' + tt('翻译中…', 'Translating…');
+      const j = await post({ action: 'translate', texts: [NX.en(n ? n.text : pa.text)], to: 'zh-CN' });
+      if (j.ok && j.out[0]) { if (n) { TR[n.id] = j.out[0]; lsSet('tr', JSON.stringify(TR)); } else { TRP[hash(pa.text)] = j.out[0]; lsSet('trp', JSON.stringify(TRP)); } ok = true; } }
+    // 2. 联网 AI 解读（这一整块）
+    const d = JSON.parse($('dec-pop').dataset.ai || '{}');
+    if (d.k) { b.textContent = '⟳ ' + tt('AI 解读中…（10–30 秒）', 'AI explaining… (10–30 s)');
+      const SECN = { head: 'OFP front page (fuel/times/weights)', altn: 'destination alternates', disp: 'dispatch briefing', nav: 'navigation log', navalt: 'navlog to alternate', winds: 'winds/temperatures aloft table', wx: 'weather METAR/TAF', notam: 'NOTAM', crew: 'crew info', conotam: 'company NOTAM', etops: 'ETOPS info' };
+      try { const j = await post({ action: 'explain', text: d.text, word: d.word || '', section: SECN[d.sec] || d.sec, lang: aiLang() });
+        if (j.ok && j.out) { AI[d.k] = { out: j.out, t: Date.now() }; lsSet('ai', JSON.stringify(AI)); ok = true; } } catch (e) {} }
+  } catch (e) {}
+  done();
+  if (DLAST && DLAST.i === i) decShow(i, DLAST.word);
+  toast(ok ? '✅ ' + tt('已联网更新，离线也能看', 'Updated — saved for offline') : '⚠️ ' + tt('没取到新内容，保留原来的', 'Nothing new — kept the offline version'), 3000);
+}
 $('b-dec').onclick = e => { e.preventDefault(); openDec(); };
 $('dec-x').onclick = () => $('dec').classList.remove('open');
 $('dec-q').onkeydown = e => { if (e.key !== 'Enter') return; const q = $('dec-q').value.trim().toUpperCase(); if (!q || !DL) return;
