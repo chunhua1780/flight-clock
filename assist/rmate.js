@@ -87,6 +87,48 @@
   }
 
   // ---------- 画面 ----------
+  // ---------- 照着读的话术（英式、简洁；自动填航班、机场、时间；[ ] 是要你口头补的） ----------
+  const PROB = {
+    efire: { b: 'ENG FIRE', atc: 'engine fire', ops: 'an engine fire', crew: 'an engine fire', pa: 'a technical problem with one of our engines', sev: 'mayday', sp: 'Be ready for an evacuation on my command; if needed you will hear “Evacuate, evacuate, evacuate”.' },
+    efail: { b: 'ENG FAIL', atc: 'engine failure', ops: 'an engine failure', crew: 'an engine failure', pa: 'a technical problem with one of our engines', sev: 'pan', sp: 'We expect a normal landing; no evacuation is expected.' },
+    smoke: { b: 'SMOKE', atc: 'smoke on board', ops: 'smoke on board', crew: 'smoke on board', pa: 'a technical issue on board', sev: 'mayday', sp: 'Keep an eye on the cabin and tell me straight away if you see or smell smoke. Be ready for an evacuation on my command.' },
+    depr: { b: 'DEPRESS', atc: 'rapid depressurisation, emergency descent', ops: 'a rapid depressurisation', crew: 'a loss of cabin pressure', pa: 'a problem with the cabin pressure', sev: 'mayday', sp: 'Check the cabin and crew once we are level at a safe altitude, and report any injuries.' },
+    med: { b: 'MEDICAL', atc: 'medical emergency on board', ops: 'a medical emergency', crew: 'a medical emergency', pa: 'a passenger who needs urgent medical attention', sev: 'pan', sp: 'Please arrange for the person to be met by medical staff on arrival.' },
+    hyd: { b: 'HYD', atc: 'hydraulic failure', ops: 'a hydraulic failure', crew: 'a hydraulic problem', pa: 'a technical problem', sev: 'pan', sp: 'We may need a longer landing roll and may stop on the runway; no evacuation is expected.' }
+  };
+  const ph = t => '<span class="ph">[' + t + ']</span>';
+  function ctx() {
+    const o = typeof S !== 'undefined' && S.ofp, f = o && o.flight, A = airports();
+    const apt = st.opt === 'cont' ? (A && A.dest) : (A && st.apt ? A.by(st.apt) : null), pb = A && st.planB ? A.by(st.planB) : null;
+    const name = (() => { try { return (JSON.parse(localStorage.getItem('fa.lbset') || '{}').name) || 'Jack Cao'; } catch (e) { return 'Jack Cao'; } })();
+    const P = PROB[st.ptype] || { b: '', atc: st.ptext || ph('problem'), ops: st.ptext || ph('the problem'), crew: st.ptext || ph('the problem'), pa: 'a technical issue', sev: 'pan', sp: ph('special instructions') };
+    let unit = ph('ATC unit');
+    try { const L = firFor(elAt(now())); if (L && L.name) unit = L.name.replace(/\s*·.*$/, '').replace(/\s+(FIR|UIR|ACC)$/i, '').replace(/\b\w/g, c => c.toUpperCase()).replace(/\B\w/g, c => c.toLowerCase()) + ' Control'; } catch (e) {}
+    const pos = (() => { try { const n = S.cur && S.cur.next; return n ? 'approaching ' + n.id : 'on our planned route'; } catch (e) { return 'on our planned route'; } })();
+    const cityOf = x => x ? ((x.c.db && x.c.db[2]) || x.c.name || x.c.icao).replace(/\s*\(.*\)\s*/, ' ').trim() : ph('airport');
+    const mins = apt ? Math.round(apt.mins) : null;
+    return { f, A, apt, pb, P, name, unit, pos, cityOf, mins, eta: apt ? hm(A.t0 + apt.mins * MIN).replace(/[:Z]/g, '') : ph('ETA'), freighter: f && /F\b|77F|F$/.test(f.type || '') };
+  }
+  const SAY = {
+    k1: c => { const plan = st.opt === 'cont' ? 'to continue to ' + (c.f ? c.f.arr : ph('destination')) + ' as planned' : 'to divert to ' + (c.apt ? c.apt.c.icao : ph('airport')) + (c.mins ? ', about ' + c.mins + ' minutes away' : '');
+      return 'Quick summary: we’ve got ' + c.P.crew + ', the checklist is complete and we’re stable. My plan is ' + plan + (c.pb ? ', with ' + c.pb.c.icao + ' as Plan B' : '') + '. How do you see it? Anything I’ve missed, or any concerns?'; },
+    k2: c => { const f = c.f, no = f ? f.no : ph('flight'), plan = st.opt === 'cont' ? 'to continue to ' + (f ? f.arr : ph('destination')) : 'to divert to ' + (c.apt ? c.apt.c.icao + ', estimating ' + c.eta + ' Zulu' : ph('airport'));
+      return 'VPNC, this is Captain ' + c.name + ', Emirates ' + no.replace(/^EK/, '') + (f ? ', ' + f.reg + ', ' + f.dep + ' to ' + f.arr : '') + '. We have ' + c.P.ops + '. The non-normal checklist is complete and the aircraft is stable, ' + c.pos + '. Our plan is ' + plan + (c.pb ? ', with ' + c.pb.c.icao + ' as Plan B' : '') + '. Fuel on board ' + ph('FOB') + ' tonnes. Request your agreement and any company instructions' + (st.opt !== 'cont' && c.apt ? ', and please arrange handling at ' + c.apt.c.icao : '') + '.'; },
+    k3: c => { const cs = 'Emirates ' + (c.f ? c.f.digits : ph('flight')), icao = c.apt ? c.apt.c.icao : ph('airport');
+      if (st.opt === 'cont') return c.unit + ', ' + cs + ', for information, we have ' + c.P.atc + '. Checklist complete, aircraft stable. We intend to continue to ' + (c.f ? c.f.arr : ph('destination')) + '. Request no delay.';
+      const head = c.P.sev === 'mayday' ? 'MAYDAY, MAYDAY, MAYDAY' : 'PAN PAN, PAN PAN, PAN PAN';
+      return head + ', ' + c.unit + ', ' + cs + ', ' + c.P.atc + ', request ' + (c.P.sev === 'mayday' ? 'immediate ' : '') + 'diversion to ' + icao + ', request direct routing and descent, ' + ph('POB') + ' persons on board, fuel endurance ' + ph('hours') + '.\n\nThen: ' + cs + ', request radar vectors for the ILS at ' + icao + ', and emergency services on arrival.'; },
+    p1: c => { const city = st.opt === 'cont' ? (c.f ? c.f.arr : ph('destination')) : c.cityOf(c.apt), m = c.mins;
+      return 'N — Nature: we’ve had ' + c.P.crew + '. It’s been dealt with and the aircraft is under control.\nI — Intentions: we’re ' + (st.opt === 'cont' ? 'continuing to ' : 'diverting to ') + city + '.\nT — Time: about ' + (m || ph('minutes')) + ' minutes to landing. ' + (m && m > 20 ? 'I need the cabin secure in ' + (m - 10) + ' minutes.' : m ? 'I need the cabin secure as soon as possible.' : 'I need the cabin secure in ' + ph('minutes') + ' minutes.') + '\nS — Special: ' + c.P.sp + ' I’ll make a PA shortly.\nPlease repeat that back to me.'; },
+    p2: c => { const city = st.opt === 'cont' ? (c.f ? c.f.arr : ph('destination')) : c.cityOf(c.apt);
+      return 'Ladies and gentlemen, this is the Captain speaking. We have ' + c.P.pa + '. It has been dealt with, and the aircraft is under control. ' + (st.opt === 'cont' ? 'We will continue to ' + city + ' as planned.' : 'As a precaution, we are diverting to ' + city + ', and we expect to land in about ' + (c.mins || ph('minutes')) + ' minutes.') + ' The cabin crew will now prepare the cabin. Please stay in your seat with your seatbelt fastened, and follow their instructions. Thank you.'; },
+    p3: c => { const f = c.f; return 'EK' + (f ? f.digits + ' ' + f.reg : ph('flight reg')) + ' DIVERTING ' + (c.apt ? c.apt.c.icao : ph('ICAO')) + ' DUE ' + (c.P.b || (st.ptext || 'TECH PROBLEM').toUpperCase()) + '. ETA ' + c.eta + 'Z. FOB ' + ph('t') + '. POB ' + ph('n') + '. REQ HANDLING' + (c.P.b === 'MEDICAL' ? ' AND MEDICAL ASSISTANCE' : '') + '. CAPT ' + c.name.toUpperCase() + '.'; }
+  };
+  const SAYH = { k1: ['问 F/O 的意见（照着说）', 'Ask the F/O'], k2: ['打给 VPNC（卫星电话 / 无线电）', 'Call VPNC'], k3: ['跟 ATC 说', 'Tell ATC'], p1: ['给 Purser 的 NITS 简令', 'NITS brief to the Purser'], p2: ['PA 广播', 'PA'], p3: ['DIV report（ACARS 自由电报）', 'DIV report (ACARS)'] };
+  function sayBox(id) { if (!SAY[id]) return ''; const c = ctx(); let txt = esc(SAY[id](c)).replace(/&lt;span class=&quot;ph&quot;&gt;\[(.*?)\]&lt;\/span&gt;/g, '<span class="ph">[$1]</span>').replace(/\n/g, '<br>');
+    const fr = c.freighter && (id === 'p1' || id === 'p2') ? '<div class="ldim">' + T('货机：没有乘务长 / 旅客时，对押运员（supernumerary）说。', 'Freighter: brief the supernumeraries instead.') + '</div>' : '';
+    return '<div class="nx-say" onclick="event.stopPropagation()"><div class="nx-sh">📣 ' + T(SAYH[id][0], SAYH[id][1]) + '</div><div class="nx-st">' + txt + '</div>' + fr + '</div>'; }
+
   function render() {
     const box = document.getElementById('nnc-pg'); if (!box) return;
     const nx = nextItem(), A = airports();
@@ -127,7 +169,8 @@
           h += '<div class="nx-i big' + (cur ? ' cur' : '') + (st.apt ? ' ok' : '') + '"><div class="nx-t">' + T(it.zh, it.en) + '</div>' +
             (A ? (A.near.length ? A.near.map(x => aptRow(x, A.t0, true)).join('') : '<div class="ldim">' + T('附近没有可用机场', 'No usable airport nearby') + '</div>') : '<div class="ldim">' + T('先载入 OFP 才能列出机场', 'Load an OFP to list airports') + '</div>') +
             (st.opt === 'imm' ? '<div class="ldim" style="margin-top:4px">' + T('Immediacy：选最近能安全落地的那个。', 'Immediacy: the nearest one you can land at safely.') + '</div>' : '') + '</div>'; return; }
-        h += '<div class="nx-i' + (cur ? ' cur' : '') + (d ? ' ok' : '') + (sk ? ' sk' : '') + '" onclick="RMATE.tick(\'' + it.id + '\')"><span class="nx-box">' + (d ? '✓' : sk ? '–' : '') + '</span><div class="nx-t">' + T(it.zh, it.en) +
+        const extra = it.id === 'a1' ? '<div class="nx-pb" onclick="event.stopPropagation()">' + Object.keys(PROB).map(k => '<span class="' + (st.ptype === k ? 'on' : '') + '" onclick="RMATE.prob(\'' + k + '\')">' + PROB[k].b + '</span>').join('') + '<input placeholder="' + T('或者自己写，例如 L PACK FAIL', 'or type it, e.g. L PACK FAIL') + '" value="' + esc(st.ptype ? '' : (st.ptext || '')) + '" onchange="RMATE.prob(null,this.value)"></div>' : '';
+        h += '<div class="nx-i' + (cur ? ' cur' : '') + (d ? ' ok' : '') + (sk ? ' sk' : '') + '" onclick="RMATE.tick(\'' + it.id + '\')"><span class="nx-box">' + (d ? '✓' : sk ? '–' : '') + '</span><div class="nx-t">' + T(it.zh, it.en) + extra + (SAY[it.id] && !sk ? sayBox(it.id) : '') +
           (it.note && (cur || !d) ? '<div class="nx-n">' + T(it.note[0], it.note[1]) + '</div>' : '') + '</div>' + (d ? '<span class="nx-tm">' + hm(d) + '</span>' : '') +
           (!d && !sk ? '<span class="nx-skip" onclick="event.stopPropagation();RMATE.skip(\'' + it.id + '\')">' + T('跳过', 'Skip') + '</span>' : '') + '</div>';
       });
@@ -149,6 +192,7 @@
     skip(id) { start(); st.skip[id] = Date.now(); save(); render(); },
     ti(v) { start(); st.ti = v; st.done.t1 = st.done.t1 || Date.now(); save(); render(); },
     opt(v) { start(); if (st.opt !== v) { st.can = { A: {}, B: {} }; st.planB = null; } st.opt = v; if (v === 'cont') st.apt = null; st.done.e2 = st.done.e2 || Date.now(); save(); render(); },
+    prob(k, txt) { start(); if (k) { st.ptype = st.ptype === k ? null : k; st.ptext = ''; } else { st.ptype = null; st.ptext = (txt || '').trim(); } save(); render.noScroll = true; render(); render.noScroll = false; },
     apt(icao) { start(); if (st.apt !== icao) { st.apt = icao; st.can.A = {}; if (st.planB === icao) { st.planB = null; st.can.B = {}; } } st.done.e3 = Date.now(); save(); render(); },
     planB(icao) { start(); st.planB = icao || null; st.can.B = {}; save(); render.noScroll = true; render(); render.noScroll = false; },
     cell(side, r) { start(); const v = st.can[side][r]; st.can[side][r] = v === 'ok' ? 'no' : v === 'no' ? undefined : 'ok'; if (!st.can[side][r]) delete st.can[side][r]; save(); render.noScroll = true; render(); render.noScroll = false; }
