@@ -43,7 +43,7 @@
     if (c === 2) return 'cloudy';
     return 'clear';
   }
-  const CAT_ZH = { dust: '沙尘暴', haze: '浮尘' };
+  const CAT_ZH = { dust: 'Dust storm', haze: 'Hazy' };
 
   // ---------- 照片库 ----------
   // pos = 照片的取景中心（分屏时保证地标在画面里）

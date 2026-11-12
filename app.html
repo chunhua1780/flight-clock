@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -251,7 +251,7 @@ body:not(.lite) .ics-box{display:none}
   <!-- 驻外 -->
   <section class="view" id="v-lay">
     <div class="layhead">
-      <span class="pill"><span class="dot"></span>LAYOVER · 驻外</span>
+      <span class="pill"><span class="dot"></span>LAYOVER</span>
       <span class="lt" id="l-head"></span>
     </div>
     <div class="dual">
@@ -271,59 +271,59 @@ body:not(.lite) .ics-box{display:none}
 
 <div id="tools">
   <div id="sync"></div>
-  <div class="ib" id="b-fs" title="全屏">⛶</div>
-  <div class="ib" id="b-set" title="设置">⚙︎</div>
+  <div class="ib" id="b-fs" title="Full screen">⛶</div>
+  <div class="ib" id="b-set" title="Settings">⚙︎</div>
 </div>
 
 <div id="settings">
   <div class="smodal">
-    <h2>设置</h2>
-    <p>设置只保存在这台 iPad 上。</p>
+    <h2>Settings</h2>
+    <p>Settings are saved on this iPad only.</p>
     <div class="ics-box">
-      <label>你的 Google 日历「iCal 格式的私密地址」</label>
+      <label>Your Google Calendar “Secret address in iCal format”</label>
       <input type="url" id="s-ics" spellcheck="false" autocomplete="off" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics">
-      <details class="howto"><summary>怎么找到这个地址？</summary>
+      <details class="howto"><summary>Where do I find it?</summary>
         <ol>
-          <li>用电脑或手机浏览器打开 <b>calendar.google.com</b>（iPad 上的 Google 日历 App 里找不到）</li>
-          <li>右上角 ⚙ → <b>设置</b></li>
-          <li>左边「我的日历的设置」里，点你的排班日历</li>
-          <li>往下拉到「<b>集成日历</b>」→「<b>iCal 格式的私密地址</b>」→ 点复制</li>
-          <li>粘贴到上面这一栏，点「测试连接」，没问题再点「保存」</li>
+          <li>Open <b>calendar.google.com</b> in a web browser (not the iPad Calendar app)</li>
+          <li>Top right ⚙ → <b>Settings</b></li>
+          <li>Under “Settings for my calendars”, pick your roster calendar</li>
+          <li>Scroll to <b>Integrate calendar</b> → <b>Secret address in iCal format</b> → copy</li>
+          <li>Paste it above, tap “Test”, then “Save”</li>
         </ol>
-        <p>这个地址只能看、不能改你的日历，但别人拿到也能看，所以不要发给别人。</p>
+        <p>This address can only read your calendar, but anyone who has it can read it — keep it private.</p>
       </details>
     </div>
     <div class="adv">
-    <label>Apps Script 网址（/exec 结尾）</label>
+    <label>Apps Script URL (ends with /exec)</label>
     <input type="url" id="s-api" spellcheck="false" autocomplete="off">
-    <label>Pexels 图片库 Key（只保存在这台设备上）</label>
+    <label>Pexels photo key (saved on this device only)</label>
     <input type="text" id="s-pexels" spellcheck="false" autocomplete="off">
-    <label>Token（Apps Script 里设了 TOKEN 才需要）</label>
+    <label>Token (only if TOKEN is set in Apps Script)</label>
     <input type="text" id="s-token" spellcheck="false" autocomplete="off">
     </div>
     <div class="row">
-      <div><label>基地机场</label><input type="text" id="s-home" spellcheck="false"></div>
-      <div><label>航司代码</label><input type="text" id="s-airline" spellcheck="false"></div>
-      <div><label>呼号前缀</label><input type="text" id="s-cs" spellcheck="false"></div>
+      <div><label>Home base</label><input type="text" id="s-home" spellcheck="false"></div>
+      <div><label>Airline code</label><input type="text" id="s-airline" spellcheck="false"></div>
+      <div><label>Callsign prefix</label><input type="text" id="s-cs" spellcheck="false"></div>
     </div>
     <div class="row">
-      <div><label>接车：起飞前（分钟）</label><input type="number" id="s-pickup" min="0" max="600"></div>
-      <div><label>夜间变暗 从</label><input type="number" id="s-dimfrom" min="0" max="23"></div>
-      <div><label>到（点）</label><input type="number" id="s-dimto" min="0" max="23"></div>
+      <div><label>Pick-up: minutes before departure</label><input type="number" id="s-pickup" min="0" max="600"></div>
+      <div><label>Night dimming from</label><input type="number" id="s-dimfrom" min="0" max="23"></div>
+      <div><label>to (hour)</label><input type="number" id="s-dimto" min="0" max="23"></div>
     </div>
-    <label class="chk"><input type="checkbox" id="s-drop8">五位数航班号去掉开头的 8（89876 → EK9876）</label>
-    <label class="chk"><input type="checkbox" id="s-dim">夜间自动变暗</label>
-    <label class="chk"><input type="checkbox" id="s-cal">主界面右侧显示月历</label>
-    <label class="chk full-only"><input type="checkbox" id="s-ofp">飞行地图用 OFP 计划航路（默认大圆航线）</label>
-    <label class="chk full-only"><input type="checkbox" id="s-photos">背景用图片库，每天换（需在 Apps Script 设 PEXELS_KEY 或 UNSPLASH_KEY）</label>
+    <label class="chk"><input type="checkbox" id="s-drop8">Drop the leading 8 of 5-digit flight numbers (89876 → EK9876)</label>
+    <label class="chk"><input type="checkbox" id="s-dim">Dim automatically at night</label>
+    <label class="chk"><input type="checkbox" id="s-cal">Show the month calendar on the right</label>
+    <label class="chk full-only"><input type="checkbox" id="s-ofp">Use OFP route on the flight map (default: great circle)</label>
+    <label class="chk full-only"><input type="checkbox" id="s-photos">Background photos from a photo library, new every day (needs PEXELS_KEY or UNSPLASH_KEY in Apps Script)</label>
     <div class="btns">
-      <button class="btn pri" id="s-save">保存</button>
-      <button class="btn" id="s-test">测试连接</button>
-      <button class="btn" id="s-close">关闭</button>
+      <button class="btn pri" id="s-save">Save</button>
+      <button class="btn" id="s-test">Test</button>
+      <button class="btn" id="s-close">Close</button>
     </div>
     <div id="testout"></div>
-    <p class="demo" style="margin-top:14px">演示：<a href="?demo=home">在家</a><a href="?demo=layover">驻外</a><a href="?demo=flight">飞行中</a><a href="./">退出演示</a></p>
-    <p class="demo">背景天气预览：<a href="?demo=layover&wx=dust">沙尘暴</a><a href="?demo=layover&wx=rain">下雨</a><a href="?demo=layover&wx=storm">雷暴</a><a href="?demo=layover&wx=fog">雾</a><a href="?demo=home&wx=clear&phase=dawn">清晨</a><a href="?demo=home&wx=clear&phase=night">夜晚</a></p>
+    <p class="demo" style="margin-top:14px">Demo: <a href="?demo=home">Home</a><a href="?demo=layover">Layover</a><a href="?demo=flight">Flying</a><a href="./">Exit demo</a></p>
+    <p class="demo">Weather preview: <a href="?demo=layover&wx=dust">Dust storm</a><a href="?demo=layover&wx=rain">Rain</a><a href="?demo=layover&wx=storm">Thunderstorm</a><a href="?demo=layover&wx=fog">Fog</a><a href="?demo=home&wx=clear&phase=dawn">Dawn</a><a href="?demo=home&wx=clear&phase=night">Night</a></p>
   </div>
 </div>
 
@@ -333,7 +333,7 @@ body:not(.lite) .ics-box{display:none}
 window.onerror = function (m, src, line) {
   var e = document.getElementById('err');
   e.style.display = 'block';
-  e.textContent = '页面出错：' + m + (line ? '（第 ' + line + ' 行）' : '') + '\n请截图发给 Claude';
+  e.textContent = 'Page error: ' + m + (line ? ' (line ' + line + ')' : '') + '\nPlease send a screenshot to Claude';
 };
 </script>
 <script>
@@ -404,8 +404,8 @@ function parts(t, tz) {
 }
 const hm = (t, tz) => { const p = parts(t, tz); return p.hour + ':' + p.minute; };
 const ss = (t, tz) => parts(t, tz).second;
-const dateZh = (t, tz) => F(tz, { month: 'long', day: 'numeric', weekday: 'long' }, 'zh-CN').format(new Date(t));
-const dateShort = (t, tz) => F(tz, { month: 'numeric', day: 'numeric', weekday: 'short' }, 'zh-CN').format(new Date(t));
+const dateZh = (t, tz) => F(tz, { weekday: 'long', day: 'numeric', month: 'long' }, 'en-GB').format(new Date(t));
+const dateShort = (t, tz) => F(tz, { weekday: 'short', day: 'numeric', month: 'short' }, 'en-GB').format(new Date(t));
 const ymd = (t, tz) => { const p = parts(t, tz); return p.year + p.month + p.day; };
 function tzOffset(tz, t) {
   const p = parts(t, tz);
@@ -417,29 +417,29 @@ function dayWord(t, tz) {
   const now = Date.now();
   const d = ymd(t, tz), td = ymd(now, HOME_TZ);
   const shift = n => { const x = new Date(Date.UTC(+td.slice(0, 4), +td.slice(4, 6) - 1, +td.slice(6) + n)); return '' + x.getUTCFullYear() + String(x.getUTCMonth() + 1).padStart(2, '0') + String(x.getUTCDate()).padStart(2, '0'); };
-  if (d === td) return '今天';
-  if (d === shift(1)) return '明天';
-  if (d === shift(-1)) return '昨天';
+  if (d === td) return 'Today';
+  if (d === shift(1)) return 'Tomorrow';
+  if (d === shift(-1)) return 'Yesterday';
   return dateShort(t, tz);
 }
 function offWord(tz, t) {
   const d = tzOffset(tz, t) - tzOffset(HOME_TZ, t);
-  if (!d) return '与迪拜同一时区';
+  if (!d) return 'Same time as Dubai';
   const h = Math.abs(d) / 60, s = Number.isInteger(h) ? h : h.toFixed(1);
-  return (d > 0 ? '比迪拜快 ' : '比迪拜慢 ') + s + ' 小时';
+  return s + (s == 1 ? ' hour ' : ' hours ') + (d > 0 ? 'ahead of Dubai' : 'behind Dubai');
 }
 function durTxt(ms) {
   ms = Math.max(0, ms);
   const m = Math.floor(ms / MIN), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mm = m % 60;
-  if (d) return d + '天 ' + h + '小时';
-  if (h) return h + '小时 ' + String(mm).padStart(2, '0') + '分';
-  return mm + '分钟';
+  if (d) return d + 'd ' + h + 'h';
+  if (h) return h + 'h ' + String(mm).padStart(2, '0') + 'm';
+  return mm + ' min';
 }
 function cdTxt(ms) {
-  if (ms <= 0) return '现在';
+  if (ms <= 0) return 'Now';
   const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
   const p2 = n => String(n).padStart(2, '0');
-  if (d) return d + '天 ' + p2(h) + ':' + p2(m);
+  if (d) return d + 'd ' + p2(h) + ':' + p2(m);
   return p2(h) + ':' + p2(m) + ':' + p2(x);
 }
 const hmDur = ms => { const m = Math.max(0, Math.round(ms / MIN)); return Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); };
@@ -575,12 +575,12 @@ function dutyKind(title) {
   const trip = t.toUpperCase().match(/^\s*(?:[A-Z]{2}\s?)?\d{1,5}[A-Z]?\s*[-–]\s*([A-Z]{3})\s*$/);   // 416-SYD：航班任务
   if (trip) return { k: 'trip', l: trip[1], dest: trip[1] };
   if (/\bvisa\b/i.test(t)) return { k: 'grd', l: 'VISA', s: 'VISA' };
-  if (/\b(SIM|FFS|LOFT|LPC|OPC)\b|simulator/i.test(t)) return { k: 'sim', l: '模拟机 SIM' };
-  if (/\b(SBY|STBY|ASBY|HSBY|RSV)\b|stand\s?by|reserve/i.test(t)) return { k: 'sby', l: '备份 SBY' };
-  if (/\b(AL|LV)\b|leave|vacation/i.test(t)) return { k: 'leave', l: '休假 LEAVE' };
-  if (/\b(OFF|DO|RDO)\b|day off/i.test(t)) return { k: 'off', l: 'DAY OFF 休息' };
+  if (/\b(SIM|FFS|LOFT|LPC|OPC)\b|simulator/i.test(t)) return { k: 'sim', l: 'SIMULATOR' };
+  if (/\b(SBY|STBY|ASBY|HSBY|RSV)\b|stand\s?by|reserve/i.test(t)) return { k: 'sby', l: 'STANDBY' };
+  if (/\b(AL|LV)\b|leave|vacation/i.test(t)) return { k: 'leave', l: 'LEAVE' };
+  if (/\b(OFF|DO|RDO)\b|day off/i.test(t)) return { k: 'off', l: 'DAY OFF' };
   if (/\bREST\b|rest day/i.test(t)) return { k: 'rest', l: 'REST DAY' };
-  if (/\b(GRD|GND|TRG|CRM|SEP|DGR)\b|ground|training|course|classroom|medical/i.test(t)) return { k: 'grd', l: '地面 ' + t.slice(0, 14) };
+  if (/\b(GRD|GND|TRG|CRM|SEP|DGR)\b|ground|training|course|classroom|medical/i.test(t)) return { k: 'grd', l: 'GROUND ' + t.slice(0, 14) };
   return { k: 'duty', l: t.slice(0, 18), s: 'DTY' };
 }
 function normDuties(j) {
@@ -654,9 +654,9 @@ function endOf(f) {
 }
 function diffTxt(actual, plan) {
   const d = Math.round((actual - plan) / MIN);
-  if (Math.abs(d) <= 2) return '准点';
-  const a = Math.abs(d), t = a >= 60 ? Math.floor(a / 60) + '小时' + (a % 60 ? a % 60 + '分' : '') : a + '分';
-  return (d > 0 ? '晚 ' : '早 ') + t;
+  if (Math.abs(d) <= 2) return 'On time';
+  const a = Math.abs(d), t = a >= 60 ? Math.floor(a / 60) + 'h' + (a % 60 ? ' ' + a % 60 + 'm' : '') : a + ' min';
+  return t + (d > 0 ? ' late' : ' early');
 }
 
 function mergeKnown(fresh) {
@@ -703,12 +703,12 @@ async function loadFlights() {
     return;
   }
   try {
-    if (!CFG.api || (LITE && !CFG.ics)) { S.sync = { ok: false, t: Date.now(), err: '还没设置日历地址' }; return; }
+    if (!CFG.api || (LITE && !CFG.ics)) { S.sync = { ok: false, t: Date.now(), err: 'Calendar not set up yet' }; return; }
     const r = await fetchT(apiUrl(flightsQuery()), 30000, { cache: 'no-store' });
     const j = await r.json();
     if (j.ok === false) throw new Error(j.error || 'error');
     const f = normFlights(j);
-    if (!f) throw new Error('数据格式不对');
+    if (!f) throw new Error('Unexpected data format');
     S.legacy = !Array.isArray(j.flights);
     S.flights = mergeKnown(f);
     S.duties = normDuties(j); S.apiVer = j.version || 0;
@@ -718,7 +718,7 @@ async function loadFlights() {
     if (j.status) for (const k in j.status) setStatus(k, j.status[k]);
     S.sync = { ok: true, t: Date.now() };
   } catch (e) {
-    S.sync = { ok: false, t: Date.now(), err: e.name === 'AbortError' ? '连接超时（国内可能需要 VPN）' : e.message };
+    S.sync = { ok: false, t: Date.now(), err: e.name === 'AbortError' ? 'Connection timed out' : e.message };
     if (!S.flights.length) { try { S.flights = JSON.parse(lsGet('fc.known2') || '[]'); } catch (x) {} }
   }
 }
@@ -740,10 +740,10 @@ function compute(now) {
    WEATHER (open-meteo)
    ===================================================================== */
 const WX = [
-  [[0], '☀️', '🌙', '晴'], [[1], '🌤️', '🌙', '晴间多云'], [[2], '⛅', '☁️', '多云'], [[3], '☁️', '☁️', '阴'],
-  [[45, 48], '🌫️', '🌫️', '雾'], [[51, 53, 55, 56, 57], '🌦️', '🌧️', '毛毛雨'], [[61, 63, 65], '🌧️', '🌧️', '雨'],
-  [[66, 67], '🌧️', '🌧️', '冻雨'], [[71, 73, 75, 77], '🌨️', '🌨️', '雪'], [[80, 81, 82], '🌦️', '🌧️', '阵雨'],
-  [[85, 86], '🌨️', '🌨️', '阵雪'], [[95, 96, 99], '⛈️', '⛈️', '雷暴']
+  [[0], '☀️', '🌙', 'Clear'], [[1], '🌤️', '🌙', 'Mostly clear'], [[2], '⛅', '☁️', 'Partly cloudy'], [[3], '☁️', '☁️', 'Cloudy'],
+  [[45, 48], '🌫️', '🌫️', 'Fog'], [[51, 53, 55, 56, 57], '🌦️', '🌧️', 'Drizzle'], [[61, 63, 65], '🌧️', '🌧️', 'Rain'],
+  [[66, 67], '🌧️', '🌧️', 'Freezing rain'], [[71, 73, 75, 77], '🌨️', '🌨️', 'Snow'], [[80, 81, 82], '🌦️', '🌧️', 'Showers'],
+  [[85, 86], '🌨️', '🌨️', 'Snow showers'], [[95, 96, 99], '⛈️', '⛈️', 'Thunderstorm']
 ];
 function wxInfo(code, day) {
   const r = WX.find(w => w[0].includes(code));
@@ -776,12 +776,12 @@ async function getWx(code) {
 function wxHtml(code, cls) {
   const w = S.wx[code];
   getWx(code);
-  if (!w || w.temp == null) return '<div class="wx ' + (cls || '') + '"><span class="d">天气加载中…</span></div>';
+  if (!w || w.temp == null) return '<div class="wx ' + (cls || '') + '"><span class="d">Loading weather…</span></div>';
   const x = wxInfo(w.code, w.day);
   const cat = typeof Scene !== 'undefined' ? Scene.weatherCat(w) : '';
-  if (cat === 'dust') { x.i = '🌪️'; x.d = '沙尘暴'; } else if (cat === 'haze') { x.d = '浮尘 · ' + x.d; }
+  if (cat === 'dust') { x.i = '🌪️'; x.d = 'Dust storm'; } else if (cat === 'haze') { x.d = 'Hazy · ' + x.d; }
   return '<div class="wx ' + (cls || '') + '"><span class="i">' + x.i + '</span><span class="t num">' + w.temp + '°</span>' +
-    '<span class="d">' + x.d + '<br>' + w.lo + '° / ' + w.hi + '° · 风 ' + w.wind + 'kt</span></div>';
+    '<span class="d">' + x.d + '<br>' + w.lo + '° / ' + w.hi + '° · wind ' + w.wind + ' kt</span></div>';
 }
 
 /* =====================================================================
@@ -792,11 +792,11 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const clk = (tz, f) => '<span data-tz="' + tz + '" data-f="' + (f || 'hm') + '">' + (f === 's' ? ss(Date.now(), tz) : hm(Date.now(), tz)) + '</span>';
 
 // 「明天 11/8周日」或「11/9周一」
-function dayLbl(t, tz) { const w = dayWord(t, tz), d = dateShort(t, tz); return (w === '今天' || w === '明天' || w === '昨天') ? w + ' ' + d : d; }
+function dayLbl(t, tz) { const w = dayWord(t, tz), d = dateShort(t, tz); return (w === 'Today' || w === 'Tomorrow' || w === 'Yesterday') ? w : d; }
 // 换算成迪拜时间（不在迪拜时区时才显示）；日期不同就带上日期
 function dxbConv(t, tz) {
   if (tzOffset(tz, t) === tzOffset(HOME_TZ, t)) return '';
-  return '迪拜 ' + hm(t, HOME_TZ) + (ymd(t, HOME_TZ) !== ymd(t, tz) ? ' (' + dateShort(t, HOME_TZ) + ')' : '');
+  return 'Dubai ' + hm(t, HOME_TZ) + (ymd(t, HOME_TZ) !== ymd(t, tz) ? ' (' + dateShort(t, HOME_TZ) + ')' : '');
 }
 const brDxb = (t, tz) => dxbConv(t, tz) ? '<br>' + dxbConv(t, tz) : '';
 // 「20:00/16:00」：斜杠后面换颜色的是迪拜时间；迪拜日期不同时带 +1 / -1
@@ -806,32 +806,32 @@ function hmDual(t, tz) {
   const dl = ymd(t, HOME_TZ), ll = ymd(t, tz);
   return loc + '<span class="dxb">/' + hm(t, HOME_TZ) + (dl === ll ? '' : '<sup>' + (dl > ll ? '+1' : '-1') + '</sup>') + '</span>';
 }
-const dualNote = (t, tz) => tzOffset(tz, t) === tzOffset(HOME_TZ, t) ? '' : ' 当地<span class="dxbc">/迪拜</span>';
+const dualNote = (t, tz) => tzOffset(tz, t) === tzOffset(HOME_TZ, t) ? '' : ' local<span class="dxbc"> / Dubai</span>';
 // 旅行车侧影小图标（接车）
-const CAR = '<svg class="car" viewBox="0 0 68 28" aria-label="接车"><path fill="currentColor" d="M3 20v-5.2c0-1.6 1.1-2.8 2.7-3.2l9.6-2.2 7.6-6.1C24.2 2.3 25.9 1.7 27.8 1.7h28.6c2 0 3.6 1.1 4.3 3l3.2 7.5c.6 1.3.9 2.7.9 4.1V20c0 1-.8 1.8-1.8 1.8h-4.5a6.6 6.6 0 0 0-12.9 0H23.9a6.6 6.6 0 0 0-12.9 0H4.8C3.8 21.8 3 21 3 20z"/><path fill="rgba(0,0,0,.55)" d="M24.6 5.2c.8-.6 1.8-1 2.9-1H38v6.6H17.8zM40.6 4.2h11.1v6.6H40.6zM54.3 4.2h1.9c1 0 1.9.6 2.3 1.6l2 5H54.3z"/><circle cx="17.4" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/><circle cx="51.6" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/></svg>';
+const CAR = '<svg class="car" viewBox="0 0 68 28" aria-label="Pick-up"><path fill="currentColor" d="M3 20v-5.2c0-1.6 1.1-2.8 2.7-3.2l9.6-2.2 7.6-6.1C24.2 2.3 25.9 1.7 27.8 1.7h28.6c2 0 3.6 1.1 4.3 3l3.2 7.5c.6 1.3.9 2.7.9 4.1V20c0 1-.8 1.8-1.8 1.8h-4.5a6.6 6.6 0 0 0-12.9 0H23.9a6.6 6.6 0 0 0-12.9 0H4.8C3.8 21.8 3 21 3 20z"/><path fill="rgba(0,0,0,.55)" d="M24.6 5.2c.8-.6 1.8-1 2.9-1H38v6.6H17.8zM40.6 4.2h11.1v6.6H40.6zM54.3 4.2h1.9c1 0 1.9.6 2.3 1.6l2 5H54.3z"/><circle cx="17.4" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/><circle cx="51.6" cy="21.8" r="4.9" fill="#111" stroke="currentColor" stroke-width="2"/></svg>';
 function nextCard(f, upcoming) {
   upcoming = null; // 之后的航班看右侧日历
-  if (!f) return '<div class="nc"><div class="empty">暂无航班安排 · 日历里还没有下一班</div></div>';
+  if (!f) return '<div class="nc"><div class="empty">No flights scheduled yet</div></div>';
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
   const pickup = f.std - CFG.pickup * MIN; // 接车 = 起飞前 2 小时 15 分（设置里可改）
   const toPick = pickup - Date.now();
   let more = '';
   if (upcoming && upcoming.length) {
-    more = '<div class="nc-more"><span class="lbl" style="font-size:11px">之后</span>' + upcoming.map(u =>
+    more = '<div class="nc-more"><span class="lbl" style="font-size:11px">Then</span>' + upcoming.map(u =>
       '<span>' + dateShort(u.std, apTz(u.origin)) + ' <b>' + esc(u.no) + '</b> ' + u.origin + '→' + u.dest + ' ' + hm(u.std, apTz(u.origin)) + '</span>').join('') + '</div>';
   }
   // 两行布局：上面「航班 + 倒计时」，下面「接车 / 起飞 / 到达」三栏，任何屏幕比例都不会挤乱
   return '<div class="nc"><div class="nc-top">' +
     '<div class="nc-id"><div class="nc-no">' + esc(f.no) + (f.dh ? '<span class="nc-tag">DH</span>' : '') + '</div>' +
       '<div><div class="nc-route">' + f.origin + '<span class="ar">→</span>' + f.dest + '</div>' +
-      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + (planOf(f) ? ' · 计划飞行 ' + hmDur(airMs(f)) : ' · 飞行 ' + hmDur(f.sta - f.std)) + '</div></div></div>' +
-    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? CAR : '距起飞') + '</span>' +
+      '<div class="nc-cities">' + esc(apCity(f.origin)) + ' → ' + esc(apCity(f.dest)) + (planOf(f) ? ' · flight time ' + hmDur(airMs(f)) : ' · ' + hmDur(f.sta - f.std)) + '</div></div></div>' +
+    '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? CAR : 'Departs in') + '</span>' +
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
     '</div>' +
     '<div class="kvs">' +
       '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hmDual(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + dualNote(pickup, oTz) + '</span></div>' +
-      '<div class="kv"><span class="lbl">起飞 STD</span><span class="v num">' + hmDual(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + dualNote(f.std, oTz) + '</span></div>' +
-      '<div class="kv"><span class="lbl">到达 STA</span><span class="v num">' + hmDual(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + (dualNote(f.sta, dTz) || ' 当地') + (f.staEst ? ' · 约' : '') + '</span></div>' +
+      '<div class="kv"><span class="lbl">Departure</span><span class="v num">' + hmDual(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + dualNote(f.std, oTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">Arrival</span><span class="v num">' + hmDual(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + (dualNote(f.sta, dTz) || ' local') + (f.staEst ? ' · approx.' : '') + '</span></div>' +
     '</div>' + more + '</div>';
 }
 
@@ -840,7 +840,7 @@ function cityBlock(code, label, isHere) {
   return '<div class="name">' + esc(label) + '<small>' + code + '</small></div>' +
     '<div class="t num">' + clk(tz) + '</div>' +
     '<div class="dt">' + dateZh(Date.now(), tz) + '</div>' +
-    '<div class="off">' + (isHere ? offWord(tz, Date.now()) : '基地 · 家') + '</div>' +
+    '<div class="off">' + (isHere ? offWord(tz, Date.now()) : 'Home base') + '</div>' +
     wxHtml(code, 'sm');
 }
 
@@ -853,7 +853,7 @@ function renderHome(st) {
   $('h-d1').textContent = dateZh(now, HOME_TZ);
   $('h-d2').textContent = 'DUBAI · ' + F(HOME_TZ, { year: 'numeric', month: 'short', day: '2-digit' }).format(new Date(now)).toUpperCase();
   $('h-wx').innerHTML = wxHtml(code === 'DWC' ? 'DXB' : code);
-  $('h-tz').textContent = 'DUBAI · 迪拜时间';
+  $('h-tz').textContent = 'DUBAI TIME';
   $('h-next').innerHTML = nextCard(st.next, st.upcoming);
   document.body.classList.toggle('nocal', !CFG.cal);
   if (CFG.cal) renderCal();
@@ -945,7 +945,7 @@ function renderCal() {
     const cls = ['r', o.type, k === today ? 'td' : '', k < today ? 'past' : '', d === 1 && i > 0 ? 'm1' : ''].join(' ');
     rows += '<div class="' + cls + '"><div class="dn">' + d + '</div><div class="ct">' + o.parts[0] + '</div></div>';
   }
-  el.innerHTML = '<div class="cal-m">' + months.join('·') + '月</div>' +
+  el.innerHTML = '<div class="cal-m">' + months.map(m => ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][m - 1]).join(' · ') + '</div>' +
     '<div class="cal-list" style="--n:' + nDays + '">' + rows + '</div>';
 }
 
@@ -957,10 +957,10 @@ function renderLayover(st) {
   let h = '';
   if (st.prev) {
     const ps = stOf(st.prev), arr = ps.on || st.prev.sta;
-    h += (ps.on ? '<span style="color:var(--green)">' + hm(ps.on, apTz(here)) + ' 落地</span> · ' : '') +
-      '已到达 ' + esc(apCity(here)) + ' <span class="num" data-el="' + arr + '">' + durTxt(now - arr) + '</span>';
+    h += (ps.on ? '<span style="color:var(--green)">' + 'Landed ' + hm(ps.on, apTz(here)) + '</span> · ' : '') +
+      'In ' + esc(apCity(here)) + ' for <span class="num" data-el="' + arr + '">' + durTxt(now - arr) + '</span>';
   }
-  if (st.next) h += (h ? ' · 驻外共 ' + durTxt(st.next.std - (stOf(st.prev).on || st.prev.sta)) : '距回程起飞 <span class="num" data-cd="' + st.next.std + '">' + cdTxt(st.next.std - now) + '</span>');
+  if (st.next) h += (h ? ' · layover ' + durTxt(st.next.std - (stOf(st.prev).on || st.prev.sta)) : 'Flying home in <span class="num" data-cd="' + st.next.std + '">' + cdTxt(st.next.std - now) + '</span>');
   $('l-head').innerHTML = h;
   $('l-next').innerHTML = nextCard(st.next, st.upcoming);
 }
@@ -1230,12 +1230,12 @@ function flightPos(f, now) {
   return Object.assign(p, { live: false, frac: est, remKm: (1 - est) * D, hdg: bearing(p, p2), eta: st.off ? land + onn : f.sta, phase });
 }
 
-const PHASE = { boarding: '登机 / 准备推出', waiting: '尚未起飞', taxi: '滑行中', climb: '起飞爬升', cruise: '巡航中', descent: '下降进近', landed: '已落地' };
+const PHASE = { boarding: 'Boarding', waiting: 'Waiting to depart', taxi: 'Taxiing', climb: 'Climbing', cruise: 'Cruising', descent: 'Descending', landed: 'Landed' };
 
 function renderFlight(st, light) {
   const f = st.cur, now = Date.now();
   const A = AP[f.origin], B = AP[f.dest];
-  if (!A || !B) { $('f-panel').innerHTML = '<div class="empty">未知机场 ' + f.origin + ' / ' + f.dest + '</div>'; return; }
+  if (!A || !B) { $('f-panel').innerHTML = '<div class="empty">Unknown airport ' + f.origin + ' / ' + f.dest + '</div>'; return; }
   ensureMap();
   const pos = flightPos(f, now);
   const T = S.track[f.id] || { pts: [] };
@@ -1291,36 +1291,38 @@ function renderFlight(st, light) {
   const landT = fs.on || (pos.phase === 'landed' ? pos.eta : pos.eta - 8 * MIN);
   const elapsed = offT ? (fs.on ? fs.on : now) - offT : 0, remain = Math.max(0, landT - now);
   const depCell = fs.off
-    ? '<div class="kv"><span class="lbl" style="color:var(--green)">' + (fs.offManual ? '起飞（机长输入）' : '实际起飞') + ' ' + f.origin + '</span><span class="v num">' + hm(fs.off, oTz) + '</span><span class="s">计划 ' + hm(f.std, oTz) + ' 推出 · 当地</span></div>'
-    : '<div class="kv"><span class="lbl">计划起飞 ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
-      (pos.phase === 'waiting' ? '<span style="color:var(--red)">尚未起飞 · 已过 ' + hmDur(now - f.std) + '</span>' : '当地 · ' + dayWord(f.std, oTz)) + '</span></div>';
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">' + 'Took off ' + f.origin + '</span><span class="v num">' + hm(fs.off, oTz) + '</span><span class="s">' + (fs.offManual ? 'Entered by captain' : 'Scheduled ' + hm(f.std, oTz)) + ' · local</span></div>'
+    : '<div class="kv"><span class="lbl">Departure ' + f.origin + '</span><span class="v num">' + hm(f.std, oTz) + '</span><span class="s">' +
+      (pos.phase === 'waiting' ? '<span style="color:var(--red)">Not yet airborne · ' + hmDur(now - f.std) + ' late</span>' : 'local · ' + dayWord(f.std, oTz)) + '</span></div>';
   const arrCell = fs.on
-    ? '<div class="kv"><span class="lbl" style="color:var(--green)">' + (fs.onEst ? '落地（约）' : '实际落地 ') + f.dest + '</span><span class="v num">' + hmDual(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + dualNote(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
-    : '<div class="kv"><span class="lbl">预计落地 ' + f.dest + '</span><span class="v num">' + hmDual(landT, dTz) + '</span><span class="s">' + dayLbl(landT, dTz) + (dualNote(landT, dTz) || ' 当地') + ' · 计划 ' + hm(planLand(f), dTz) + (fs.off ? ' · ' + diffTxt(landT, planLand(f)) : '') + '</span></div>';
-  const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>估算位置</span>';
+    ? '<div class="kv"><span class="lbl" style="color:var(--green)">' + (fs.onEst ? 'Landed (approx.) ' : 'Landed ') + f.dest + '</span><span class="v num">' + hmDual(fs.on, dTz) + '</span><span class="s">' + dayLbl(fs.on, dTz) + dualNote(fs.on, dTz) + ' · ' + diffTxt(fs.on + 8 * MIN, f.sta) + '</span></div>'
+    : '<div class="kv"><span class="lbl">Landing ' + f.dest + '</span><span class="v num">' + hmDual(landT, dTz) + '</span><span class="s">' + dayLbl(landT, dTz) + dualNote(landT, dTz) + ' · plan ' + hm(planLand(f), dTz) + (fs.off ? ' · ' + diffTxt(landT, planLand(f)) : '') + '</span></div>';
+  const src = pos.live ? '<span class="pill live"><span class="dot"></span>LIVE ADS-B</span>' : '<span class="pill est"><span class="dot"></span>ESTIMATED</span>';
   const altTxt = pos.live && pos.alt != null ? (pos.alt === 0 ? 'GND' : (pos.alt >= 10000 ? 'FL' + String(Math.round(pos.alt / 100)).padStart(3, '0') : Math.round(pos.alt / 10) * 10 + ' ft')) : '—';
   const html =
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="fp-no">' + esc(f.no) + '</div>' + src + '</div>' +
     '<div class="fp-route"><div><div class="c">' + f.origin + '</div><div class="n">' + esc(apCity(f.origin)) + '</div></div>' +
       '<div class="mid">✈</div><div style="text-align:right"><div class="c">' + f.dest + '</div><div class="n" style="margin-left:auto">' + esc(apCity(f.dest)) + '</div></div></div>' +
     '<div><div class="bar"><i style="width:' + (pos.frac * 100).toFixed(1) + '%"></i><b style="left:' + (pos.frac * 100).toFixed(1) + '%"></b></div>' +
-      '<div class="barlbl num"><span>' + (offT ? '已飞 ' + hmDur(Math.max(0, elapsed)) : '未起飞') + '</span><span>' + (planOf(f) ? '计划飞行 ' + hmDur(airMs(f)) : offT ? '全程约 ' + hmDur(landT - offT) : Math.round(pos.frac * 100) + '%') + '</span><span>剩余 ' + hmDur(remain) + '</span></div></div>' +
+      '<div class="barlbl num"><span>' + (offT ? 'Flown ' + hmDur(Math.max(0, elapsed)) : 'Not airborne') + '</span><span>' + (planOf(f) ? 'Flight time ' + hmDur(airMs(f)) : offT ? 'Total ~' + hmDur(landT - offT) : Math.round(pos.frac * 100) + '%') + '</span><span>To go ' + hmDur(remain) + '</span></div></div>' +
     '<div class="g2">' +
       depCell + arrCell +
-      '<div class="kv"><span class="lbl">迪拜时间</span><span class="v num">' + clk(HOME_TZ) + '</span><span class="s">' + dateShort(now, HOME_TZ) + '</span></div>' +
-      '<div class="kv"><span class="lbl">' + esc(apCity(f.dest)) + ' 时间</span><span class="v num">' + clk(dTz) + '</span><span class="s">' + dateShort(now, dTz) + '</span></div>' +
+      '<div class="kv"><span class="lbl">Dubai time</span><span class="v num">' + clk(HOME_TZ) + '</span><span class="s">' + dateShort(now, HOME_TZ) + '</span></div>' +
+      (tzOffset(dTz, now) === tzOffset(HOME_TZ, now)
+      ? '<div class="kv"><span class="lbl">' + esc(apCity(f.origin)) + ' time</span><span class="v num">' + clk(oTz) + '</span><span class="s">' + dateShort(now, oTz) + '</span></div>'
+      : '<div class="kv"><span class="lbl">' + esc(apCity(f.dest)) + ' time</span><span class="v num">' + clk(dTz) + '</span><span class="s">' + dateShort(now, dTz) + '</span></div>') +
     '</div>' +
     '<div class="fp-sep"></div>' +
     '<div class="g2">' +
-      '<div class="kv"><span class="lbl">高度</span><span class="v num">' + altTxt + '</span></div>' +
-      '<div class="kv"><span class="lbl">地速</span><span class="v num">' + (pos.live && pos.gs ? pos.gs + ' kt' : '—') + '</span></div>' +
-      '<div class="kv"><span class="lbl">剩余距离</span><span class="v num">' + Math.round(pos.remKm / 1.852).toLocaleString() + ' nm</span></div>' +
-      '<div class="kv"><span class="lbl">' + f.dest + ' 天气</span>' + wxHtml(f.dest, 'sm') + '</div>' +
+      '<div class="kv"><span class="lbl">Altitude</span><span class="v num">' + altTxt + '</span></div>' +
+      '<div class="kv"><span class="lbl">Ground speed</span><span class="v num">' + (pos.live && pos.gs ? pos.gs + ' kt' : '—') + '</span></div>' +
+      '<div class="kv"><span class="lbl">Distance to go</span><span class="v num">' + Math.round(pos.remKm / 1.852).toLocaleString() + ' nm</span></div>' +
+      '<div class="kv"><span class="lbl">' + f.dest + ' weather</span>' + wxHtml(f.dest, 'sm') + '</div>' +
     '</div>' +
-    '<div class="fp-foot"><div><div class="lbl">状态</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
-      (pos.phase === 'waiting' ? '<span style="color:var(--red)"> · 已过计划 ' + durTxt(now - f.std) + '</span>' : '') +
+    '<div class="fp-foot"><div><div class="lbl">Status</div><div class="fp-phase">' + (PHASE[pos.phase] || '') +
+      (pos.phase === 'waiting' ? '<span style="color:var(--red)"> · ' + durTxt(now - f.std) + ' late</span>' : '') +
       (pos.live && pos.reg ? ' · ' + esc(pos.reg) + (pos.type ? ' ' + esc(pos.type) : '') : '') + '</div></div>' +
-      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">' + (routeOf(f).kind === 'ofp' || routeOf(f).kind === 'plan' ? '飞行计划航路' : '按上次实际航路') + '</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : pos.lost ? '信号中断 · 按航路推算' : (S.legacy ? '升级 Apps Script 后可看实时' : '暂无 ADS-B 信号')) + '</div></div>';
+      '<div class="lbl" style="text-align:right">' + (routeOf(f) ? '<span style="color:#f3d99c">' + (routeOf(f).kind === 'ofp' || routeOf(f).kind === 'plan' ? 'Flight-plan route' : 'Last flown route') + '</span><br>' : '') + (pos.live ? 'via ' + esc(pos.src || 'ADS-B') : pos.lost ? 'Signal lost · estimating' : (S.legacy ? 'Update Apps Script for live tracking' : 'No ADS-B signal')) + '</div></div>';
   $('f-panel').innerHTML = html;
 }
 
@@ -1468,14 +1470,14 @@ function renderScenes(st) {
 
 function renderSync() {
   const s = S.sync, el = $('sync');
-  if (!s) { el.textContent = '同步中…'; return; }
-  if (s.demo) { el.innerHTML = 'DEMO 演示模式' + (S.credits && S.credits.length ? '<br>照片：' + S.credits.map(c => esc(c.by) + ' · ' + esc(c.license)).join('；') : ''); el.className = ''; return; }
+  if (!s) { el.textContent = 'Syncing…'; return; }
+  if (s.demo) { el.innerHTML = 'DEMO' + (S.credits && S.credits.length ? '<br>Photos: ' + S.credits.map(c => esc(c.by) + ' · ' + esc(c.license)).join('; ') : ''); el.className = ''; return; }
   const n = S.flights.filter(f => f.std > Date.now()).length;
   el.className = s.ok ? '' : 'bad';
   el.innerHTML = s.ok
-    ? '日历已同步 ' + hm(s.t, HOME_TZ) + ' · ' + n + ' 个航班' + (S.legacy ? '<br>旧版接口' : '') +
-      (S.credits && S.credits.length ? '<br>照片：' + S.credits.map(c => esc(c.by) + ' · ' + esc(c.license)).join('；') : '')
-    : '同步失败（' + esc(s.err || '') + '）· 显示缓存';
+    ? 'Calendar synced ' + hm(s.t, HOME_TZ) + ' · ' + n + (n == 1 ? ' flight' : ' flights') + (S.legacy ? '<br>old API' : '') +
+      (S.credits && S.credits.length ? '<br>Photos: ' + S.credits.map(c => esc(c.by) + ' · ' + esc(c.license)).join('; ') : '')
+    : 'Sync failed (' + esc(s.err || '') + ') · showing saved data';
 }
 
 function tick() {
@@ -1529,18 +1531,18 @@ $('s-save').onclick = async () => {
   S.view = null; await loadFlights(); render(true);
 };
 $('s-test').onclick = async () => {
-  const out = $('testout'); out.textContent = '连接中…';
+  const out = $('testout'); out.textContent = 'Connecting…';
   const old = CFG; CFG = Object.assign({}, DEFAULTS, readSettings());
   try {
     await apReady;
-    if (LITE && !CFG.ics) throw new Error('请先粘贴你的 Google 日历私密地址');
+    if (LITE && !CFG.ics) throw new Error('Paste your Google Calendar secret address first');
     const j = await (await fetchT(apiUrl(flightsQuery()), 30000, { cache: 'no-store' })).json();
-    if (j.ok === false) throw new Error(j.error || '读取失败');
+    if (j.ok === false) throw new Error(j.error || 'Read failed');
     const f = normFlights(j);
-    if (!f) throw new Error('返回内容不是航班数据：' + JSON.stringify(j).slice(0, 200));
-    out.textContent = (Array.isArray(j.flights) ? '✅ 新版接口（支持多航班 + 实时轨迹）' : '⚠️ 旧版接口（只有下一班，没有实时轨迹）') +
-      '\n识别到 ' + f.length + ' 段航班' + (Array.isArray(j.flights) ? '、' + j.flights.filter(r => r.kind === 'duty').length + ' 个其他任务（模拟机/地面/休假等）' : '') + '（时间均为当地）：\n' + f.slice(0, 10).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  到 ' + hm(x.sta, apTz(x.dest))).join('\n') +
-      (() => { const bad = Array.isArray(j.flights) ? j.flights.filter(r => r.kind !== 'duty' && !parseFlight(r)) : []; return bad.length ? '\n\n有 ' + bad.length + ' 条日程没认出来：' + bad.slice(0, 3).map(r => '“' + r.title + '”').join(' ') : ''; })();
+    if (!f) throw new Error('Not flight data: ' + JSON.stringify(j).slice(0, 200));
+    out.textContent = (Array.isArray(j.flights) ? '✅ Connected (multi-flight + live tracking)' : '⚠️ Old API (next flight only, no live tracking)') +
+      '\nFound ' + f.length + ' flights' + (Array.isArray(j.flights) ? ', ' + j.flights.filter(r => r.kind === 'duty').length + ' other duties (sim/ground/leave)' : '') + ' (local times):\n' + f.slice(0, 10).map(x => dateShort(x.std, apTz(x.origin)) + ' ' + hm(x.std, apTz(x.origin)) + '  ' + x.no + '  ' + x.origin + '→' + x.dest + '  arr ' + hm(x.sta, apTz(x.dest))).join('\n') +
+      (() => { const bad = Array.isArray(j.flights) ? j.flights.filter(r => r.kind !== 'duty' && !parseFlight(r)) : []; return bad.length ? '\n\n' + bad.length + ' events not recognised: ' + bad.slice(0, 3).map(r => '“' + r.title + '”').join(' ') : ''; })();
   } catch (e) { out.textContent = '❌ ' + e.message; }
   CFG = old;
 };
@@ -1593,7 +1595,7 @@ if (window.top === window.self) setInterval(() => {
   setInterval(tick, 1000);
   // 简洁版第一次打开：还没填日历地址，先弹出设置
   if (LITE) document.body.classList.add('lite');
-  if (LITE && !CFG.ics && !DEMO) { openSettings(); $('testout').textContent = '欢迎使用！请把你的 Google 日历私密地址粘贴到第一栏（不知道在哪里就点「怎么找到这个地址？」），点「测试连接」，再点「保存」。'; }
+  if (LITE && !CFG.ics && !DEMO) { openSettings(); $('testout').textContent = 'Welcome! Paste your Google Calendar secret address in the first box (tap “Where do I find it?” for help), tap “Test”, then “Save”.'; }
   await loadFlights();
   render(true);
   setInterval(() => loadFlights().then(() => render(true)), 5 * MIN);

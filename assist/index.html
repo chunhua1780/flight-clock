@@ -917,41 +917,35 @@ const oldClockSend = async () => {
 
 /* ---------------- 离线：Service Worker ---------------- */
 let REG = null;
-const updDot = () => { const n = !!(REG && REG.waiting);
-  $('updbar').style.display = n ? 'block' : 'none'; $('updbar').innerHTML = '⟳ ' + th('有新版本 · 点这里更新', 'New version · tap to update'); $('b-upd').classList.toggle('new', n); $('b-upd').innerHTML = n ? '⟳ ' + tt('有更新', 'New') : '⟳'; $('b-upd').title = tt('有网络时按这里下载最新版本', 'Tap when online to download the latest version'); };
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => {
-  REG = r; updDot();
-  r.addEventListener('updatefound', () => { const w = r.installing; if (w) w.addEventListener('statechange', updDot); });
-  if (navigator.onLine) r.update().catch(() => {});                     // 只检查有没有新版本；不会自己切换，要你点
-
-}).catch(() => {});
-// 平时完全离线；只有按这个按钮（有网络时）才重新下载
+// 有网络：打开时、回到前台时、网络恢复时都检查新版本；新版本下载好后自动换上（旧版本会被删掉）
+const hadCtl = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+let reloading = false;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtl && !reloading) { reloading = true; location.reload(); } });
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data === 'updated' && hadCtl && !reloading) { reloading = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js').then(r => { REG = r; checkUpdate(); }).catch(() => {});
+}
+function checkUpdate() {
+  if (!REG || !navigator.onLine) return;
+  REG.update().catch(() => {});
+  if (REG.installing) toast('⟳ ' + th('正在下载新版本…', 'Downloading new version…'), 20000);
+}
+window.addEventListener('online', checkUpdate);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 $('updbar').onclick = () => $('b-upd').click();
-$('b-force').onclick = async e => {
-  e.preventDefault();
-  if (!navigator.onLine) { toast(th('没有网络，不能重新下载', 'Offline — cannot re-download')); return; }
-  if (!confirm(tt('重新下载整个网页？OFP、授权表和设置都会保留。', 'Re-download the whole app? OFP, table and settings are kept.'))) return;
+// 一直不更新时：删掉所有缓存，从网上重新下载
+async function forceReload() {
+  if (!navigator.onLine) { toast(th('没有网络，继续使用已保存的离线版本', 'Offline — keeping the saved version')); return; }
+  toast('⟳ ' + th('正在重新下载…', 'Re-downloading…'), 20000);
   try { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.unregister())); const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } catch (x) {}
   location.replace(location.pathname + '?r=' + Date.now());
-};
-$('b-upd').onclick = async () => {
-  if (!navigator.onLine) { toast(th('没有网络，继续使用已保存的离线版本', 'Offline — keeping the saved version')); return; }
-  if (!REG) { location.reload(); return; }
-  toast(th('正在下载最新版本…', 'Downloading latest version…'), 60000);
-  try { await REG.update(); } catch (e) {}
-  if (REG.installing) await new Promise(res => { const w = REG.installing; w.addEventListener('statechange', () => { if (w.state === 'installed' || w.state === 'redundant') res(); }); setTimeout(res, 60000); });
-  if (REG.waiting) { navigator.serviceWorker.addEventListener('controllerchange', () => location.reload()); REG.waiting.postMessage('skip'); return; }
-  const c = navigator.serviceWorker.controller;
-  if (!c) { location.reload(); return; }
-  navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data === 'refreshed') location.reload();
-    else if (/^refresh-failed/.test(e.data)) toast(th('下载失败，继续使用离线版本', 'Download failed — keeping offline version') + '<br><small>' + esc(e.data) + '</small>', 6000);
-  });
-  c.postMessage('refresh');
-};
+}
+$('b-force').onclick = e => { e.preventDefault(); forceReload(); };
+// 「⟳」：有网络时立即下载最新版本（删掉旧的），然后重新打开
+$('b-upd').onclick = () => forceReload();
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v8';
+const APPV = 'v9';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
