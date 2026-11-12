@@ -4,9 +4,10 @@
   'use strict';
   const T = (zh, en) => typeof tt === 'function' ? tt(zh, en) : zh;
   const KEY = 'fa.nnc';
-  let st = load();
+  let st = load(); if (!st.can) st.can = { A: {}, B: {} };
   function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || fresh(); } catch (e) { return fresh(); } }
-  function fresh() { return { t0: null, done: {}, skip: {}, ti: null, opt: null, apt: null }; }
+  function fresh() { return { t0: null, done: {}, skip: {}, ti: null, opt: null, apt: null, planB: null, can: { A: {}, B: {} } }; }
+  const ROWS = [['fuel', 'Make it？油够吗', 'Make it? (fuel)'], ['wx', 'Wx 天气', 'Wx'], ['wt', 'Wt 重量', 'Wt (weight)'], ['opt', '→ OPT 性能', '→ OPT'], ['app', 'App？能进近吗', 'Approach?'], ['stop', 'Stop？停得住吗', 'Stop?'], ['ga', 'G/A？复飞行吗', 'Go-around?']];
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
   const z2 = n => String(n).padStart(2, '0'), hm = t => t ? z2(new Date(t).getUTCHours()) + ':' + z2(new Date(t).getUTCMinutes()) + 'Z' : '';
 
@@ -31,13 +32,7 @@
       { id: 'e1', zh: '「You have control」——把操纵交给 F/O', en: '“You have control” — hand control to the F/O', note: ['机长腾出手和脑子来评估和决策，F/O 负责飞和跟 ATC 通话。', 'Captain steps back to evaluate and decide; F/O flies and talks to ATC.'] },
       { id: 'e2', kind: 'opt', zh: '三个问题，选一个方向', en: 'Three questions — choose one direction' },
       { id: 'e3', kind: 'apt', zh: 'LANSA：至少比较 2 个机场，选一个', en: 'LANSA: compare at least 2 airports, pick one', when: s => s.opt === 'lansa' || s.opt === 'imm' },
-      { id: 'c0', kind: 'head', zh: '★ CAN WE?（对选定的机场）', en: '★ CAN WE? (for the chosen airport)' },
-      { id: 'c1', zh: '— Make it？油够不够飞到（fuel）', en: '— Make it? (fuel)' },
-      { id: 'c2', zh: '— App？天气能不能进近（Wx）', en: '— Approach? (Wx)' },
-      { id: 'c3', zh: '— Stop？跑道停得住吗（OPT）', en: '— Stop? (OPT)' },
-      { id: 'c4', zh: '— G/A？复飞能力够吗', en: '— Go-around?' },
-      { id: 'c5', zh: '— Plan B？不行的话下一个去哪', en: '— Plan B?' },
-      { id: 'w1', zh: 'Wx · Wt → OPT：用实际天气和重量算性能', en: 'Wx · Wt → OPT: performance with actual weather and weight' },
+      { id: 'can', kind: 'can', zh: '★ CAN WE?——两个机场一起比（左：选定的；右：Plan B）', en: '★ CAN WE? — compare two airports (left: chosen, right: Plan B)' },
       { id: 'k0', kind: 'head', zh: '商量 → 决定', en: 'Consult → decide' },
       { id: 'k1', zh: '1. F/O——听听副驾驶的意见', en: '1. F/O — ask for input' },
       { id: 'k2', zh: '2. VPNC——联系公司运控', en: '2. VPNC — company ops' },
@@ -66,7 +61,8 @@
   ];
   const visible = it => !it.when || it.when(st);
   const allItems = () => FLOW.flatMap(g => g.items.filter(visible).map(it => Object.assign({ g: g.g }, it)));
-  const isDone = it => it.kind === 'head' || st.done[it.id] || st.skip[it.id] || (it.kind === 'ti' && st.ti) || (it.kind === 'opt' && st.opt) || (it.kind === 'apt' && st.apt);
+  const canDone = () => !!st.planB && ROWS.every(r => st.can.A[r[0]] && st.can.B[r[0]]);
+  const isDone = it => it.kind === 'head' || (it.kind === 'can' && canDone()) || st.done[it.id] || st.skip[it.id] || (it.kind === 'ti' && st.ti) || (it.kind === 'opt' && st.opt) || (it.kind === 'apt' && st.apt);
   const nextItem = () => allItems().find(it => !isDone(it));
   const groupDone = g => FLOW.find(x => x.g === g).items.filter(visible).every(isDone);
 
@@ -77,9 +73,10 @@
       const t0 = S.tview || now(), p = S.cur, gs = p.gs > 250 ? p.gs : 450;
       const arr = candidates().map(c => { const d = distNm(p.pos, c.pos); return { c, d, mins: d / gs * 60 + (d > 40 ? 12 : 0) }; });
       const usable = x => x.c.ek ? (catAt(x.c.ek, t0 + x.mins * MIN) || '-') !== '-' : x.c.ofp;
-      const near = arr.filter(usable).sort((a, b) => a.d - b.d).slice(0, 4);
+      const all = arr.filter(x => usable(x) || (x.c.roles || []).some(r => r === 'dest' || r === 'destAltn')).sort((a, b) => a.d - b.d);
+      const near = all.filter(usable).slice(0, 4);
       const dest = arr.find(x => (x.c.roles || []).includes('dest'));
-      return { t0, near, dest };
+      return { t0, near, dest, all, by: i => arr.find(x => x.c.icao === i) };
     } catch (e) { return null; }
   }
   function aptRow(x, t0, pickable) {
@@ -109,6 +106,23 @@
         if (it.kind === 'opt') {
           h += '<div class="nx-i big' + (cur ? ' cur' : '') + (st.opt ? ' ok' : '') + '"><div class="nx-t">' + T(it.zh, it.en) + '</div>' + OPTS.map(o => '<div class="nx-o' + (st.opt === o.v ? ' on' : '') + '" onclick="RMATE.opt(\'' + o.v + '\')"><b>' + T(o.zh, o.en) + '</b><div class="ldim">' + T(o.sub[0], o.sub[1]) + '</div></div>').join('') +
             (st.opt === 'cont' && A && A.dest ? '<div class="nx-ctx">' + T('目的地', 'Destination') + '：' + aptRow(A.dest, A.t0, false) + '</div>' : '') + '</div>'; return; }
+        if (it.kind === 'can') {
+          const prim = st.opt === 'cont' ? (A && A.dest) : (A && st.apt ? A.by(st.apt) : null), pb = A && st.planB ? A.by(st.planB) : null;
+          if (!prim) { h += '<div class="nx-i big"><div class="nx-t">' + T(it.zh, it.en) + '</div><div class="ldim">' + T('先在上面选一个方向和机场', 'Choose a direction and an airport above first') + '</div></div>'; return; }
+          const opts = (A.all || []).filter(x => x.c.icao !== prim.c.icao).slice(0, 8);
+          const info = (x, r) => { if (!x) return ''; const eta = A.t0 + x.mins * MIN, a = assess(x.c, eta);
+            if (r === 'fuel') return Math.round(x.d) + ' nm · ' + Math.round(x.mins) + ' min';
+            if (r === 'wx') return '<span style="color:' + ({ green: 'var(--green)', amber: 'var(--amber)', red: 'var(--red)' }[a.rate] || 'var(--dim)') + '">●</span> ' + wxHtml(a, eta);
+            if (r === 'stop' && a.rw && a.rw.pick) return T('跑道 ', 'RWY ') + esc(a.rw.pick.id);
+            return ''; };
+          const cell = (side, x, r) => { const v = st.can[side][r]; return '<td class="nx-c ' + (v || '') + '"' + (x ? ' onclick="RMATE.cell(\'' + side + '\',\'' + r + '\')"' : '') + '><span class="nx-cv">' + (v === 'ok' ? '✓' : v === 'no' ? '✗' : '') + '</span><div class="nx-ci">' + info(x, r) + '</div></td>'; };
+          const okAll = side => ROWS.every(r => st.can[side][r[0]] === 'ok'), anyNo = side => ROWS.some(r => st.can[side][r[0]] === 'no');
+          h += '<div class="nx-i big' + (cur ? ' cur' : '') + (canDone() ? ' ok' : '') + '"><div class="nx-t">' + T(it.zh, it.en) + '</div>' +
+            '<table class="nx-can"><tr><th></th><th>' + prim.c.icao + ' <span class="ldim">' + esc(prim.c.iata || '') + '</span>' + (okAll('A') ? ' ✅' : anyNo('A') ? ' ⚠️' : '') + '</th><th>' +
+            '<select onchange="RMATE.planB(this.value)"><option value="">' + T('选 Plan B…', 'Pick Plan B…') + '</option>' + opts.map(x => '<option value="' + x.c.icao + '"' + (st.planB === x.c.icao ? ' selected' : '') + '>' + x.c.icao + ' ' + (x.c.iata || '') + ' · ' + Math.round(x.d) + ' nm</option>').join('') + '</select>' + (pb && okAll('B') ? ' ✅' : pb && anyNo('B') ? ' ⚠️' : '') + '</th></tr>' +
+            ROWS.map(r => '<tr><td class="nx-rl">' + T(r[1], r[2]) + '</td>' + cell('A', prim, r[0]) + (pb ? cell('B', pb, r[0]) : '<td class="nx-c na"></td>') + '</tr>').join('') + '</table>' +
+            '<div class="ldim" style="margin-top:6px">' + T('点格子：✓ 可以 → ✗ 不行 → 清空。左右两个机场每一项都要过一遍。', 'Tap a cell: ✓ OK → ✗ No → clear. Go through every row for both airports.') + '</div></div>';
+          return; }
         if (it.kind === 'apt') {
           h += '<div class="nx-i big' + (cur ? ' cur' : '') + (st.apt ? ' ok' : '') + '"><div class="nx-t">' + T(it.zh, it.en) + '</div>' +
             (A ? (A.near.length ? A.near.map(x => aptRow(x, A.t0, true)).join('') : '<div class="ldim">' + T('附近没有可用机场', 'No usable airport nearby') + '</div>') : '<div class="ldim">' + T('先载入 OFP 才能列出机场', 'Load an OFP to list airports') + '</div>') +
@@ -134,7 +148,9 @@
     tick(id) { start(); if (st.done[id]) delete st.done[id]; else { st.done[id] = Date.now(); delete st.skip[id]; } save(); render(); },
     skip(id) { start(); st.skip[id] = Date.now(); save(); render(); },
     ti(v) { start(); st.ti = v; st.done.t1 = st.done.t1 || Date.now(); save(); render(); },
-    opt(v) { start(); st.opt = v; if (v === 'cont') st.apt = null; st.done.e2 = st.done.e2 || Date.now(); save(); render(); },
-    apt(icao) { start(); st.apt = icao; st.done.e3 = Date.now(); save(); render(); }
+    opt(v) { start(); if (st.opt !== v) { st.can = { A: {}, B: {} }; st.planB = null; } st.opt = v; if (v === 'cont') st.apt = null; st.done.e2 = st.done.e2 || Date.now(); save(); render(); },
+    apt(icao) { start(); if (st.apt !== icao) { st.apt = icao; st.can.A = {}; if (st.planB === icao) { st.planB = null; st.can.B = {}; } } st.done.e3 = Date.now(); save(); render(); },
+    planB(icao) { start(); st.planB = icao || null; st.can.B = {}; save(); render.noScroll = true; render(); render.noScroll = false; },
+    cell(side, r) { start(); const v = st.can[side][r]; st.can[side][r] = v === 'ok' ? 'no' : v === 'no' ? undefined : 'ok'; if (!st.can[side][r]) delete st.can[side][r]; save(); render.noScroll = true; render(); render.noScroll = false; }
   };
 })();
