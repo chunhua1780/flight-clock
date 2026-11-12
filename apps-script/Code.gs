@@ -83,6 +83,9 @@ function postJson_(text) {
   // 飞行记录本：云端保存（你自己 Google Drive 里的一个表格）
   if (j.action === 'lbsync') return JSON.stringify(lbSync_(j));
   // 邮箱里的 OFP PDF：列出最近的附件 + 排班上的航段；按需下载
+  // 诊断：飞行助手把「粘贴时剪贴板里有什么」报上来，方便远程排查（只存最近 30 条，没有 OFP 内容）
+  if (j.action === 'diag') { const pr = PropertiesService.getScriptProperties(); let L = []; try { L = JSON.parse(pr.getProperty('diag_log') || '[]'); } catch (e) {} L.push({ t: Date.now(), r: String(JSON.stringify(j.r || {})).slice(0, 3000) }); pr.setProperty('diag_log', JSON.stringify(L.slice(-30))); return JSON.stringify({ ok: true }); }
+  if (j.action === 'diagget') return JSON.stringify({ ok: true, log: JSON.parse(PropertiesService.getScriptProperties().getProperty('diag_log') || '[]') });
   if (j.action === 'ofpmail') return JSON.stringify(ofpMail_(j));
   if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';

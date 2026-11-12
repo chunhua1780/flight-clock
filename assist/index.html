@@ -1249,14 +1249,29 @@ function useText(txt) {
 }
 $('b-parse').onclick = () => { const t = $('f-txt').value; if (t.trim()) useText(t); };
 // 粘贴 PDF：Lido 里复制 PDF → 这里粘贴（也可以粘贴 OFP 文字，或者从「文件」拖进来）
+// ---------- 自动诊断：每次粘贴 / 点粘贴框 / 选文件，把「收到了什么、哪一步失败」报给自己的后台（不含 OFP 内容），方便远程排查 ----------
+let DG = null;
+function dgStart(ev) { DG = { ev, v: APPV, ua: navigator.userAgent.slice(0, 160), t: new Date().toISOString(), steps: [] }; }
+function dg(k, v) { if (!DG) dgStart('?'); DG.steps.push(k + ': ' + (typeof v === 'string' ? v : JSON.stringify(v)).slice(0, 400)); }
+async function hex(b) { try { const u = new Uint8Array(await b.slice(0, 12).arrayBuffer()); return [...u].map(x => x.toString(16).padStart(2, '0')).join(' '); } catch (e) { return '?'; } }
+function dgSend() {
+  if (!DG) return; const r = DG; DG = null;
+  let q = []; try { q = JSON.parse(lsGet('diagq') || '[]'); } catch (e) {} q.push(r); q = q.slice(-10); lsSet('diagq', JSON.stringify(q));
+  if (!navigator.onLine || !lsGet('key')) return;
+  const send = q.slice(); lsSet('diagq', '[]');
+  send.forEach(x => fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'diag', r: x }) }).catch(() => {}));
+}
+window.addEventListener('online', () => { if ((lsGet('diagq') || '[]') !== '[]') { DG = null; let q = []; try { q = JSON.parse(lsGet('diagq')); } catch (e) {} lsSet('diagq', '[]'); q.forEach(x => { DG = x; dgSend(); }); } });
 // 任何文档（PDF 各版本 / Word / RTF / ODT / HTML / TXT）→ 文字 → 读 OFP
 async function useFile(f, name) {
+  dg('file', { name: name || f.name || '', type: f.type || '', size: f.size, head: await hex(f) });
   $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('正在读取…', 'Reading…');
   try { const r = await DOCR.readAny(f, name || f.name || '', pdfText);
     if (!r.text || r.text.trim().length < 50) throw new Error(tt('文档里没有文字', 'No text in the document'));
-    $('f-txt').value = r.text; if (!useText(r.text)) { $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('读出了 ' + r.kind + ' 文件，但里面不是 OFP', 'Read the ' + r.kind + ' file, but it is not an OFP') + '<br><small style="color:var(--dim)">' + esc(r.text.trim().slice(0, 120)) + '…</small>'; return false; }
-    return true;
-  } catch (err) { $('msg').style.color = 'var(--red)'; $('msg').textContent = tt('读取失败', 'Read failed') + ': ' + err.message; return false; }
+    dg('read', { kind: r.kind, chars: r.text.length, first: r.text.trim().slice(0, 60) });
+    $('f-txt').value = r.text; if (!useText(r.text)) { dg('result', 'not an OFP'); dgSend(); $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('读出了 ' + r.kind + ' 文件，但里面不是 OFP', 'Read the ' + r.kind + ' file, but it is not an OFP') + '<br><small style="color:var(--dim)">' + esc(r.text.trim().slice(0, 120)) + '…</small>'; return false; }
+    dg('result', 'OK ' + (S.ofp && S.ofp.flight.no)); dgSend(); return true;
+  } catch (err) { dg('error', err.message); dgSend(); $('msg').style.color = 'var(--red)'; $('msg').textContent = tt('读取失败', 'Read failed') + ': ' + err.message; return false; }
 }
 const usePdfFile = f => useFile(f);
 function pdfFrom(dt) {
@@ -1269,27 +1284,31 @@ const isPdf = async b => { try { const h = new Uint8Array(await b.slice(0, 5).ar
 async function tryBlob(b) { if (!b || !b.size) return false; return useFile(b); }
 let pasteSeen = '', pasteHandled = false;
 function onPaste(e) {
-  const dt = e.clipboardData; if (!dt) return;
+  pasteHandled = false; const dt = e.clipboardData; dgStart('paste'); if (!dt) { dg('clipboardData', 'none'); dgSend(); return; }
+  dg('types', [...(dt.types || [])]); dg('items', [...(dt.items || [])].map(x => x.kind + ':' + (x.type || '?'))); dg('files', [...(dt.files || [])].map(f => (f.name || '') + '|' + (f.type || '') + '|' + f.size));
   pasteSeen = [...(dt.types || [])].join(', ') + ' | files ' + (dt.files ? dt.files.length : 0) + ' | ' + [...(dt.items || [])].map(x => x.kind + ':' + (x.type || '?')).join(', ');
   const f = pdfFrom(dt);
-  if (f) { e.preventDefault(); pasteHandled = true; tryBlob(f); return; }
+  if (f) { e.preventDefault(); pasteHandled = true; dg('path', 'file from clipboard'); tryBlob(f); return; }
   // 文字（普通文字 / 带格式的 HTML / RTF）
   const types = [...(dt.types || [])];
   let t = dt.getData('text/plain') || '';
   if (t.length < 200 && types.some(x => /html/.test(x))) t = DOCR.htmlText(dt.getData('text/html'));
   if (t.length < 200 && types.some(x => /rtf/.test(x))) t = DOCR.rtfText(dt.getData(types.find(x => /rtf/.test(x))));
-  if (t.trim().length > 200) { e.preventDefault(); pasteHandled = true; $('f-txt').value = t; if (!useText(t)) { $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('粘贴的文字不是 OFP', 'The pasted text is not an OFP'); } return; }
+  dg('text', { plain: (dt.getData('text/plain') || '').length, used: t.length, first: t.trim().slice(0, 60) });
+  if (t.trim().length > 200) { e.preventDefault(); pasteHandled = true; $('f-txt').value = t; const ok = useText(t); dg('ofp', ok ? 'OK' : 'not OFP'); dgSend(); if (!ok) { $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('粘贴的文字不是 OFP', 'The pasted text is not an OFP'); } return; }
   // 其他情况：让 iPad 把东西放进框里（有时 PDF 会变成附件 / 图片），在 input 里再看；1.5 秒还没认出就告诉机长收到了什么
-  setTimeout(() => { if (!pasteHandled) { $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('没认出 PDF。请在 Lido 里「复制」PDF，再回来长按这里 → 粘贴。', 'No PDF found. Copy the PDF in Lido first.') + '<br><small style="color:var(--dim)">' + tt('剪贴板里收到：', 'Clipboard had: ') + esc(pasteSeen || '—') + '</small>'; } pasteHandled = false; }, 1500);
+  setTimeout(() => { if (!pasteHandled) { dg('result', 'nothing recognised (waited for inserted nodes)'); dgSend(); $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('没认出 PDF。请在 Lido 里「复制」PDF，再回来长按这里 → 粘贴。', 'No PDF found. Copy the PDF in Lido first.') + '<br><small style="color:var(--dim)">' + tt('剪贴板里收到：', 'Clipboard had: ') + esc(pasteSeen || '—') + '</small>'; } pasteHandled = false; }, 1500);
 }
 $('f-paste').addEventListener('paste', onPaste);
-document.addEventListener('paste', e => { if ($('load').classList.contains('open') && !(e.target && /^(TEXTAREA|INPUT)$/.test(e.target.tagName))) onPaste(e); });
+document.addEventListener('paste', e => { if ($('load').classList.contains('open') && !(e.target && (/^(TEXTAREA|INPUT)$/.test(e.target.tagName) || (e.target.closest && e.target.closest('#f-paste'))))) onPaste(e); });   // 粘贴框自己会处理，这里不重复
 $('f-paste').addEventListener('beforeinput', e => { if (!/insertFromPaste|insertFromDrop|insertReplacementText/.test(e.inputType)) e.preventDefault(); });
 // 粘贴框只当接收器：粘进来的任何东西都清掉，只留原来的图标和文字
 [...$('f-paste').children].forEach(c => c.classList.add('keep'));
 $('f-paste').addEventListener('input', async () => {
   // iPad 有时把粘贴的 PDF 变成框里的附件 / 图片（blob: 地址）：取出来按内容判断是不是 PDF
   const srcs = [...$('f-paste').querySelectorAll('img,object,embed,attachment,a,iframe')].map(n => n.getAttribute('src') || n.getAttribute('data') || n.getAttribute('href') || '').filter(Boolean);
+  const ins = [...$('f-paste').childNodes].filter(n => !(n.nodeType === 1 && n.classList.contains('keep'))).map(n => n.nodeType === 1 ? n.tagName + (n.getAttribute('src') ? '[' + n.getAttribute('src').slice(0, 40) + ']' : '') : '#' + n.nodeType + ':' + String(n.nodeValue || '').slice(0, 30));
+  if (ins.length) dg('inserted', ins);
   [...$('f-paste').childNodes].forEach(n => { if (!(n.nodeType === 1 && n.classList.contains('keep'))) n.remove(); });
   for (const u of srcs) { try { const b = await (await fetch(u)).blob(); if (await tryBlob(b)) { pasteHandled = true; return; } if (/^image\//.test(b.type)) { pasteHandled = true; $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('粘贴进来的是图片，不是 PDF 文件', 'A picture was pasted, not the PDF file') + '<br><small style="color:var(--dim)">' + esc(pasteSeen + ' | ' + b.type) + '</small>'; return; } } catch (e) {} }
 });
@@ -1298,19 +1317,21 @@ $('f-paste').addEventListener('input', async () => {
 $('load').addEventListener('drop', e => { e.preventDefault(); const f = pdfFrom(e.dataTransfer); if (f) useFile(f); else { const t = e.dataTransfer.getData('text/plain'); if (t && t.length > 200) { $('f-txt').value = t; useText(t); } } });
 // 点一下粘贴框：直接读剪贴板（iPad 会弹出一个「粘贴」小按钮，点它就行）；长按 → 粘贴 也可以
 $('f-paste').addEventListener('click', async () => {
-  if (!navigator.clipboard || !navigator.clipboard.read) return;
+  dgStart('tap');
+  if (!navigator.clipboard || !navigator.clipboard.read) { dg('clipboard.read', 'not available'); dgSend(); return; }
   try {
-    const items = await navigator.clipboard.read(); let seen = [];
+    const items = await navigator.clipboard.read(); let seen = []; dg('items', items.map(i => i.types));
     for (const it of items) { seen = seen.concat(it.types);
       const ft = it.types.find(x => /pdf/i.test(x)) || it.types.find(x => !/^text\//.test(x) && !/^image\//.test(x));
       if (ft) { if (await useFile(await it.getType(ft), '')) return; }
-      for (const tt0 of ['text/html', 'text/rtf', 'text/plain']) if (it.types.includes(tt0)) { const b = await it.getType(tt0), raw = await b.text(); const t = tt0 === 'text/html' ? DOCR.htmlText(raw) : tt0 === 'text/rtf' ? DOCR.rtfText(raw) : raw; if (t.trim().length > 200) { $('f-txt').value = t; if (useText(t)) return; } }
+      for (const tt0 of ['text/html', 'text/rtf', 'text/plain']) if (it.types.includes(tt0)) { const b = await it.getType(tt0), raw = await b.text(); const t = tt0 === 'text/html' ? DOCR.htmlText(raw) : tt0 === 'text/rtf' ? DOCR.rtfText(raw) : raw; if (t.trim().length > 200) { $('f-txt').value = t; const ok = useText(t); dg('text', { type: tt0, chars: t.length, ofp: ok }); if (ok) { dgSend(); return; } } }
       const im = it.types.find(x => /^image\//.test(x)); if (im) { $('msg').style.color = 'var(--amber)'; $('msg').textContent = tt('剪贴板里是图片，不是 PDF 或文字', 'The clipboard holds a picture, not a PDF or text'); return; }
     }
     $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = tt('剪贴板里没有 OFP。请在 Lido 里「复制」，再回来点这里；或者长按这里 → 粘贴。', 'No OFP on the clipboard.') + '<br><small style="color:var(--dim)">' + tt('剪贴板里收到：', 'Clipboard had: ') + esc(seen.join(', ') || '—') + '</small>';
-  } catch (err) { /* 用户没点「粘贴」或者浏览器不让读：长按 → 粘贴 照样可以 */ }
+    dg('result', 'nothing usable'); dgSend();
+  } catch (err) { dg('error', (err && err.name) + ' ' + (err && err.message)); dgSend(); /* 用户没点「粘贴」或者浏览器不让读：长按 → 粘贴 照样可以 */ }
 });
-$('f-pdf').onchange = async e => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; useFile(f); };
+$('f-pdf').onchange = async e => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; dgStart('choose'); useFile(f); };
 // PDF → 按行还原文字（等宽排版，按 x 位置补空格）
 async function pdfText(buf) {
   if (!window.pdfjsLib) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'vendor/pdf.min.js'; s.onload = ok; s.onerror = () => no(new Error('PDF 组件没载入')); document.head.appendChild(s); });
@@ -1454,7 +1475,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v41';
+const APPV = 'v42';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
