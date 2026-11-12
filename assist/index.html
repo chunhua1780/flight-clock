@@ -44,6 +44,7 @@ button{font-family:inherit}
 #mapwrap.wpon #b-rings,#mapwrap.wpon #recenter,#mapwrap.wpon #firpop,#mapwrap.wpon #srch{right:188px}
 #mapwrap.wpon #b-srch{right:274px}
 #mapwrap.wpon #hud{right:188px}
+#mapwrap.wpon #scrub{right:240px}
 #wpcol .hd{font-size:11px;color:var(--dim);letter-spacing:.06em;padding:8px 10px 4px}
 #wplist{flex:1;overflow:hidden;position:relative;padding:0 6px 8px}
 .wr{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:8px;margin:2px 0;font-size:12.5px;cursor:pointer;will-change:transform}
@@ -100,11 +101,18 @@ button{font-family:inherit}
 #atd.dirty{border-color:var(--amber);box-shadow:0 0 0 2px rgba(243,177,60,.35)}
 .apl{background:var(--hud);border:1px solid var(--line);color:var(--text);font-size:11px;font-weight:700;padding:1px 4px;border-radius:4px;box-shadow:none}
 .apl:before{display:none}
-#hud{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;z-index:500;pointer-events:none}
+#hud{position:absolute;left:10px;right:10px;bottom:62px;display:flex;gap:8px;flex-wrap:wrap;z-index:500;pointer-events:none}
 #hud .c{background:var(--hud);border:1px solid var(--line);border-radius:10px;padding:6px 10px;pointer-events:auto}
 #hud .k{font-size:10px;color:var(--dim);letter-spacing:.06em}
 #hud .v{font-size:17px;font-weight:600}
-#recenter{position:absolute;right:10px;top:48px;z-index:500;display:none}
+#recenter{position:absolute;right:10px;bottom:10px;z-index:520;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--hud);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35);padding:0}
+#recenter svg{fill:none;stroke:var(--blue);stroke-width:2;stroke-linejoin:round;transform:rotate(0deg)}
+#recenter.on svg{fill:var(--blue)}
+#b-leg{position:absolute;left:10px;top:10px;z-index:510;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--hud);color:var(--text);font-size:17px;cursor:pointer;padding:0}
+#b-leg.on{border-color:var(--blue);color:var(--blue)}
+#scrub{position:absolute;left:10px;right:62px;bottom:10px;z-index:510;display:none;align-items:center;gap:8px;background:var(--hud);border:1px solid var(--line);border-radius:22px;padding:0 12px;height:44px;box-sizing:border-box;font-size:12px;color:var(--dim)}
+#scrub input{flex:1;accent-color:var(--gold);min-width:60px;height:28px}
+#scrub.pv{border-color:var(--gold)}
 /* 右侧面板 */
 #side{min-height:0;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel)}
 @media (orientation:portrait){#side{border-left:none;border-top:1px solid var(--line)}}
@@ -124,7 +132,8 @@ button{font-family:inherit}
 .tag{border:1px solid #3a4b6c;color:#bcd0f0;border-radius:5px;font-size:10.5px;padding:0 5px;margin-left:4px;white-space:nowrap}
 .cat{display:inline-block;min-width:26px;text-align:center;border-radius:6px;padding:1px 5px;font-size:12px;font-weight:800;color:#0b1220;vertical-align:2px}
 .cat.cD{background:#14a04f;color:#fff}.cat.cA1{background:#8ff0a8}.cat.cA2{background:#f7dc2a}.cat.cCA{background:#ff8c1a}.cat.cEA{background:#ff3b30;color:#fff}.cat.cX{background:#6d0000;color:#fff}.cat.cN{background:#4a5570;color:#c9d3e6}
-#legend{position:absolute;left:10px;top:10px;z-index:500;background:var(--hud);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:11px;line-height:1.7;color:var(--dim)}
+#legend{position:absolute;left:10px;top:48px;display:none;z-index:500;background:var(--hud);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:11px;line-height:1.7;color:var(--dim)}
+#legend.on{display:block}
 #legend .cat{font-size:10px;min-width:22px;margin-right:3px}
 #map.far5 .apl.x5{display:none}
 .hint{font-size:12px;margin-top:3px;line-height:1.45}
@@ -178,7 +187,7 @@ div.en,.wl .en{display:block;margin-left:0}
 #syncst{font-size:13px;margin-top:6px}
 #b-rings{position:absolute;right:10px;top:10px;z-index:500}
 #b-rings.off{opacity:.55}
-#demo{position:absolute;left:50%;transform:translateX(-50%);bottom:150px;z-index:650;display:none;background:var(--hud);border:1px solid var(--green);border-radius:14px;padding:8px 12px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.4);width:min(480px,calc(100% - 20px));box-sizing:border-box}
+#demo{position:absolute;left:50%;transform:translateX(-50%);top:54px;z-index:650;display:none;background:var(--hud);border:1px solid var(--green);border-radius:14px;padding:8px 12px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.4);width:min(480px,calc(100% - 20px));box-sizing:border-box}
 #demo .dr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #demo .dr input[type=range]{flex:1;min-width:160px;accent-color:var(--green)}
 #demo .sp{padding:3px 8px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
@@ -310,8 +319,10 @@ div.en,.wl .en{display:block;margin-left:0}
   </div>
   <div id="mapwrap">
     <div id="map"></div>
-    <button class="btn sm" id="recenter" data-i="◎ 回到飞机|◎ Follow aircraft"></button>
+    <button id="recenter" title="回到飞机 / Back to aircraft"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 2 L20 21 L12 16.5 L4 21 Z"/></svg></button>
+    <button id="b-leg" title="图例 / Legend">ⓘ</button>
     <div id="legend"></div>
+    <div id="scrub"><span id="scrub-a" class="num"></span><input type="range" id="scrub-r" min="0" max="100" step="1" value="0"><span id="scrub-b" class="num"></span></div>
     <button class="btn sm" id="b-rings">◯ 1h / 2h</button>
     <button class="btn sm" id="b-srch">🔍 <span data-i="航路点|Waypoint"></span></button>
     <div id="srch"></div>
@@ -486,8 +497,27 @@ function fitRing() { if (S.cur && S.cur.pos) map.fitBounds(L.latLng(S.cur.pos).t
 const PLANE = '<svg viewBox="0 0 64 64" width="34" height="34"><path fill="#e2b964" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
 const zoomCls = () => { $('map').classList.toggle('far', map.getZoom() < 6); $('map').classList.toggle('far5', map.getZoom() < 5); };
 map.on('zoomend', zoomCls); zoomCls();
-map.on('dragstart', () => { S.follow = false; $('recenter').style.display = 'block'; });
-$('recenter').onclick = () => { S.follow = true; $('recenter').style.display = 'none'; tick(); fitRing(); };
+map.on('dragstart', () => { S.follow = false; rcOn(false); });
+// 回到飞机（像地图导航的「当前位置」）：结束预览，跟随飞机
+$('recenter').onclick = () => { S.drag = null; S.dragging = false; S.follow = true; rcOn(true); lastList = 0; S.userScroll = 0; tick(); if (S.cur && S.cur.pos) map.setView(S.cur.pos, Math.max(map.getZoom(), 5), { animate: true }); };
+function rcOn(on) { $('recenter').classList.toggle('on', !!on); }
+rcOn(true);
+// 图例：点 ⓘ 显示，再点收起（记住）
+$('b-leg').onclick = () => { const on = !$('legend').classList.contains('on'); $('legend').classList.toggle('on', on); $('b-leg').classList.toggle('on', on); lsSet('ui.leg', on ? '1' : ''); };
+if (lsGet('ui.leg')) { $('legend').classList.add('on'); $('b-leg').classList.add('on'); }
+// 底部进度条：拖动看任何时刻的位置、天气、备降场；松手 10 秒后自动回到现在
+let scrubT = 0;
+$('scrub-r').addEventListener('input', () => { if (!S.ofp) return; S.drag = +$('scrub-r').value; S.dragging = true; S.dragAt = Date.now(); S.follow = false; rcOn(false);
+  if (Date.now() - scrubT > 200) { scrubT = Date.now(); lastList = 0; S.userScroll = 0; tick(); if (S.cur && S.cur.pos) map.panTo(S.cur.pos, { animate: false }); } });
+$('scrub-r').addEventListener('change', () => { S.dragging = false; S.dragAt = Date.now(); lastList = 0; tick(); if (S.cur && S.cur.pos) map.panTo(S.cur.pos, { animate: false }); });
+function scrubBar(el, pv) {
+  const o = S.ofp; if (!o) { $('scrub').style.display = 'none'; return; }
+  $('scrub').style.display = 'flex'; const trip = o.times.trip || 0, r = $('scrub-r');
+  if (+r.max !== trip) r.max = trip;
+  if (!S.dragging) r.value = Math.max(0, Math.min(trip, el || 0));
+  $('scrub-a').textContent = hmZ(atP(0)); $('scrub-b').textContent = hmZ(atP(trip));
+  $('scrub').classList.toggle('pv', !!pv);
+}
 
 /* ---------------- 机场数据库 ---------------- */
 const apReady = fetch('data/airports.json').then(r => r.json()).then(j => { S.AP = j; }).catch(() => {});
@@ -672,7 +702,7 @@ function drawRoute() {
     mk._fo = c.ek ? 1 : .35; mk._ring = ring; mk._w = c.ofp ? 3 : 1.5; mk._r = big ? 9 : c.ofp ? 7 : 5; mk._c = c; L_apm[c.icao] = mk; L_aps.push(mk);
   });
   L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div id="plane">' + PLANE + '</div>', iconSize: [34, 34], iconAnchor: [17, 17] }), draggable: true, zIndexOffset: 1000 }).addTo(map);
-  // 拖动飞机：沿航路预览；30 秒不动就回到实际位置
+  // 拖动飞机：沿航路预览；10 秒不动就回到实际位置
   let lastDR = 0;
   L_plane.on('dragstart', () => { S.dragging = true; S.follow = false; });
   L_plane.on('drag', e => { const m = snapRoute(e.latlng); if (m == null) return; S.drag = m; S.dragAt = Date.now(); if (Date.now() - lastDR > 250) { lastDR = Date.now(); lastList = 0; S.userScroll = 0; tick(); } });
@@ -799,21 +829,21 @@ function snapRoute(ll) {
   }
   return m;
 }
-function endPreview() { S.drag = null; S.dragging = false; S.follow = true; $('recenter').style.display = 'none'; lastList = 0; S.userScroll = 0; tick(); }
+function endPreview() { S.drag = null; S.dragging = false; S.follow = true; rcOn(true); lastList = 0; S.userScroll = 0; tick(); }
 function tick() {
   const t = now();
   $('utc').innerHTML = z2(new Date(t).getUTCHours()) + ':' + z2(new Date(t).getUTCMinutes()) + '<small>UTC</small>';
   if (!S.ofp) return;
   const o = S.ofp;
-  if (S.drag != null && !S.dragging && Date.now() - S.dragAt > 30000) { S.drag = null; S.follow = true; $('recenter').style.display = 'none'; lastList = 0; S.userScroll = 0; }
+  if (S.drag != null && !S.dragging && Date.now() - S.dragAt > 10000) { S.drag = null; S.follow = true; rcOn(true); lastList = 0; S.userScroll = 0; }
   const pv = S.drag != null;
   const elA = elAt(t);
   const el = pv ? S.drag : elA;
   S.tview = pv ? atP(el) : t; S.elView = pv ? el : (S.atd ? elA : 0);
   const p = posAt(el) || { pos: apPos(o.flight.dep), gs: 0, dist: 0 };
-  S.cur = p;
+  S.cur = p; scrubBar(el, pv);
   $('prev').style.display = pv ? 'block' : 'none';
-  if (pv) $('prev').innerHTML = '<b>' + th('预览', 'Preview') + '</b> +' + dur(Math.max(0, el)) + ' · ' + hmZ(S.tview) + ' · <span style="color:var(--dim)">' + th(S.dragging ? '松手后 30 秒回到现在' : Math.max(0, Math.ceil(30 - (Date.now() - S.dragAt) / 1000)) + ' 秒后回到现在', S.dragging ? 'returns 30 s after release' : 'back to now in ' + Math.max(0, Math.ceil(30 - (Date.now() - S.dragAt) / 1000)) + ' s') + '</span><button class="btn sm" onclick="endPreview()">' + th('回到现在', 'Now') + '</button>';
+  if (pv) $('prev').innerHTML = '<b>' + th('预览', 'Preview') + '</b> +' + dur(Math.max(0, el)) + ' · ' + hmZ(S.tview) + ' · <span style="color:var(--dim)">' + th(S.dragging ? '松手后 10 秒回到现在' : Math.max(0, Math.ceil(10 - (Date.now() - S.dragAt) / 1000)) + ' 秒后回到现在', S.dragging ? 'returns 10 s after release' : 'back to now in ' + Math.max(0, Math.ceil(10 - (Date.now() - S.dragAt) / 1000)) + ' s') + '</span><button class="btn sm" onclick="endPreview()">' + th('回到现在', 'Now') + '</button>';
   if (L_plane && p.pos) {
     if (!S.dragging) L_plane.setLatLng(p.pos);
     const pe = document.getElementById('plane'); if (pe) pe.style.transform = 'rotate(' + Math.round(p.hdg || 0) + 'deg)';
@@ -1033,7 +1063,7 @@ $('sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
 /* ---------------- ATD 输入 ---------------- */
 function setATD(t) {
   S.atd = t; lsSet('atd', t || ''); $('atd').value = t ? hmZ(t).slice(0, 4) : ''; S.drag = null; if (S.fix) { S.fix = null; lsSet('fix', ''); fixBar(); }
-  S.follow = true; $('recenter').style.display = 'none'; lastList = 0; S.firToast = null; if (L_route) drawRoute(); tick(); if (t) fitRing();
+  S.follow = true; rcOn(true); lastList = 0; S.firToast = null; if (L_route) drawRoute(); tick(); if (t) fitRing();
 }
 $('atd').oninput = () => $('atd').classList.toggle('dirty', $('atd').value.trim() !== (S.atd ? hmZ(S.atd).slice(0, 4) : ''));
 $('atd').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); confirmATD(); } };
@@ -1211,7 +1241,7 @@ function renderSrch(q) {
   h += '<div style="text-align:right;margin-top:6px">' + (S.fix ? '<button class="btn sm" id="srch-clr">' + th('取消过点修正', 'Clear fix') + '</button> ' : '') + '<button class="btn sm" id="srch-x">' + th('关闭', 'Close') + '</button></div>';
   $('srch').innerHTML = h;
   const qi = $('srch-q'); qi.oninput = () => { srchSel = null; renderSrch(qi.value); const n = $('srch-q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
-  $('srch').querySelectorAll('.r').forEach(r => r.onclick = () => { const id = r.dataset.id, t = +r.dataset.t; srchSel = S.pts.find(x => x.id === id && x.t === t); S.follow = false; $('recenter').style.display = 'block'; map.setView(srchSel.pos, Math.max(map.getZoom(), 7)); renderSrch(id); setTimeout(() => $('srch-t') && $('srch-t').focus(), 50); });
+  $('srch').querySelectorAll('.r').forEach(r => r.onclick = () => { const id = r.dataset.id, t = +r.dataset.t; srchSel = S.pts.find(x => x.id === id && x.t === t); S.follow = false; rcOn(false); map.setView(srchSel.pos, Math.max(map.getZoom(), 7)); renderSrch(id); setTimeout(() => $('srch-t') && $('srch-t').focus(), 50); });
   $('srch-x').onclick = () => { $('srch').style.display = 'none'; };
   if ($('srch-clr')) $('srch-clr').onclick = () => { setFix(null); renderSrch(''); };
   if ($('srch-ok')) { const go = () => { const v = $('srch-t').value.replace(/\D/g, ''); if (!/^\d{4}$/.test(v) || +v.slice(0, 2) > 23 || +v.slice(2) > 59) { toast(th('请输入 4 位 UTC 时间，例如 0930', 'Enter 4-digit UTC time, e.g. 0930')); return; }
@@ -1225,7 +1255,7 @@ function setFix(fx) {
   const old = S.fix && S.ofp ? atP(S.ofp.times.trip) : null;
   S.fix = fx; lsSet('fix', fx ? JSON.stringify(fx) : '');
   if (fx && !S.atd) { S.atd = fx.at - fx.planT * MIN; lsSet('atd', S.atd); $('atd').value = hmZ(S.atd).slice(0, 4); }   // 没输入起飞时间：按过点时间反推一个
-  S.drag = null; S.follow = true; $('recenter').style.display = 'none'; lastList = 0; S.tl = null; S.firToast = null;
+  S.drag = null; S.follow = true; rcOn(true); lastList = 0; S.tl = null; S.firToast = null;
   if (L_route) drawRoute(); tick(); if (fx) fitRing();
   if (fx) { const plan = tb() + S.ofp.times.trip * MIN, eta = atP(S.ofp.times.trip), d = Math.round((eta - plan) / MIN);
     toast('📍 ' + fx.id + ' ' + hmZ(fx.at) + ' · ETA ' + S.ofp.flight.arr + ' <b>' + hmZ(eta) + '</b> (' + (d === 0 ? th('和计划一样', 'as planned') : (d > 0 ? '+' : '') + d + ' min') + ')', 7000); syncClock(true); }
@@ -1235,7 +1265,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v24';
+const APPV = 'v25';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1319,7 +1349,7 @@ function renderWp(force) {
     const k = e.dataset.k, nt = e.getBoundingClientRect().top;
     if (old[k] != null && prevNext) { const d = old[k] - nt; if (Math.abs(d) > 1) { e.animate([{ transform: 'translateY(' + d + 'px)' }, { transform: 'none' }], { duration: e.classList.contains('past') ? 900 : 600, easing: e.classList.contains('past') ? 'cubic-bezier(.3,1.3,.5,1)' : 'ease-out' }); } }
     if (prevNext && e.classList.contains('next')) e.classList.add('popin');
-    e.onclick = () => { const [id, t] = k.split('_'); const pt = S.pts.find(x => x.id === id && String(x.t) === t); if (!pt) return; S.follow = false; $('recenter').style.display = 'block'; map.setView(pt.pos, Math.max(map.getZoom(), 7)); srchSel = pt; $('srch').style.display = 'block'; renderSrch(id); };
+    e.onclick = () => { const [id, t] = k.split('_'); const pt = S.pts.find(x => x.id === id && String(x.t) === t); if (!pt) return; S.follow = false; rcOn(false); map.setView(pt.pos, Math.max(map.getZoom(), 7)); srchSel = pt; $('srch').style.display = 'block'; renderSrch(id); };
   });
 }
 const FIRWPS = () => { const o = {}; ((S.ofp && S.ofp.firs) || []).forEach(f => { if (f.wp) o[f.wp] = f; }); return o; };
@@ -1637,7 +1667,7 @@ function demoStart() {
   S.demo = { keep: { atd: S.atd, sim: S.sim || 0, fix: S.fix, lastFir: S.lastFir, firToast: S.firToast }, speed: 120, play: true, last: Date.now(), t0, lastL: 0 };
   S.atd = t0; S.fix = null; S.lastFir = undefined; S.firToast = null; S.drag = null; S.follow = true; S.userScroll = 0;
   S.sim = t0 - 2 * MIN - Date.now();
-  $('recenter').style.display = 'none'; drawRoute(); lastList = 0; tick(); if (typeof fitRing === 'function') fitRing();
+  rcOn(true); drawRoute(); lastList = 0; tick(); if (typeof fitRing === 'function') fitRing();
   $('demo').style.display = 'block'; demoBar();
   S.demo.iv = setInterval(demoStep, 250);
 }
