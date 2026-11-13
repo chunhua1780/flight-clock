@@ -1065,7 +1065,14 @@ function tick() {
 // 落地：计划落地重量离限制（MLWT 和 RLWT 取小）不到 300 kg → 落地前 60 分钟显示「落地不超重的最多剩油」= 限制 − ZFW − 0.1 t
 function wwarn(el) {
   const box = $('wwarn'); if (!box) return;
-  const o = S.ofp, W = o && o.weights; if (!W || !W.ezfw || !W.etow || !W.elwt) { box.innerHTML = ''; return; }
+  const o = S.ofp; if (!o) { box.innerHTML = ''; return; }
+  // 每架飞机的最大重量都不一样：以这份 OFP 为准，并按注册号记下来；OFP 里读不到时才用同一架飞机以前的
+  const reg = (o.flight.reg || '').toUpperCase(), AC = (() => { try { return JSON.parse(lsGet('aclim') || '{}'); } catch (e) { return {}; } })();
+  let W = o.weights || {};
+  if (reg && W.etow && W.elwt && W.ezfw) { const n = { mzfw: W.ezfw[1], mtow: W.etow[1], mlwt: W.elwt[1], type: o.flight.type || '', at: Date.now() }, c = AC[reg];
+    if (!c || c.mzfw !== n.mzfw || c.mtow !== n.mtow || c.mlwt !== n.mlwt) { AC[reg] = n; lsSet('aclim', JSON.stringify(AC)); } }
+  else if (reg && AC[reg] && W.ezfw) { const c = AC[reg]; W = Object.assign({}, W, { etow: W.etow || [W.ezfw[0] + ((o.fuel && o.fuel.tof && o.fuel.tof.fuel) || 0), c.mtow], elwt: W.elwt || [0, c.mlwt] }); }
+  if (!W.ezfw || !W.etow || !W.elwt) { box.innerHTML = ''; return; }
   const k = o.flight.no + o.flight.date, zfwA = +lsGet('azfw.' + k) || 0, zfw = zfwA || W.ezfw[0];
   const tof = (o.fuel && o.fuel.tof && o.fuel.tof.fuel) || (W.etow[0] - W.ezfw[0]), trip = (o.fuel && o.fuel.trip && o.fuel.trip.fuel) || (W.etow[0] - W.elwt[0]);
   const taxi = (o.fuel && o.fuel.taxi && o.fuel.taxi.fuel) || 0;
@@ -1077,14 +1084,14 @@ function wwarn(el) {
   const toPhase = !S.atd || t < S.atd + 10 * MIN;
   if (towM < WWM && toPhase && !dis('to')) {
     const maxTo = towL - zfw - 100;
-    h += '<div class="ww' + (towM < 0 ? ' r' : '') + '"><span class="x" onclick="wwX(\'to\')">✕</span><span class="ttl">⚠️ ' + (W.rtow && W.rtow < W.etow[1] ? 'RTOW' : 'MTOW') + ' ' + th('起飞重量限制', 'take-off weight limit') + '</span>' +
+    h += '<div class="ww' + (towM < 0 ? ' r' : '') + '"><span class="x" onclick="wwX(\'to\')">✕</span><span class="ttl">⚠️ ' + esc(reg) + ' ' + (W.rtow && W.rtow < W.etow[1] ? 'RTOW' : 'MTOW') + ' ' + T(towL) + ' · ' + th('起飞重量限制', 'take-off weight limit') + '</span>' +
       '<b class="big">' + th('最大起飞油 ', 'Max T/O fuel ') + T(maxTo) + '</b><div class="sm">' + th('加油不要超过 ', 'Ramp fuel max ') + T(maxTo + taxi) + th('（含滑行油）', ' (incl. taxi)') + ' · ' + th('计划起飞油 ', 'planned ') + T(tof) + ' · ' + th('余量 ', 'margin ') + Math.round(towM) + ' kg</div>' +
       '<div class="sm">ZFW ' + T(zfw) + (zfwA ? th('（实际）', ' (actual)') : th('（计划）', ' (plan)')) + ' + ' + th('油', 'fuel') + ' ≤ ' + T(towL) + ' − 0.1 · <span class="ed" onclick="wwZ()">' + th('改 ZFW', 'Edit ZFW') + '</span></div></div>';
   }
   const ldgPhase = S.atd && el != null && tripMin - el <= 60 && el < tripMin + 30;
   if (lwM < WWM && ldgPhase && !dis('ldg')) {
     const maxLdg = lwL - zfw - 100;
-    h += '<div class="ww' + (lwM < 0 ? ' r' : '') + '"><span class="x" onclick="wwX(\'ldg\')">✕</span><span class="ttl">⚠️ ' + (W.rlwt && W.rlwt < W.elwt[1] ? 'RLWT' : 'MLWT') + ' ' + th('落地重量限制', 'landing weight limit') + '</span>' +
+    h += '<div class="ww' + (lwM < 0 ? ' r' : '') + '"><span class="x" onclick="wwX(\'ldg\')">✕</span><span class="ttl">⚠️ ' + esc(reg) + ' ' + (W.rlwt && W.rlwt < W.elwt[1] ? 'RLWT' : 'MLWT') + ' ' + T(lwL) + ' · ' + th('落地重量限制', 'landing weight limit') + '</span>' +
       '<b class="big">' + th('落地剩油 ≤ ', 'Land with fuel ≤ ') + T(maxLdg) + '</b><div class="sm">' + th('计划落地油 ', 'Planned landing fuel ') + T(tof - trip) + ' · ' + th('计划余量 ', 'planned margin ') + Math.round(lwM) + ' kg · ' + th('剩油多于这个就超重', 'more fuel than this = overweight') + '</div>' +
       '<div class="sm">ZFW ' + T(zfw) + (zfwA ? th('（实际）', ' (actual)') : th('（计划）', ' (plan)')) + ' + ' + th('油', 'fuel') + ' ≤ ' + T(lwL) + ' − 0.1 · <span class="ed" onclick="wwZ()">' + th('改 ZFW', 'Edit ZFW') + '</span></div></div>';
   }
@@ -1606,7 +1613,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v58';
+const APPV = 'v59';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
