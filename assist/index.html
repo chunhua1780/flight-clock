@@ -476,7 +476,7 @@ div.en,.wl .en{display:block;margin-left:0}
     <div class="ldrop">
       <div class="ltile mail" onclick="OFL.pick()"><i>📧</i><b data-i="从邮箱选|Pick from mail"></b><span data-i="在 Lido 里把 OFP 发到邮箱 → 点这里选|Email the OFP from Lido → pick it here"></span></div>
       <label class="ltile" for="f-pdf"><i>📄</i><b data-i="选择文件|Choose file"></b><span data-i="从「文件」里选|from Files"></span></label>
-      <div class="ltile" id="f-paste" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" inputmode="none"><i>📋</i><b data-i="粘贴 OFP|Paste OFP"></b><span data-i="在 Lido 里点 Copy → 回来点这里（用快捷指令 Paste OFP）|Tap Copy in Lido → come back and tap here (uses the Paste OFP shortcut)"></span></div>
+      <div class="ltile" id="f-paste" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off" inputmode="none"><i>📋</i><b data-i="粘贴文字|Paste text"></b><span data-i="OFP 文字能复制时用（Lido 的 PDF 被公司锁住，请用邮箱）|For copied OFP text (Lido PDFs are locked — use mail)"></span></div>
     </div>
     <div id="mailpick"></div>
     <input type="file" id="f-pdf" accept="application/pdf,.pdf,.doc,.docx,.rtf,.odt,.txt,.text,.html,.htm,text/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">
@@ -1383,13 +1383,7 @@ $('f-paste').addEventListener('input', async () => {
 ['dragleave', 'drop'].forEach(ev => $('load').addEventListener(ev, () => $('f-paste').classList.remove('over')));
 $('load').addEventListener('drop', e => { e.preventDefault(); const f = pdfFrom(e.dataTransfer); if (f) useFile(f); else { const t = e.dataTransfer.getData('text/plain'); if (t && t.length > 200) { $('f-txt').value = t; useText(t); } } });
 // 点一下粘贴框：直接读剪贴板（iPad 会弹出一个「粘贴」小按钮，点它就行）；长按 → 粘贴 也可以
-// 点粘贴框：Safari 拿不到剪贴板里的 PDF，交给 iPad 的「快捷指令」App（Paste OFP）去读剪贴板并上传；回来后自动收
-$('f-paste').addEventListener('click', () => {
-  lsSet('expectUp', Date.now());
-  $('msg').style.color = 'var(--amber)'; $('msg').innerHTML = '📲 ' + tt('正在交给快捷指令「Paste OFP」…完成后回到这里，OFP 会自动打开。', 'Handing over to the “Paste OFP” shortcut… come back here afterwards and the OFP opens automatically.') + '<br><small style="color:var(--dim)">' + tt('如果没反应：iPad 上还没建这个快捷指令。', 'Nothing happens? The shortcut is not set up on this iPad yet.') + '</small>';
-  location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Paste OFP');
-});
-$('f-paste').addEventListener('click-old', async () => {
+$('f-paste').addEventListener('click', async () => {
   dgStart('tap');
   if (!navigator.clipboard || !navigator.clipboard.read) { dg('clipboard.read', 'not available'); dgSend(); return; }
   try {
@@ -1555,7 +1549,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v54';
+const APPV = 'v55';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
