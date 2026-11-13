@@ -268,33 +268,38 @@
     const sig = [bg, pos, filter, tint, cat].join('|');
     if (el.dataset.sig !== sig) {
       el.dataset.sig = sig;
-      const img = el.querySelector('.sc-img');
+      // 一定要有一层照片（以前两次换图挤在一起时会被全部删掉 → 屏幕黑）
+      let img = el.querySelector('.sc-img');
+      if (!img) { img = document.createElement('div'); img.className = 'sc-img'; el.insertBefore(img, el.firstChild); }
+      // 还没有任何照片时，先放这个时段的天空颜色，不让它黑着
+      if (!img.style.backgroundImage || img.style.backgroundImage === 'none') { img.style.backgroundImage = SKY[phase]; img.classList.add('on'); }
+      const apply = (layer) => { layer.style.backgroundPosition = pos; layer.style.filter = filter.trim(); el.querySelector('.sc-tint').style.background = tint || 'none';
+        el.querySelector('.sc-fog').style.opacity = cat === 'fog' ? '1' : cat === 'haze' || cat === 'dust' ? '.45' : '0'; el.dataset.cat = cat; el.dataset.phase = phase; };
+      // 过渡：新照片先在后台下载好，再淡入盖在旧照片上，淡入完成后只删掉「之前的」旧照片；没下载好就继续显示旧的
+      const swapIn = (bgv) => {
+        if (el.dataset.sig !== sig) return;                       // 过期的就不用了
+        const olds = [...el.querySelectorAll('.sc-img')];
+        const nu = document.createElement('div'); nu.className = 'sc-img'; nu.style.backgroundImage = bgv;
+        el.insertBefore(nu, olds.length ? olds[olds.length - 1].nextSibling : el.firstChild);
+        apply(nu);
+        requestAnimationFrame(() => requestAnimationFrame(() => nu.classList.add('on')));
+        setTimeout(() => olds.forEach(x => { if (x.parentNode && el.querySelectorAll('.sc-img').length > 1) x.remove(); }), 2400);
+      };
       if (url) {
-        // 先加载完再换，新照片淡入盖在旧照片上，然后删掉旧的
         const im = new Image();
         im.onload = () => {
-          if (el.dataset.sig !== sig) return;                     // 过期的就不用了
-          const cur = el.querySelector('.sc-img');
-          if (!cur.style.backgroundImage || cur.style.backgroundImage === 'none') { cur.style.backgroundImage = bg; cur.classList.add('on'); return; }
-          const nu = cur.cloneNode(false);
-          nu.classList.remove('on'); nu.style.backgroundImage = bg; nu.style.backgroundPosition = pos; nu.style.filter = filter.trim();
-          const last = [...el.querySelectorAll('.sc-img')].pop();
-          last.parentNode.insertBefore(nu, last.nextSibling);
-          requestAnimationFrame(() => requestAnimationFrame(() => nu.classList.add('on')));
-          setTimeout(() => el.querySelectorAll('.sc-img').forEach(x => { if (x !== nu) x.remove(); }), 2200);
+          // iPad 有时下载完了图却是空的：确认真的有尺寸
+          if (!im.naturalWidth) return im.onerror();
+          const go = () => swapIn(bg);
+          if (im.decode) im.decode().then(go, go); else go();       // 解码好再换，避免换的瞬间闪黑
         };
         im.onerror = () => {
           if (el.dataset.sig !== sig) return;
           if (remote) { remote.failed = true; el.dataset.sig = ''; update(el, code, ap, w, Date.now(), phaseOverride); return; }
-          img.style.backgroundImage = SKY[phase]; img.classList.add('on');
+          swapIn(SKY[phase]);
         };
         im.src = url;
-      } else { img.style.backgroundImage = bg; img.classList.add('on'); }
-      img.style.backgroundPosition = pos;
-      img.style.filter = filter.trim();
-      el.querySelector('.sc-tint').style.background = tint || 'none';
-      el.querySelector('.sc-fog').style.opacity = cat === 'fog' ? '1' : cat === 'haze' || cat === 'dust' ? '.45' : '0';
-      el.dataset.cat = cat; el.dataset.phase = phase;
+      } else swapIn(bg);
     }
     setFx(el, cat === 'rain' ? 'rain' : cat === 'storm' ? 'storm' : cat === 'snow' ? 'snow' : cat === 'dust' ? 'dust' : null, night);
     let credit = null;
