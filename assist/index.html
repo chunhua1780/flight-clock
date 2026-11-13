@@ -125,6 +125,11 @@ button{font-family:inherit}
 #recenter svg{fill:none;stroke:var(--blue);stroke-width:2;stroke-linejoin:round;transform:rotate(0deg)}
 #recenter.on svg{fill:var(--blue)}
 #b-leg{position:absolute;left:10px;top:10px;z-index:510;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--hud);color:var(--text);font-size:17px;cursor:pointer;padding:0}
+#wwarn{position:absolute;left:50px;top:10px;z-index:515;display:flex;flex-direction:column;gap:6px;max-width:min(360px,calc(100% - 120px))}
+.ww{background:var(--hud);border:2px solid var(--amber);border-radius:12px;padding:8px 32px 8px 10px;position:relative;box-shadow:0 4px 18px rgba(0,0,0,.4);animation:wwp 2s ease-in-out infinite}
+.ww.r{border-color:var(--red)}@keyframes wwp{50%{box-shadow:0 0 0 4px rgba(243,177,60,.25)}}
+.ww b.big{font-size:20px;display:block;margin:1px 0}.ww .ttl{font-size:12px;font-weight:800;color:var(--amber)}.ww.r .ttl{color:var(--red)}.ww .sm{font-size:11.5px;color:var(--dim)}
+.ww .x{position:absolute;right:6px;top:4px;cursor:pointer;color:var(--dim);font-size:18px;padding:2px 6px}.ww .ed{color:var(--blue);cursor:pointer;text-decoration:underline}
 #b-leg.on{border-color:var(--blue);color:var(--blue)}
 #scrub{position:absolute;left:10px;right:62px;bottom:10px;z-index:510;display:none;align-items:center;gap:8px;background:var(--hud);border:1px solid var(--line);border-radius:22px;padding:0 12px;height:44px;box-sizing:border-box;font-size:12px;color:var(--dim)}
 #scrub input{flex:1;accent-color:var(--gold);min-width:60px;height:28px}
@@ -434,6 +439,7 @@ div.en,.wl .en{display:block;margin-left:0}
     <div id="map"></div>
     <button id="recenter" title="回到飞机 / Back to aircraft"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 2 L20 21 L12 16.5 L4 21 Z"/></svg></button>
     <button id="b-leg" title="图例 / Legend">ⓘ</button>
+    <div id="wwarn"></div>
     <div id="legend"></div>
     <div id="scrub"><span id="scrub-a" class="num"></span><input type="range" id="scrub-r" min="0" max="100" step="1" value="0"><span id="scrub-b" class="num"></span></div>
     <button class="btn sm" id="b-rings">◯ 1h / 2h</button>
@@ -1050,8 +1056,43 @@ function tick() {
     '<div class="c"><div class="k">GS</div><div class="v num">' + (p.gs ? Math.round(p.gs) + ' kt' : '—') + '</div></div>' +
     (cf ? '<div class="c cur" onclick="openFir(\'' + cf.code + '\')"><div class="k" style="color:#f2b8ff">' + th('当前管制区', 'Current FIR') + ' ⓘ</div><div class="v">' + esc(cf.name.replace(/ (FIR|UIR)$/, '')) + ' <span style="font-size:12px;color:var(--dim)">' + cf.code + '</span>' + (firNotams(cf.code, cf.tIn, cf.tOut).some(x => x.lv === 'red') ? ' <span class="t-red">●</span>' : firNotams(cf.code, cf.tIn, cf.tOut).some(x => x.lv === 'amber') ? ' <span class="t-amber">●</span>' : '') + '</div></div>' : '') +
     (nf ? '<div class="c fir' + (nf.t - el <= 10 ? ' soon' : '') + '"><div class="k" style="color:#f2b8ff">📻 ' + (nf.t - el <= 10 ? th('准备换频率', 'Change frequency') + ' · ' + Math.max(0, Math.round(nf.t - el)) + ' min' : th('下个移交', 'Next FIR')) + '</div><div class="v num">' + nf.wp + ' ▸ ' + nf.name.replace(/ FIR$/, '') + ' ' + hmZ(atP(nf.t)) + '</div></div>' : '');
-  renderList();
+  renderList(); wwarn(el);
 }
+
+/* ---------------- 重量提醒：起飞接近最大起飞重量 / 落地接近最大落地重量 ---------------- */
+// 起飞：计划起飞重量离限制（MTOW 和 RTOW 取小）不到 1 吨 → 起飞前显示「最大起飞油」= 限制 − ZFW − 0.1 t
+// 落地：计划落地重量离限制（MLWT 和 RLWT 取小）不到 300 kg → 落地前 60 分钟显示「落地不超重的最多剩油」= 限制 − ZFW − 0.1 t
+function wwarn(el) {
+  const box = $('wwarn'); if (!box) return;
+  const o = S.ofp, W = o && o.weights; if (!W || !W.ezfw || !W.etow || !W.elwt) { box.innerHTML = ''; return; }
+  const k = o.flight.no + o.flight.date, zfwA = +lsGet('azfw.' + k) || 0, zfw = zfwA || W.ezfw[0];
+  const tof = (o.fuel && o.fuel.tof && o.fuel.tof.fuel) || (W.etow[0] - W.ezfw[0]), trip = (o.fuel && o.fuel.trip && o.fuel.trip.fuel) || (W.etow[0] - W.elwt[0]);
+  const taxi = (o.fuel && o.fuel.taxi && o.fuel.taxi.fuel) || 0;
+  const towL = Math.min(W.etow[1], W.rtow || 1e9), lwL = Math.min(W.elwt[1], W.rlwt || 1e9);
+  const towM = towL - (zfw + tof), lwM = lwL - (zfw + tof - trip);
+  const t = now(), tripMin = o.times.trip || 0, dis = x => lsGet('wdis.' + k + '.' + x) === '1';
+  const T = v => (v / 1000).toFixed(1) + ' t';
+  let h = '';
+  const toPhase = !S.atd || t < S.atd + 10 * MIN;
+  if (towM < 1000 && toPhase && !dis('to')) {
+    const maxTo = towL - zfw - 100;
+    h += '<div class="ww' + (towM < 0 ? ' r' : '') + '"><span class="x" onclick="wwX(\'to\')">✕</span><span class="ttl">⚠️ ' + (W.rtow && W.rtow < W.etow[1] ? 'RTOW' : 'MTOW') + ' ' + th('起飞重量限制', 'take-off weight limit') + '</span>' +
+      '<b class="big">' + th('最大起飞油 ', 'Max T/O fuel ') + T(maxTo) + '</b><div class="sm">' + th('加油不要超过 ', 'Ramp fuel max ') + T(maxTo + taxi) + th('（含滑行油）', ' (incl. taxi)') + ' · ' + th('计划起飞油 ', 'planned ') + T(tof) + ' · ' + th('余量 ', 'margin ') + Math.round(towM) + ' kg</div>' +
+      '<div class="sm">ZFW ' + T(zfw) + (zfwA ? th('（实际）', ' (actual)') : th('（计划）', ' (plan)')) + ' + ' + th('油', 'fuel') + ' ≤ ' + T(towL) + ' − 0.1 · <span class="ed" onclick="wwZ()">' + th('改 ZFW', 'Edit ZFW') + '</span></div></div>';
+  }
+  const ldgPhase = S.atd && el != null && tripMin - el <= 60 && el < tripMin + 30;
+  if (lwM < 300 && ldgPhase && !dis('ldg')) {
+    const maxLdg = lwL - zfw - 100;
+    h += '<div class="ww' + (lwM < 0 ? ' r' : '') + '"><span class="x" onclick="wwX(\'ldg\')">✕</span><span class="ttl">⚠️ ' + (W.rlwt && W.rlwt < W.elwt[1] ? 'RLWT' : 'MLWT') + ' ' + th('落地重量限制', 'landing weight limit') + '</span>' +
+      '<b class="big">' + th('落地剩油 ≤ ', 'Land with fuel ≤ ') + T(maxLdg) + '</b><div class="sm">' + th('计划落地油 ', 'Planned landing fuel ') + T(tof - trip) + ' · ' + th('计划余量 ', 'planned margin ') + Math.round(lwM) + ' kg · ' + th('剩油多于这个就超重', 'more fuel than this = overweight') + '</div>' +
+      '<div class="sm">ZFW ' + T(zfw) + (zfwA ? th('（实际）', ' (actual)') : th('（计划）', ' (plan)')) + ' + ' + th('油', 'fuel') + ' ≤ ' + T(lwL) + ' − 0.1 · <span class="ed" onclick="wwZ()">' + th('改 ZFW', 'Edit ZFW') + '</span></div></div>';
+  }
+  if (box.innerHTML !== h) box.innerHTML = h;
+}
+function wwX(x) { const o = S.ofp; if (!o) return; lsSet('wdis.' + o.flight.no + o.flight.date + '.' + x, '1'); wwarn(S.elView); toast(th('已确认，这一班不再提醒', 'Acknowledged for this flight'), 2000); }
+function wwZ() { const o = S.ofp; if (!o) return; const k = o.flight.no + o.flight.date, cur = +lsGet('azfw.' + k) || o.weights.ezfw[0];
+  const v = prompt(th('实际 ZFW（kg，按舱单）：', 'Actual ZFW (kg, from the loadsheet):'), String(cur)); if (v == null) return;
+  const n = Math.round(+String(v).replace(/[^\d.]/g, '') * (+v < 1000 ? 1000 : 1)); if (!n || n < 50000) { lsSet('azfw.' + k, ''); } else lsSet('azfw.' + k, String(n)); wwarn(S.elView); }
 
 /* ---------------- 列表 ---------------- */
 // 天气：主要一行 + 可能的情况（按语言）
@@ -1549,7 +1590,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v55';
+const APPV = 'v56';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {

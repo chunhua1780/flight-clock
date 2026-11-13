@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const PV = 5;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
+  const PV = 6;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
   const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
   const hhmm = s => s ? (+s.slice(0, 2)) * 60 + (+s.slice(2, 4)) : null;      // "0752" → 472 分钟
   const ll = s => {                                                          // "N2151.5" / "E11232.8" → 度
@@ -77,6 +77,7 @@
     fuel.tanker = g(/\n\s*((?:NO )?TANKERING[^(\n]*)/);
     out.weights = {};
     [['ezfw', /EZFW\s+(\d+)\s+MZFW\s+(\d+)/], ['etow', /ETOW\s+(\d+)\s+MTOW\s+(\d+)/], ['elwt', /ELWT\s+(\d+)\s+MLWT\s+(\d+)/]].forEach(([k, re]) => { const m = re.exec(T1); if (m) out.weights[k] = [+m[1], +m[2]]; });
+    { const r1 = /RTOW\s+(\d{5,6})/.exec(T1), r2 = /RLWT\s+(\d{5,6})/.exec(T1); if (r1) out.weights.rtow = +r1[1]; if (r2) out.weights.rlwt = +r2[1]; }   // 性能限制的起飞 / 落地重量
     // 签派简报 / 释压改航点
     const di = L.findIndex(l => /DISPATCH\s+BRIEFING\s+INFO/.test(l));
     out.dispatch = [];
