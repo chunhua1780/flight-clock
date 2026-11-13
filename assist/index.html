@@ -39,7 +39,7 @@ button{font-family:inherit}
 @media (max-width:980px){#top{flex-wrap:wrap!important;row-gap:6px}#top .rt{display:none}.sw .en{display:none}#top{min-width:0}}
 #app>*{min-width:0}
 #swbox{display:flex;gap:12px;align-items:center}
-#zfwbox{display:inline-flex;align-items:center;gap:4px;margin-left:8px}#zfw{width:62px;background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:15px;font-weight:700;padding:5px 6px;text-align:center}#zfw::placeholder{color:var(--dim);font-weight:400}#zfw.act{border-color:var(--amber);color:var(--amber)}
+#zfw{margin-left:8px;font-variant-numeric:tabular-nums;white-space:nowrap}#zfw .z{color:var(--dim);font-weight:400;font-size:11px}#zfw.act{border-color:var(--amber);color:var(--amber)}
 #atd-day{background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:12.5px;padding:5px 4px;margin-left:4px;max-width:92px}
 .pfbox{position:relative;display:inline-flex;align-items:center;gap:4px}
 #pf-more{cursor:pointer;color:var(--dim);font-size:16px;line-height:1;padding:2px 6px;border-radius:8px;border:1px solid var(--line)}
@@ -429,7 +429,7 @@ div.en,.wl .en{display:block;margin-left:0}
     <span class="fl" id="t-fl" title="点这里切换 OFP">Flight Assist</span><span id="ofpmenu"></span>
     <span class="rt" id="t-rt" data-i="载入 OFP 开始|Load an OFP to start"></span>
     <span class="sp"></span>
-    <span id="atdbox"><span style="font-size:12px;color:var(--dim)">ATD</span><input id="atd" inputmode="numeric" maxlength="4" placeholder="HHMM"><select id="atd-day" title="起飞日期（UTC）"></select><span style="font-size:12px;color:var(--dim)">Z</span><button class="btn sm pri" id="b-atdok" data-i="确定|OK"></button></span><span id="zfwbox" title="实际无油重量（按舱单）；不填就用 OFP 的"><span style="font-size:12px;color:var(--dim)">ZFW</span><input id="zfw" inputmode="decimal" maxlength="7" placeholder="—"><span style="font-size:12px;color:var(--dim)">t</span></span>
+    <span id="atdbox"><span style="font-size:12px;color:var(--dim)">ATD</span><input id="atd" inputmode="numeric" maxlength="4" placeholder="HHMM"><select id="atd-day" title="起飞日期（UTC）"></select><span style="font-size:12px;color:var(--dim)">Z</span><button class="btn sm pri" id="b-atdok" data-i="确定|OK"></button></span><button class="btn sm" id="zfw" title="实际无油重量：点一下输入；不点就用 OFP 的">ZFW —</button>
     <span id="utc" class="num">--:--<small>UTC</small></span>
         <span id="swbox"><span class="sw" id="sw-wp"><b></b><span data-i="航路点|Waypoints"></span></span><span class="sw" id="sw-side"><b></b><span data-i="备降场|Airports"></span></span><span class="pfbox"><span class="sw" id="sw-pf"><b></b><span data-i="起落|My T/O·LDG"></span></span><span id="pf-more" title="细选">⋯</span><span id="pf-menu"></span></span></span>
     <button class="btn sm" id="b-theme" style="min-width:38px"></button>
@@ -1092,16 +1092,19 @@ function wwarn(el) {
 }
 const WWM = 2000;   // 余量少于 2 吨才提醒（2 吨以上不提醒）
 // 顶栏的 ZFW 框：不填 = 用 OFP 的 EZFW（灰字显示）；填了 = 用实际 ZFW 计算
-function zfwBox() { const o = S.ofp, i = $('zfw'); if (!i) return; if (!o || !o.weights || !o.weights.ezfw) { i.value = ''; i.placeholder = '—'; i.classList.remove('act'); return; }
+function zfwBox() { const o = S.ofp, i = $('zfw'); if (!i) return; if (!o || !o.weights || !o.weights.ezfw) { i.textContent = 'ZFW —'; i.classList.remove('act'); return; }
   const k = o.flight.no + o.flight.date, a = +lsGet('azfw.' + k) || 0;
-  i.placeholder = (o.weights.ezfw[0] / 1000).toFixed(1); if (document.activeElement !== i) i.value = a ? (a / 1000).toFixed(1) : ''; i.classList.toggle('act', !!a); }
+  const h = 'ZFW ' + ((a || o.weights.ezfw[0]) / 1000).toFixed(1) + ' <span class="z">' + (a ? th('实际', 'actual') : 'OFP') + '</span>'; if (i.innerHTML !== h) i.innerHTML = h; i.classList.toggle('act', !!a); }
 function zfwSet(v) { const o = S.ofp; if (!o) { toast(th('先载入 OFP', 'Load an OFP first')); return; } const k = o.flight.no + o.flight.date;
   v = String(v || '').trim().replace(',', '.'); if (!v) { lsSet('azfw.' + k, ''); toast(th('ZFW 改回 OFP 的 ', 'ZFW back to OFP ') + (o.weights.ezfw[0] / 1000).toFixed(1) + ' t', 2500); }
   else { const n = Math.round(+v.replace(/[^\d.]/g, '') * (+v < 1000 ? 1000 : 1)); if (!n || n < 50000 || n > 400000) { toast(th('ZFW 不对，例如 246.6', 'Invalid ZFW, e.g. 246.6')); zfwBox(); return; }
     lsSet('azfw.' + k, String(n)); toast('ZFW ' + (n / 1000).toFixed(1) + ' t ' + th('（实际，按这个算起降重量）', '(actual — used for the weight checks)'), 2500); }
   zfwBox(); wwarn(S.elView); }
-$('zfw').addEventListener('change', () => zfwSet($('zfw').value));
-$('zfw').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('zfw').blur(); } });
+// 点 ZFW 按钮：输入舱单上的实际 ZFW；清空 = 用回 OFP 的
+$('zfw').onclick = () => { const o = S.ofp; if (!o || !o.weights || !o.weights.ezfw) { toast(th('先载入 OFP', 'Load an OFP first')); return; }
+  const k = o.flight.no + o.flight.date, a = +lsGet('azfw.' + k) || 0, ofp = (o.weights.ezfw[0] / 1000).toFixed(1);
+  const v = prompt(th('实际 ZFW（吨，按舱单），例如 247.2\n留空 = 用 OFP 的 ' + ofp + ' t', 'Actual ZFW (t, from the loadsheet), e.g. 247.2\nLeave blank = OFP ' + ofp + ' t'), a ? (a / 1000).toFixed(1) : '');
+  if (v != null) zfwSet(v); };
 function wwX(x) { const o = S.ofp; if (!o) return; lsSet('wdis.' + o.flight.no + o.flight.date + '.' + x, '1'); wwarn(S.elView); toast(th('已确认，这一班不再提醒', 'Acknowledged for this flight'), 2000); }
 function wwZ() { const o = S.ofp; if (!o) return; const k = o.flight.no + o.flight.date, cur = +lsGet('azfw.' + k) || o.weights.ezfw[0];
   const v = prompt(th('实际 ZFW（kg，按舱单）：', 'Actual ZFW (kg, from the loadsheet):'), String(cur)); if (v == null) return;
@@ -1603,7 +1606,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v57';
+const APPV = 'v58';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
