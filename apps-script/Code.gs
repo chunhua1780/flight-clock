@@ -858,8 +858,8 @@ function lbSync_(j) {
 // ======== 邮箱里的 OFP（PDF）：飞行助手来取，在 iPad 上读 ========
 // 在 Lido 里把 OFP 的 PDF 用邮件发给自己（发到这个 Google 账号）就行。
 function ofpMail_(j) {
-  const days = Math.min(10, Math.max(1, +j.days || 4)), out = [];
-  GmailApp.search('has:attachment {filename:pdf filename:docx filename:doc filename:rtf filename:txt filename:odt} newer_than:' + days + 'd', 0, 30).forEach(function (th) {
+  const days = Math.min(400, Math.max(1, +j.days || 4)), out = [];   // 「全部日期」时最多看 400 天
+  GmailApp.search('has:attachment {filename:pdf filename:docx filename:doc filename:rtf filename:txt filename:odt} newer_than:' + days + 'd', 0, days > 10 ? 100 : 30).forEach(function (th) {
     th.getMessages().forEach(function (m) {
       m.getAttachments({ includeInlineImages: false }).forEach(function (a, i) {
         const name = a.getName() || '';
@@ -875,7 +875,7 @@ function ofpMail_(j) {
   try { events_(new Date(now - 2 * 864e5), new Date(now + 4 * 864e5)).forEach(function (ev) { legsOf_(ev).forEach(function (l) { legs.push({ digits: l.digits, origin: l.origin, dest: l.dest, std: l.std, sta: l.sta }); }); }); } catch (e) {}
   // 顺便把 GitHub 同步码交给 iPad（只有带对口令的请求能拿到）：在中国 Google 连不上时，iPad 自动改从 GitHub 收
   const pr = PropertiesService.getScriptProperties(), tok = pr.getProperty('GITHUB_TOKEN') || (typeof GITHUB_TOKEN_INLINE !== 'undefined' ? GITHUB_TOKEN_INLINE : '');
-  return { ok: true, files: out.slice(0, 20), legs: legs, gh: tok ? { tok: tok, repo: pr.getProperty('GITHUB_REPO') || GITHUB_REPO_INLINE } : null };
+  return { ok: true, files: out.slice(0, days > 10 ? 80 : 20), legs: legs, gh: tok ? { tok: tok, repo: pr.getProperty('GITHUB_REPO') || GITHUB_REPO_INLINE } : null };
 }
 function ofpGet_(j) {
   const p = String(j.id || '').split(':'), m = GmailApp.getMessageById(p[0]);

@@ -30,7 +30,9 @@
   const remember = () => snap(ls('ofpk'), S.atd, S.fix);
   async function activate(k, quiet) {
     const e = await get(k); if (!e) return false;
-    if (!useText(e.text)) return false;   // useText 会先记下上一班的起飞时间，再把这一班设为当前
+    if (!quiet) ls('ofppin', String(Date.now()));   // 自己选的：12 小时内不自动换走（看旧的 / 演示）
+    useText.auto = !!quiet; const okT = useText(e.text); useText.auto = false;   // useText 会先记下上一班的起飞时间，再把这一班设为当前
+    if (!okT) return false;
     setATD(e.atd || null);
     if (e.fix) { S.fix = e.fix; ls('fix', JSON.stringify(e.fix)); if (typeof fixBar === 'function') fixBar(); tick(); }
     if (!quiet) toast('✈️ ' + T('已切换到 ', 'Switched to ') + e.no + ' ' + e.dep + '→' + e.arr, 3000);
@@ -39,6 +41,7 @@
   const endOf = e => (e.std || 0) + ((e.trip || 0) + 120) * 60e3;            // 计划落地后 2 小时算这一班结束
   // 自动：现在这一班已经飞完、库里有下一班 → 换过去；还没有任何 OFP → 用最近的那一班
   async function auto() {
+    if (Date.now() - +(ls('ofppin') || 0) < 12 * 36e5) return;
     const L = (await all()).filter(e => endOf(e) > Date.now()).sort((a, b) => a.std - b.std); if (!L.length) return;
     const curK = ls('ofpk'), cur = curK ? await get(curK) : null, next = L[0];
     if (!S.ofp || !cur || (endOf(cur) < Date.now() && next.k !== cur.k)) await activate(next.k, !S.ofp);
@@ -54,7 +57,7 @@
   let SRC = 'google';
   // Google 通的时候，后台顺便把 GitHub 同步码交给 iPad；去中国时自动改走 GitHub
   async function listMail0(days) {
-    if (ls('key')) { try { const j = await withTimeout(postK({ action: 'ofpmail', days }), 12000); if (j && j.ok) { SRC = 'google'; if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); } return j; } } catch (e) {} }
+    if (ls('key')) { try { const j = await withTimeout(postK({ action: 'ofpmail', days }), days > 10 ? 90000 : 12000); if (j && j.ok) { SRC = 'google'; if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); } return j; } } catch (e) {} }
     const g = GH();
     if (!g.tok) return ls('key') ? { ok: false, error: T('连不上 Google（在中国？）。填了中国同步码就能从 GitHub 收 OFP。', 'Cannot reach Google. Add the China sync key to receive OFPs via GitHub.') } : { ok: false, nokey: true, error: T('这台设备还没填口令', 'No password on this device') };
     try { const r = await withTimeout(fetch('https://api.github.com/repos/' + g.repo + '/contents/ofp/index.json?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + g.tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' }), 20000);
@@ -93,14 +96,15 @@
   }
   const postK = body => fetch(clockUrl() + '?k=' + encodeURIComponent(ls('key')), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch (e) { return { ok: false, error: t.slice(0, 120) }; } });
   // 最近 6 天的 OFP 列表：iPad 上已有的 + 邮箱里还没下载的，点哪份用哪份；「📧 收邮件」再查一次
+  let ALL = false;
   let ML = (() => { try { return JSON.parse(ls('maillist') || '[]'); } catch (e) { return []; } })(), MLmsg = '';
   async function pick(refresh) {
     const box = document.getElementById('mailpick'); if (!box) return;
     box.classList.add('open'); await drawPick();
     if (refresh === false) return;
     if (!navigator.onLine) { MLmsg = '📵 ' + T('离线：显示的是上次收到的', 'Offline — showing the last list'); drawPick(); return; }
-    MLmsg = '⏳ ' + T('正在收邮件…', 'Checking mail…'); drawPick();
-    const j = await listMail(6);
+    MLmsg = '⏳ ' + (ALL ? T('正在搜索全部邮件…（可能要半分钟到一分钟）', 'Searching the whole mailbox… (30–60 s)') : T('正在收邮件…', 'Checking mail…')); drawPick();
+    const j = await listMail(ALL ? 400 : 6);
     if (!j.ok) { MLmsg = j.nokey ? '🔑 ' + T('先在上面填口令', 'Enter the password above first') : '⚠️ ' + (j.error || ''); drawPick(); return; }
     const legs = j.legs || [], seenK = new Set();
     ML = (j.files || []).filter(isOfp).filter(f => { const k = f.name + '|' + f.size; if (seenK.has(k)) return false; seenK.add(k); return true; })
@@ -111,7 +115,7 @@
   }
   async function drawPick() {
     const box = document.getElementById('mailpick'); if (!box) return;
-    const lib = (await all()).filter(e => Date.now() - (e.std || 0) < 6 * 864e5 || endOf(e) > Date.now()).sort((a, b) => a.std - b.std), cur = ls('ofpk');
+    const lib = (await all()).filter(e => ALL || Date.now() - (e.std || 0) < 6 * 864e5 || endOf(e) > Date.now()).sort((a, b) => ALL ? b.std - a.std : a.std - b.std), cur = ls('ofpk');
     const libNames = new Set(lib.map(e => e.name).filter(Boolean)), z2 = n => String(n).padStart(2, '0');
     const when = t => { const d = new Date(t); return z2(d.getDate()) + '/' + z2(d.getMonth() + 1) + ' ' + z2(d.getHours()) + ':' + z2(d.getMinutes()); };
     const hm = t => t ? z2(new Date(t).getUTCHours()) + z2(new Date(t).getUTCMinutes()) + 'Z' : '';
@@ -123,7 +127,7 @@
         '<div class="mp-s">' + esc(f.subject || '') + ' · ' + T('收到', 'received') + ' ' + when(f.t) + ' · ' + (f.size / 1e6).toFixed(1) + ' MB</div></div>'; }).join('');
     const keyForm = !ls('key') ? '<div class="mp-k"><b>🔑 ' + T('这台设备还没填口令', 'This device has no password yet') + '</b><div class="ldim">' + T('从桌面图标打开的 Flight Assist 和 Safari 里的是分开存的，要在这里再填一次（只要一次）。', 'The home-screen app keeps its own storage — enter it once here.') + '</div>' +
       '<div class="row"><input id="mp-key" type="password" placeholder="' + T('口令', 'Password') + '" autocomplete="off"><button class="btn sm pri" onclick="OFL.saveKeys()">' + T('保存并收邮件', 'Save & check mail') + '</button></div></div>' : '';
-    box.innerHTML = keyForm + '<div class="mp-h">✈️ ' + T('最近 6 天的 OFP', 'OFPs — last 6 days') + '<button class="btn sm" style="margin-left:auto" onclick="OFL.pick()">📧 ' + T('收邮件', 'Check mail') + '</button><span class="mp-x" onclick="OFL.pickClose()">✕</span></div>' +
+    box.innerHTML = keyForm + '<div class="mp-h">✈️ ' + (ALL ? T('全部 OFP（不限日期）', 'All OFPs (any date)') : T('最近 6 天的 OFP', 'OFPs — last 6 days')) + '<button class="btn sm' + (ALL ? ' pri' : '') + '" style="margin-left:auto" onclick="OFL.allDays()">📅 ' + (ALL ? T('只看最近 6 天', 'Last 6 days') : T('全部日期', 'All dates')) + '</button><button class="btn sm" style="margin-left:6px" onclick="OFL.pick()">📧 ' + T('收邮件', 'Check mail') + '</button><span class="mp-x" onclick="OFL.pickClose()">✕</span></div>' +
       (rowsLib + rowsMail || '<div class="mp-e">' + T('还没有 OFP。在 Lido 里把 OFP 发到你的邮箱，再点「收邮件」。', 'No OFP yet. Email the OFP from Lido, then tap “Check mail”.') + '</div>') +
       (MLmsg ? '<div class="mp-m">' + MLmsg + '</div>' : '');
     box.querySelectorAll('.mp-i.lib').forEach(el => el.onclick = () => activate(el.dataset.k));
@@ -183,7 +187,7 @@
   }
   async function remove(k) { if (!confirm(T('从这台 iPad 删除这份 OFP？', 'Remove this OFP from this iPad?'))) return; await del(k); if (ls('ofpk') === k) ls('ofpk', ''); menu(true); }
 
-  window.OFL = { saveKeys() { const k = (document.getElementById('mp-key') || {}).value, g = (document.getElementById('mp-gh') || {}).value; if (k && k.trim()) ls('key', k.trim()); if (g && g.trim()) ls('ghtok', g.trim()); if (typeof $ === 'function' && $('s-key')) $('s-key').value = ls('key') || ''; pick(); }, save, activate, auto, mail, menu, remove, all, keyOf, remember, snap, get, pick, pickClose: () => { const b = document.getElementById('mailpick'); if (b) b.classList.remove('open'); } };
+  window.OFL = { allDays() { ALL = !ALL; ML = []; pick(); }, saveKeys() { const k = (document.getElementById('mp-key') || {}).value, g = (document.getElementById('mp-gh') || {}).value; if (k && k.trim()) ls('key', k.trim()); if (g && g.trim()) ls('ghtok', g.trim()); if (typeof $ === 'function' && $('s-key')) $('s-key').value = ls('key') || ''; pick(); }, save, activate, auto, mail, menu, remove, all, keyOf, remember, snap, get, pick, pickClose: () => { const b = document.getElementById('mailpick'); if (b) b.classList.remove('open'); } };
   document.addEventListener('click', e => { if (open && !e.target.closest('#ofpmenu') && !e.target.closest('#t-fl')) menu(false); });
   window.addEventListener('online', () => mail(true));
   setTimeout(() => { auto(); mail(true); }, 5000);
