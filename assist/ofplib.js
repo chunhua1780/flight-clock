@@ -189,5 +189,13 @@
   setTimeout(() => { auto(); mail(true); }, 5000);
   setInterval(() => { auto(); }, 5 * 60e3);
   setInterval(() => mail(true), 10 * 60e3);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { auto(); mail(true); } });
+  // 从快捷指令「Paste OFP」回来：每 4 秒看一次 GitHub 上传，最多 1 分钟，收到就打开
+  async function pollUp() {
+    const t = +(ls('expectUp') || 0); if (!t || Date.now() - t > 5 * 60e3) return;
+    ls('expectUp', '0'); toast('📲 ' + T('正在接收刚复制的 OFP…', 'Receiving the copied OFP…'), 4000);
+    const before = ls('ofpk');
+    for (let i = 0; i < 15; i++) { await mail(true); if (ls('ofpk') !== before || mailMsg.indexOf('📧') === 0) return; await new Promise(r => setTimeout(r, 4000)); }
+    toast(T('还没收到。看看快捷指令有没有显示「✅ Sent」，然后点「📧 收邮件」再试。', 'Not received yet. Check the shortcut showed “✅ Sent”, then tap “Check mail”.'), 7000);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { auto(); if (+(ls('expectUp') || 0) > Date.now() - 5 * 60e3) pollUp(); else mail(true); } });
 })();
