@@ -36,7 +36,8 @@ button{font-family:inherit}
 .sw b:after{content:'';position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .2s}
 .sw.on b{background:var(--green)}.sw.on b:after{transform:translateX(14px)}
 .sw.on{color:var(--text)}
-@media (max-width:980px){#top{flex-wrap:wrap!important;row-gap:6px}#top .rt{display:none}.sw .en{display:none}#top{min-width:0}}
+@media (max-width:1500px){#top{flex-wrap:wrap!important;row-gap:6px}.sw .en{display:none}#top{min-width:0}#b-load .en{display:none}}
+@media (max-width:980px){#top .rt{display:none}}
 #app>*{min-width:0}
 #swbox{display:flex;gap:12px;align-items:center}
 #zfw{margin-left:8px;font-variant-numeric:tabular-nums;white-space:nowrap}#zfw .z{color:var(--dim);font-weight:400;font-size:11px}#zfw.act{border-color:var(--amber);color:var(--amber)}
@@ -426,6 +427,7 @@ div.en,.wl .en{display:block;margin-left:0}
 <div id="app">
   <div id="top">
     <button id="b-upd" title="Refresh">⟳<span id="b-upd-t"></span></button>
+    <button class="btn sm pri" id="b-load" title="载入 / 粘贴 / 从邮箱选 OFP">📄 <span data-i="载入 OFP|Load OFP"></span></button>
     <span class="fl" id="t-fl" title="点这里切换 OFP">Flight Assist</span><span id="ofpmenu"></span>
     <span class="rt" id="t-rt" data-i="载入 OFP 开始|Load an OFP to start"></span>
     <span class="sp"></span>
@@ -434,7 +436,6 @@ div.en,.wl .en{display:block;margin-left:0}
         <span id="swbox"><span class="sw" id="sw-wp"><b></b><span data-i="航路点|Waypoints"></span></span><span class="sw" id="sw-side"><b></b><span data-i="备降场|Airports"></span></span><span class="pfbox"><span class="sw" id="sw-pf"><b></b><span data-i="起落|My T/O·LDG"></span></span><span id="pf-more" title="细选">⋯</span><span id="pf-menu"></span></span></span>
     <button class="btn sm" id="b-theme" style="min-width:38px"></button>
     <button class="btn sm" id="b-lang" style="min-width:52px"></button>
-    <button class="btn sm" id="b-load">OFP</button>
   </div>
   <div id="mapwrap">
     <div id="map"></div>
@@ -1305,7 +1306,7 @@ function atdDays() {
   const sel = $('atd-day'); if (!sel) return; const std = S.ofp && (S.ofp.times.std || S.ofp.flight.dateUTC);
   const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'], lab = k => { const d = new Date(std + k * 864e5); return z2(d.getUTCDate()) + MON[d.getUTCMonth()]; };
   const cur = sel.value || 'auto';
-  sel.innerHTML = '<option value="auto">' + th('日期自动', 'Date auto') + '</option>' + (std ? [-1, 0, 1, 2].map(k => '<option value="' + k + '">' + lab(k) + (k === 0 ? ' (STD)' : k === 1 ? ' +1' : k === 2 ? ' +2' : ' −1') + '</option>').join('') : '');
+  sel.innerHTML = '<option value="auto">' + tt('自动', 'Auto') + '</option>' + (std ? [-1, 0, 1, 2].map(k => '<option value="' + k + '">' + lab(k) + (k === 0 ? ' (STD)' : k === 1 ? ' +1' : k === 2 ? ' +2' : ' −1') + '</option>').join('') : '');
   // 已经有 ATD：显示它是哪一天
   if (S.atd && std) { const k = Math.round((Date.UTC(new Date(S.atd).getUTCFullYear(), new Date(S.atd).getUTCMonth(), new Date(S.atd).getUTCDate()) - Date.UTC(new Date(std).getUTCFullYear(), new Date(std).getUTCMonth(), new Date(std).getUTCDate())) / 864e5); sel.value = [-1, 0, 1, 2].includes(k) ? String(k) : 'auto'; }
   else sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'auto';
@@ -1611,7 +1612,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v60';
+const APPV = 'v61';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
