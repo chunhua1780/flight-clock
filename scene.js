@@ -324,5 +324,11 @@
   }).catch(() => {});
 
   let remoteFn = null, verifyFn = null;
-  window.Scene = { setRemote: fn => { remoteFn = fn; }, setVerify: fn => { verifyFn = fn; }, update, clear, weatherCat, phaseOf, sunAlt, CAT_ZH, LIB };
+  // iPad Safari 有时（睡眠唤醒、切回来、内存紧张）把大图层丢掉不重画 → 黑屏：把照片层重新画一次
+  function repaint() {
+    document.querySelectorAll('.scene .sc-img').forEach(x => { const b = x.style.backgroundImage; if (!b || b === 'none') return; x.style.backgroundImage = 'none'; void x.offsetWidth; x.style.backgroundImage = b; });
+  }
+  ['visibilitychange', 'pageshow', 'focus'].forEach(ev => window.addEventListener(ev, () => { if (document.visibilityState !== 'hidden') setTimeout(repaint, 300); }));
+  setInterval(repaint, 3 * 60e3);
+  window.Scene = { repaint, setRemote: fn => { remoteFn = fn; }, setVerify: fn => { verifyFn = fn; }, update, clear, weatherCat, phaseOf, sunAlt, CAT_ZH, LIB };
 })();

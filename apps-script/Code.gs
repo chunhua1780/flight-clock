@@ -132,6 +132,8 @@ function doGet(e) {
       const leg = p.o && p.d && p.std ? { origin: p.o, dest: p.d, std: +p.std, sta: +p.sta || 0 } : null;
       return out_(track_(p.cs, leg));
     }
+    // 时钟的自动诊断（背景状态等技术信息）：存最近 30 条
+    if (p.action === 'cdiag') { const pr = PropertiesService.getScriptProperties(); let L = []; try { L = JSON.parse(pr.getProperty('diag_log') || '[]'); } catch (e) {} L.push({ t: Date.now(), r: JSON.stringify({ ev: 'clock', d: String(p.d || '').slice(0, 1800) }) }); pr.setProperty('diag_log', JSON.stringify(L.slice(-30))); return out_({ ok: true }); }
     if (p.action === 'logtimes') return out_(logTimes_(p));   // 飞行记录本：这一班 ADS-B 判断的滑出 / 起飞 / 落地时间
     if (p.action === 'ics') return out_(flights_(p.url));
     return out_(flights_());

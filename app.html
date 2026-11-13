@@ -34,7 +34,7 @@ body.dim #app, body.dim #bg{opacity:.5}
 body[data-mode=home] #sc-a, body[data-mode=layover] #sc-a, body[data-mode=layover] #sc-b{display:block}
 body[data-mode=layover] #sc-a{right:50%}
 body[data-mode=layover] #sc-b{left:50%}
-.sc-img{position:absolute;inset:-4%;background-size:cover;background-repeat:no-repeat;opacity:0;transition:opacity 1.6s ease, filter 2s ease;animation:kb 120s ease-in-out infinite alternate;will-change:transform}
+.sc-img{position:absolute;inset:-4%;background-size:cover;background-repeat:no-repeat;opacity:0;transition:opacity 1.6s ease, filter 2s ease;animation:kb 120s ease-in-out infinite alternate}
 .sc-img.on{opacity:1}
 @keyframes kb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.07) translate(-1.2%,-.8%)}}
 .sc-tint,.sc-fog,.sc-fx,.sc-shade{position:absolute;inset:0;pointer-events:none}
@@ -1413,7 +1413,7 @@ async function pexelsPhoto(city, phase, cat) {
     if (!ok.length) continue;
     const start = strHash(day + '|' + t.q) % ok.length;
     for (let n = 0; n < Math.min(4, ok.length); n++) {
-      const ph = ok[(start + n) % ok.length], url = ph.s + '?auto=compress&cs=tinysrgb&w=1920';
+      const ph = ok[(start + n) % ok.length], url = ph.s + '?auto=compress&cs=tinysrgb&w=1600';
       if (await photoFits(url, phase, cat)) return { url, wx: t.wx, ph: t.ph, credit: { by: ph.by, license: 'Pexels', url: ph.u } };
     }
   }
@@ -1493,7 +1493,8 @@ function remotePhoto(city, phase, cat, cb) {
     for (const c of qs) {
       let j;
       try { j = await (await fetchT(apiUrl({ action: 'photo', city: c.q, phase: 'day', wx: 'clear', d: slot }), 15000)).json(); } catch (e) { return; }
-      if (j.ok && j.url) { if (!(await photoFits(j.url, phase, cat))) continue; return done({ url: j.url, wx: c.wx, ph: c.ph, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } }); }
+      if (j.ok && j.url) { j.url = j.url.replace(/([?&])w=1920/, '$1w=1600');   // 小一点，iPad 显存压力小
+        if (!(await photoFits(j.url, phase, cat))) continue; return done({ url: j.url, wx: c.wx, ph: c.ph, credit: { by: j.by, license: j.source || 'Unsplash', url: j.link } }); }
       if (j.flights || j.error === 'no UNSPLASH_KEY') { photoOff = true; return; } // 旧版脚本或还没设 Key：用内置照片
     }
   })();
@@ -1620,6 +1621,18 @@ addEventListener('resize', () => { if (map && L_route && document.body.dataset.m
 
 /* ---------- 自动更新：发现新版本就自己刷新（kiosk 里不用手动刷新） ---------- */
 const APP_VER = '__APP_VER__';
+// ---------- 自动诊断：时钟定期把背景状态报给后台（只是技术信息），方便远程排查黑屏 ----------
+const CDIAG = { errs: [], wake: 0, t0: Date.now() };
+window.addEventListener('error', e => { CDIAG.errs.push(String(e.message || e).slice(0, 120)); CDIAG.errs = CDIAG.errs.slice(-5); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { CDIAG.wake++; setTimeout(() => cdiag('wake'), 4000); } });
+function cdiag(ev) {
+  try {
+    const sc = id => { const e = $(id); if (!e) return null; return { d: getComputedStyle(e).display, ph: e.dataset.phase, cat: e.dataset.cat, L: [...e.querySelectorAll('.sc-img')].map(x => (x.classList.contains('on') ? '1' : '0') + getComputedStyle(x).opacity.slice(0, 4) + ' ' + (x.style.backgroundImage || 'none').replace(/^url\("?|"?\)$/g, '').slice(-60)) }; };
+    const r = { ev, v: APP_VER, ua: navigator.userAgent.slice(0, 120), up: Math.round((Date.now() - CDIAG.t0) / 60000), wake: CDIAG.wake, mode: document.body.dataset.mode, dim: document.body.classList.contains('dim'), vis: document.visibilityState, scr: innerWidth + 'x' + innerHeight + '@' + devicePixelRatio, a: sc('sc-a'), b: sc('sc-b'), errs: CDIAG.errs };
+    fetch(apiUrl({ action: 'cdiag', d: JSON.stringify(r).slice(0, 1800) }), { cache: 'no-store' }).catch(() => {});
+  } catch (e) {}
+}
+setTimeout(() => cdiag('start'), 20000); setInterval(() => cdiag('tick'), 30 * MIN);
 // 在外壳（index.html）里运行时，由外壳负责无缝更新；直接打开 app.html 时才自己刷新
 if (window.top === window.self) setInterval(() => {
   fetch('version.txt?_=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(v => {
