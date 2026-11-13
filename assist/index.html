@@ -1066,13 +1066,10 @@ function tick() {
 function wwarn(el) {
   const box = $('wwarn'); if (!box) return;
   const o = S.ofp; if (!o) { box.innerHTML = ''; return; }
-  // 每架飞机的最大重量都不一样：以这份 OFP 为准，并按注册号记下来；OFP 里读不到时才用同一架飞机以前的
-  const reg = (o.flight.reg || '').toUpperCase(), AC = (() => { try { return JSON.parse(lsGet('aclim') || '{}'); } catch (e) { return {}; } })();
-  let W = o.weights || {};
-  if (reg && W.etow && W.elwt && W.ezfw) { const n = { mzfw: W.ezfw[1], mtow: W.etow[1], mlwt: W.elwt[1], type: o.flight.type || '', at: Date.now() }, c = AC[reg];
-    if (!c || c.mzfw !== n.mzfw || c.mtow !== n.mtow || c.mlwt !== n.mlwt) { AC[reg] = n; lsSet('aclim', JSON.stringify(AC)); } }
-  else if (reg && AC[reg] && W.ezfw) { const c = AC[reg]; W = Object.assign({}, W, { etow: W.etow || [W.ezfw[0] + ((o.fuel && o.fuel.tof && o.fuel.tof.fuel) || 0), c.mtow], elwt: W.elwt || [0, c.mlwt] }); }
-  if (!W.ezfw || !W.etow || !W.elwt) { box.innerHTML = ''; return; }
+  // 每架飞机（777-300 / 777-300ER / 777F……）的最大重量都不一样：只用这份 OFP 上印的，不用任何记住的或默认的数
+  const reg = (o.flight.reg || '').toUpperCase(), W = o.weights || {};
+  if (!W.ezfw || !W.etow || !W.elwt) { const h0 = lsGet('wdis.' + o.flight.no + o.flight.date + '.miss') === '1' ? '' : '<div class="ww r"><span class="x" onclick="wwX(\'miss\')">✕</span><span class="ttl">⚠️ ' + th('OFP 里没读到重量限制', 'Weight limits not found in the OFP') + '</span><div class="sm">' + th('这份 OFP 的 EZFW / ETOW / ELWT（MZFW / MTOW / MLWT）这几行没读出来，起降重量提醒不可用。请直接看 OFP 首页核对。', 'The EZFW / ETOW / ELWT lines could not be read — weight alerts are off. Check the OFP front page.') + '</div></div>';
+    if (box.innerHTML !== h0) box.innerHTML = h0; return; }
   const k = o.flight.no + o.flight.date, zfwA = +lsGet('azfw.' + k) || 0, zfw = zfwA || W.ezfw[0];
   const tof = (o.fuel && o.fuel.tof && o.fuel.tof.fuel) || (W.etow[0] - W.ezfw[0]), trip = (o.fuel && o.fuel.trip && o.fuel.trip.fuel) || (W.etow[0] - W.elwt[0]);
   const taxi = (o.fuel && o.fuel.taxi && o.fuel.taxi.fuel) || 0;
@@ -1101,6 +1098,7 @@ const WWM = 2000;   // 余量少于 2 吨才提醒（2 吨以上不提醒）
 // 顶栏的 ZFW 框：不填 = 用 OFP 的 EZFW（灰字显示）；填了 = 用实际 ZFW 计算
 function zfwBox() { const o = S.ofp, i = $('zfw'); if (!i) return; if (!o || !o.weights || !o.weights.ezfw) { i.textContent = 'ZFW —'; i.classList.remove('act'); return; }
   const k = o.flight.no + o.flight.date, a = +lsGet('azfw.' + k) || 0;
+  const W = o.weights; i.title = (o.flight.reg || '') + ' ' + (o.flight.type || '') + ' · OFP: MZFW ' + (W.ezfw[1] / 1000).toFixed(1) + (W.etow ? ' · MTOW ' + (W.etow[1] / 1000).toFixed(1) : '') + (W.rtow ? ' · RTOW ' + (W.rtow / 1000).toFixed(1) : '') + (W.elwt ? ' · MLWT ' + (W.elwt[1] / 1000).toFixed(1) : '') + (W.rlwt ? ' · RLWT ' + (W.rlwt / 1000).toFixed(1) : '');
   const h = 'ZFW ' + ((a || o.weights.ezfw[0]) / 1000).toFixed(1) + ' <span class="z">' + (a ? th('实际', 'actual') : 'OFP') + '</span>'; if (i.innerHTML !== h) i.innerHTML = h; i.classList.toggle('act', !!a); }
 function zfwSet(v) { const o = S.ofp; if (!o) { toast(th('先载入 OFP', 'Load an OFP first')); return; } const k = o.flight.no + o.flight.date;
   v = String(v || '').trim().replace(',', '.'); if (!v) { lsSet('azfw.' + k, ''); toast(th('ZFW 改回 OFP 的 ', 'ZFW back to OFP ') + (o.weights.ezfw[0] / 1000).toFixed(1) + ' t', 2500); }
@@ -1613,7 +1611,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v59';
+const APPV = 'v60';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
