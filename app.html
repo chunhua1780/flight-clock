@@ -376,7 +376,7 @@ if (TRIP) {
   const n0 = Date.now.bind(Date), R0 = Math.ceil((n0() + 3000) / 6e4) * 6e4, V0 = Date.UTC(2026, 10, 13, 7, 0);
   const K = [[0, 0], [4, .8], [7, 1.5], [19, 11.4], [23, 12.7], [30, 35.6], [34, 36.5], [46, 46.4], [50, 47.4], [60, 50]];
   Date.now = () => { const r = Math.max(0, Math.min(60, (n0() - R0) / 1000)); for (let i = 1; i < K.length; i++) if (r <= K[i][0]) { const a = K[i - 1], b = K[i]; return Math.round(V0 + (a[1] + (b[1] - a[1]) * (r - a[0]) / (b[0] - a[0])) * 36e5); } };
-  CFG.home = 'LHR';
+  CFG.home = 'LHR'; CFG.airline = 'BA'; CFG.cs = 'BAW';
 }
 const homeCodes = () => CFG.home.toUpperCase().split(/[^A-Z]+/).filter(Boolean);
 const isHome = c => homeCodes().includes(c);
@@ -1555,7 +1555,7 @@ function demoFlights() {
   const now = Date.now();
   const mk = (o, d, n, s, h) => ({ title: n + '-' + o + '-' + d, start: new Date(s).toISOString(), end: new Date(s + h * HOUR).toISOString() });
   let raw;
-  if (TRIP) raw = [mk('LHR', 'SFO', '287', Date.UTC(2026, 10, 13, 8, 0), 10.9), mk('SFO', 'LHR', '288', Date.UTC(2026, 10, 14, 19, 0), 10.9)];
+  if (TRIP) raw = [mk('LHR', 'SFO', '287', Date.UTC(2026, 10, 13, 8, 0), 10.9), mk('SFO', 'LHR', '286', Date.UTC(2026, 10, 14, 19, 0), 10.9)];
   else if (DEMO === 'flight') raw = [mk('DWC', 'CAN', '89876', now - 3.2 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 30 * HOUR, 8.6)];
   else if (DEMO === 'layover') raw = [mk('DWC', 'CAN', '89876', now - 20 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 9.4 * HOUR, 8.6), mk('DWC', 'HKG', '89820', now + 4 * 864e5, 7.2)];
   else raw = [mk('DWC', 'CAN', '89876', now + 26.3 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 60 * HOUR, 8.6), mk('DWC', 'LHR', '89801', now + 6 * 864e5, 7.9)];

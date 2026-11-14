@@ -1,4 +1,4 @@
-/* 联动演示：EK287 LHR→SFO，layover，EK288 SFO→LHR。一分钟走完；和时钟 ?demo=trip 按同一张时间表走（都从下一个整分钟开始）。 */
+/* 联动演示：BA287 LHR→SFO，layover，BA286 SFO→LHR。一分钟走完；和时钟 ?demo=trip 按同一张时间表走（都从下一个整分钟开始）。 */
 (function () {
   'use strict';
   const WP = [["EGLL",51.478,-0.462,0],["D257C",51.477,-0.545,2],["D280G",51.51,-0.65,2],["BUR",51.518,-0.677,3],["D356D",51.583,-0.685,4],["UMLAT",51.672,-0.695,4],["WOBUN",52.02,-0.733,8],["WELIN",52.247,-0.852,10],["AKUPA",52.487,-1.092,12],["TIMPO",52.558,-1.163,13],["ELVOS",52.7,-1.307,14],["TNT",53.053,-1.67,18],["RODOL",53.238,-1.862,19],["TENSO",53.6,-2.208,22],["BELOX",53.888,-3.49,28],["BELZU",54.662,-6.23,42],["NINEX",58.855,-9.5,76],["BALIX",59.0,-10.0,78],["61N015W",61.0,-15.0,102],["N64W020",64.0,-20.0,131],["N66W030",66.0,-30.0,166],["N67W040",67.0,-40.0,197],["N67W050",67.0,-50.0,227],["DARUB",67.0,-60.0,256],["N65W072",65.0,-72.0,296],["N63W080",63.0,-80.0,327],["N59W090",59.0,-90.0,375],["N54W100",54.0,-100.0,432],["N50W107",50.0,-107.0,478],["GTF",47.45,-111.412,507],["REO",42.59,-117.868,558],["HOLLR",41.442,-118.83,569],["LEGGS",39.337,-121.095,590],["PYLLE",38.453,-122.428,604],["BGGLO",38.225,-122.768,608],["LOZIT",37.9,-122.673,611],["BDEGA",37.823,-122.592,613],["CORKK",37.733,-122.498,614],["BRIXX",37.618,-122.375,616],["KSFO",37.618,-122.375,624]];
@@ -21,16 +21,17 @@
   let D = null;
   function stop() {
     if (!D) return; clearInterval(D.iv); const k = D.keep; D = null;
+    $('t-fl').textContent = k.tfl; $('t-rt').innerHTML = k.trt; if (k.tri) $('t-rt').dataset.i = k.tri;
     Object.assign(S, { ofp: k.ofp, atd: k.atd, sim: k.sim, fix: k.fix, lastFir: k.lastFir, demo: null });
     $('demo').style.display = 'none'; S.follow = true; drawRoute(); lastList = 0; S.userScroll = 0; tick();
   }
   function step() {
     const r = (Date.now() - D.r0) / 1000, v = V(r), o = v < V0 + 24 * 36e5 ? D.o1 : D.o2, t = o.times;
-    if (S.ofp !== o) { S.ofp = o; S.fix = null; S.lastFir = undefined; S.follow = true; drawRoute(); lastList = 0; if (typeof fitRing === 'function') fitRing(); }
+    if (S.ofp !== o) { S.ofp = o; S.fix = null; S.lastFir = undefined; S.follow = true; $('t-fl').textContent = o.flight.no + ' · ' + o.flight.date; delete $('t-rt').dataset.i; $('t-rt').textContent = o.flight.dep + ' → ' + o.flight.arr + ' · B777-300ER'; drawRoute(); lastList = 0; if (typeof fitRing === 'function') fitRing(); }
     S.atd = t.std + (t.taxi || 15) * 6e4; S.sim = v - Date.now();
     const off = S.atd, on = off + t.trip * 6e4, b = th;
-    const ph = r < 0 ? b('整分钟开始 · ', 'Starts in ') + Math.ceil(-r) + 's' : o === D.o1 ? (v < off ? b('🏠 伦敦家里 · 准备出发', '🏠 Home — London') : v < on ? b('✈️ EK287 飞往旧金山', '✈️ EK287 to San Francisco') : b('🏨 旧金山 Layover', '🏨 Layover — San Francisco'))
-      : (v < off ? b('🏨 旧金山 Layover', '🏨 Layover — San Francisco') : v < on ? b('✈️ EK288 返回伦敦', '✈️ EK288 back to London') : b('🏠 到家', '🏠 Home'));
+    const ph = r < 0 ? b('整分钟开始 · ', 'Starts in ') + Math.ceil(-r) + 's' : o === D.o1 ? (v < off ? b('🏠 伦敦家里 · 准备出发', '🏠 Home — London') : v < on ? b('✈️ BA287 飞往旧金山', '✈️ BA287 to San Francisco') : b('🏨 旧金山 Layover', '🏨 Layover — San Francisco'))
+      : (v < off ? b('🏨 旧金山 Layover', '🏨 Layover — San Francisco') : v < on ? b('✈️ BA286 返回伦敦', '✈️ BA286 back to London') : b('🏠 到家', '🏠 Home'));
     $('demo').innerHTML = '<div class="dr"><b style="color:var(--green)">🎬 ' + ph + '</b><span class="sp" onclick="TRIP.stop()">✕</span></div>';
     if (Date.now() - D.l > 900) { D.l = Date.now(); lastList = 0; S.userScroll = 0; }
     tick();
@@ -38,8 +39,8 @@
   function start() {
     if (D) { stop(); return; }
     if (S.demo) demoStop();
-    const o1 = OFP.parse(text(false)), o2 = OFP.parse(text(true));
-    D = { o1, o2, keep: { ofp: S.ofp, atd: S.atd, sim: S.sim || 0, fix: S.fix, lastFir: S.lastFir }, r0: Math.ceil((Date.now() + 3000) / 6e4) * 6e4, l: 0 };
+    const o1 = OFP.parse(text(false)), o2 = OFP.parse(text(true)); o1.flight.no = 'BA287'; o2.flight.no = 'BA286';
+    D = { o1, o2, keep: { tfl: $('t-fl').textContent, trt: $('t-rt').innerHTML, tri: $('t-rt').dataset.i, ofp: S.ofp, atd: S.atd, sim: S.sim || 0, fix: S.fix, lastFir: S.lastFir }, r0: Math.ceil((Date.now() + 3000) / 6e4) * 6e4, l: 0 };
     S.demo = { trip: 1 }; S.userScroll = 0; $('load').classList.remove('open');
     $('demo').style.display = 'block'; rcOn(true); step(); D.iv = setInterval(step, 200);
   }
