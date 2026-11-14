@@ -63,6 +63,7 @@ let D = null; try { D = JSON.parse(ls('d') || 'null'); } catch (e) {}
 function unb64(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
 async function dec(h) {
   h = String(h || ''); const i = h.indexOf('#'); if (i >= 0) h = h.slice(i + 1); if (!h) return null;
+  if (h[0] === 'z' && typeof DecompressionStream === 'undefined' && window.AndroidPanel) return JSON.parse(AndroidPanel.inflate(h.slice(1)));
   let u = unb64(h.slice(1));
   if (h[0] === 'z') u = new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
   return JSON.parse(new TextDecoder().decode(u));
@@ -134,6 +135,8 @@ let lastBL = null;
 function setNight(n) {
   // Fully Kiosk 浏览器（PLUS）：白天关前光，夜里开一点
   try { if (window.fully && fully.setScreenBrightness && lastBL !== !!n) { lastBL = !!n; fully.setScreenBrightness(n ? +(ls('bl') || 40) : 0); } } catch (e) {}
+  // 自己的安卓 App：白天亮度 0（墨水屏前光关），夜里开一点
+  try { if (window.AndroidPanel && lastBL !== !!n) { lastBL = !!n; AndroidPanel.setBrightness(n ? (+(ls('bl') || 40)) / 255 : 0); } } catch (e) {}
   document.body.classList.toggle('night', !!n); document.querySelector('meta[name=theme-color]').content = n ? '#000000' : '#ffffff'; }
 
 /* ---------- 改 ATD（手机上直接改，不用重扫） ---------- */
@@ -201,7 +204,7 @@ document.addEventListener('click', wake);
 (async () => {
   if (location.hash.length > 2) { await take(location.hash); try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   draw(); wake(); setInterval(draw, 20000);
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (!window.AndroidPanel && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
 </body>
