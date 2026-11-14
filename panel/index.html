@@ -10,21 +10,22 @@
 :root{--bg:#fff;--fg:#000;--dim:#444;--line:#000;--red:#c00000}
 body.night{--bg:#000;--fg:#d8d8d8;--dim:#8a8a8a;--line:#555;--red:#ff5a4f}
 *{box-sizing:border-box}
+input,textarea{-webkit-user-select:text!important;user-select:text!important}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,"Roboto","Noto Sans SC",sans-serif;-webkit-user-select:none;user-select:none}
 #app{min-height:100vh;display:flex;flex-direction:column;padding:8px 12px}
 .tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
-.tab{flex:0 0 auto;border:2px solid var(--line);border-radius:10px;padding:5px 9px;font-size:13px;font-weight:700;line-height:1.25;color:var(--dim)}
+.tab{flex:0 0 auto;margin-right:6px;border:2px solid var(--line);border-radius:10px;padding:5px 9px;font-size:13px;font-weight:700;line-height:1.25;color:var(--dim)}
 .tab.on{background:var(--fg);color:var(--bg)}
 .tab small{display:block;font-weight:600;font-size:11px}
-.fl{font-weight:900;line-height:.95;letter-spacing:-.02em;font-size:min(30vw,22vh);text-align:center;margin:4px 0 2px;white-space:nowrap}
+.fl{font-weight:900;line-height:.95;letter-spacing:-.02em;font-size:26vw;font-size:min(30vw,22vh);text-align:center;margin:4px 0 2px;white-space:nowrap}
 .fl small{font-size:.45em;font-weight:800;margin-right:.08em}
-.rt{text-align:center;font-size:min(7vw,5.5vh);font-weight:800}
+.rt{text-align:center;font-size:6vw;font-size:min(7vw,5.5vh);font-weight:800}
 .rt span{font-weight:500;color:var(--dim);font-size:.6em}
 .ph{text-align:center;font-size:15px;font-weight:700;margin:4px 0 8px;color:var(--dim)}
 .row{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:2px solid var(--line);border-bottom:1px solid var(--line)}
 .c{padding:6px 6px;border-right:1px solid var(--line)}.c:last-child{border-right:0}
 .l{font-size:11px;font-weight:700;color:var(--dim)}
-.v{font-size:min(6.5vw,26px);font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
+.v{font-size:6vw;font-size:min(6.5vw,26px);font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
 .s{font-size:12px;color:var(--dim);font-weight:600}
 .edit{text-decoration:underline dotted}
 .rk{flex:1;padding-top:8px}
@@ -34,8 +35,8 @@ html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-fam
 .it small{display:block;font-weight:500;font-size:13px;color:var(--dim)}
 .ok{color:var(--dim);font-size:15px;padding:6px 0}
 .foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;padding-top:8px;font-size:13px;color:var(--dim)}
-.btn{border:2px solid var(--line);border-radius:10px;padding:7px 11px;font-weight:700;color:var(--fg);background:var(--bg);font-size:14px}
-#set{display:none;position:fixed;inset:0;background:var(--bg);z-index:9;padding:18px;font-size:15px;line-height:1.6;overflow:auto}
+.btn{display:inline-block;margin:2px;cursor:pointer;border:2px solid var(--line);border-radius:10px;padding:7px 11px;font-weight:700;color:var(--fg);background:var(--bg);font-size:14px}
+#set{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:var(--bg);z-index:9;padding:18px;font-size:15px;line-height:1.6;overflow:auto}
 #set input{width:100%;font-size:17px;padding:8px;border:2px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);margin:4px 0 12px}
 #empty{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;font-size:16px;line-height:1.5}
 @media (orientation:landscape){.fl{font-size:min(14vw,24vh)}}
@@ -241,7 +242,9 @@ function draw() {
   const L = pick(now);
   $('tabs').innerHTML = LEGS.map(l => '<span class="tab' + (L && l.k === L.k ? ' on' : '') + '" data-k="' + esc(l.k) + '">' + esc(l.no) + ' ' + esc(l.ai) + '→' + esc(l.bi) + '<small>' + dmZ(l.std) + (ls('pin') === l.k ? ' · 📌' : '') + '</small></span>').join('');
   if (!L) { $('main').style.display = 'none'; $('empty').style.display = 'flex';
-    $('empty').innerHTML = !ls('key') && !GH().tok ? '先点 ⚙︎ 填口令（和飞行助手一样）<br><span style="color:var(--dim)">Tap ⚙︎ and enter the password</span>' : '还没有接下来 40 小时的 OFP。<br>在 Lido 里把 OFP 发到邮箱，有网时点「🔄 更新」。<br><span style="color:var(--dim)">No OFP for the next 40 h yet — email it from Lido, then tap Update.</span>';
+    const eh = !ls('key') && !GH().tok ? '<div>填口令（和飞行助手里的一样）<br><span style="color:var(--dim)">Password (same as Flight Assist)</span></div><input id="e-key" type="password" autocomplete="off" style="font-size:18px;padding:8px;width:80%;border:2px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)"><span class="btn" id="e-ok">✓ 保存并读取邮箱 · Save</span>' : '还没有接下来 40 小时的 OFP。<br>在 Lido 里把 OFP 发到邮箱，有网时点「🔄 更新」。<br><span style="color:var(--dim)">No OFP for the next 40 h yet — email it from Lido, then tap Update.</span>';
+    if ($('empty').dataset.h !== eh) { $('empty').dataset.h = eh; $('empty').innerHTML = eh; }   // 不要每次重画（会把正在输入的口令清掉）
+    const ek = $('e-ok'); if (ek) ek.onclick = () => { const v = $('e-key').value.trim(); if (!v) return; ls('key', v); MSG = ''; draw(); update(false); };
     setNight(MODE === 'night'); return; }
   $('main').style.display = 'flex'; $('empty').style.display = 'none';
   const std = L.std, off = offOf(L), on = off + L.tr * MIN, el = (now - off) / MIN;
@@ -280,7 +283,7 @@ $('row').onclick = e => {
 $('b-up').onclick = () => update(false);
 $('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 'night' : 'auto'; ls('mode', MODE); draw(); };
 function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('bl') || 40; $('s-info').textContent = navigator.userAgent; $('set').style.display = 'block'; }
-$('b-set').onclick = openSet; $('s-x').onclick = () => { $('set').style.display = 'none'; };
+$('b-set').addEventListener('click', openSet); $('s-x').onclick = () => { $('set').style.display = 'none'; };
 $('s-ok').onclick = () => { ls('key', $('s-key').value.trim()); ls('bl', String(Math.max(0, Math.min(255, +$('s-bl').value || 40)))); lastBL = null; $('set').style.display = 'none'; draw(); update(false); };
 
 /* ---------- 屏幕常亮（网页版用；App 自己会常亮） ---------- */
