@@ -10,72 +10,200 @@
 :root{--bg:#fff;--fg:#000;--dim:#444;--line:#000;--red:#c00000}
 body.night{--bg:#000;--fg:#d8d8d8;--dim:#8a8a8a;--line:#555;--red:#ff5a4f}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,"Roboto","Noto Sans SC",sans-serif;-webkit-user-select:none;user-select:none}
-#app{min-height:100%;display:flex;flex-direction:column;padding:10px 14px}
-.top{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;color:var(--dim);font-weight:600}
-.fl{font-weight:900;line-height:.95;letter-spacing:-.02em;font-size:min(30vw,26vh);text-align:center;margin:6px 0 2px;white-space:nowrap}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,"Roboto","Noto Sans SC",sans-serif;-webkit-user-select:none;user-select:none}
+#app{min-height:100vh;display:flex;flex-direction:column;padding:8px 12px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.tab{flex:0 0 auto;border:2px solid var(--line);border-radius:10px;padding:5px 9px;font-size:13px;font-weight:700;line-height:1.25;color:var(--dim)}
+.tab.on{background:var(--fg);color:var(--bg)}
+.tab small{display:block;font-weight:600;font-size:11px}
+.fl{font-weight:900;line-height:.95;letter-spacing:-.02em;font-size:min(30vw,22vh);text-align:center;margin:4px 0 2px;white-space:nowrap}
 .fl small{font-size:.45em;font-weight:800;margin-right:.08em}
-.rt{text-align:center;font-size:min(7vw,6vh);font-weight:800}
+.rt{text-align:center;font-size:min(7vw,5.5vh);font-weight:800}
 .rt span{font-weight:500;color:var(--dim);font-size:.6em}
 .ph{text-align:center;font-size:15px;font-weight:700;margin:4px 0 8px;color:var(--dim)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:2px solid var(--line);flex:1;align-content:start}
-.c{padding:8px 6px;border-bottom:1px solid var(--line)}
-.c:nth-child(odd){border-right:1px solid var(--line)}
-.c.w{grid-column:1/-1;border-right:0}
-.l{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.03em}
-.v{font-size:min(8.5vw,30px);font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
-.s{font-size:13px;color:var(--dim);font-weight:600}
-.bad .v,.bad .s{color:var(--red)}
-.bad{outline:3px solid var(--red);outline-offset:-3px}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:2px solid var(--line);border-bottom:1px solid var(--line)}
+.c{padding:6px 6px;border-right:1px solid var(--line)}.c:last-child{border-right:0}
+.l{font-size:11px;font-weight:700;color:var(--dim)}
+.v{font-size:min(6.5vw,26px);font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
+.s{font-size:12px;color:var(--dim);font-weight:600}
+.edit{text-decoration:underline dotted}
+.rk{flex:1;padding-top:8px}
+.rk h3{margin:0 0 6px;font-size:15px}
+.it{border-left:6px solid var(--dim);padding:5px 8px;margin-bottom:6px;font-size:16px;font-weight:700;line-height:1.35}
+.it.red{border-color:var(--red);color:var(--red)}
+.it small{display:block;font-weight:500;font-size:13px;color:var(--dim)}
+.ok{color:var(--dim);font-size:15px;padding:6px 0}
 .foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;padding-top:8px;font-size:13px;color:var(--dim)}
-.btn{border:2px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:700;color:var(--fg);background:var(--bg);font-size:14px}
-#empty{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;font-size:17px;line-height:1.5}
-#cam{position:fixed;inset:0;background:#000;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff}
-#cam video{max-width:96vw;max-height:70vh}
-@media (orientation:landscape){.fl{font-size:min(15vw,24vh)}.grid{grid-template-columns:repeat(4,1fr)}.c:nth-child(odd){border-right:0}.c{border-right:1px solid var(--line)}.c.w{grid-column:span 2}}
+.btn{border:2px solid var(--line);border-radius:10px;padding:7px 11px;font-weight:700;color:var(--fg);background:var(--bg);font-size:14px}
+#set{display:none;position:fixed;inset:0;background:var(--bg);z-index:9;padding:18px;font-size:15px;line-height:1.6;overflow:auto}
+#set input{width:100%;font-size:17px;padding:8px;border:2px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);margin:4px 0 12px}
+#empty{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;font-size:16px;line-height:1.5}
+@media (orientation:landscape){.fl{font-size:min(14vw,24vh)}}
 </style>
 </head>
 <body>
 <div id="app">
+  <div class="tabs" id="tabs"></div>
   <div id="main" style="display:flex;flex-direction:column;flex:1">
-    <div class="top"><span id="date"></span><span id="utc" class="num"></span></div>
     <div class="fl" id="fl"></div>
     <div class="rt" id="rt"></div>
     <div class="ph" id="ph"></div>
-    <div class="grid" id="grid"></div>
+    <div class="row" id="row"></div>
+    <div class="rk" id="rk"></div>
   </div>
-  <div id="empty"><div>📱 <b>副屏 · Side display</b></div><div>在 iPad 飞行助手点「📱 副屏」，<br>然后在这里点「📷 扫码」。<br><span style="color:var(--dim)">Tap “Side display” in Flight Assist on the iPad,<br>then tap “Scan” here.</span></div></div>
-  <div class="foot"><span class="btn" id="b-scan">📷 扫码 Scan</span><label class="btn" for="f-img">🖼 拍照 Photo</label><input type="file" id="f-img" accept="image/*" capture="environment" style="display:none"><span class="btn" id="b-paste">📋</span><span id="upd"></span><span class="btn" id="b-mode">◐ 自动</span></div>
+  <div id="empty"></div>
+  <div class="foot"><span class="btn" id="b-up">🔄 更新 Update</span><span id="st"></span><span class="btn" id="b-set">⚙︎</span><span class="btn" id="b-mode">◐</span></div>
 </div>
-<div id="cam"><video id="vid" playsinline muted></video><div id="camt">对准 iPad 上的二维码 · Point at the QR code</div><span class="btn" id="b-camx" style="color:#fff;background:#000;border-color:#fff">✕ 取消 Cancel</span></div>
-<script src="vendor/jsQR.js"></script>
+<div id="set">
+  <b>⚙︎ 设置 · Settings</b><br>
+  口令（和飞行助手里填的一样） · Password<br><input id="s-key" type="password" autocomplete="off">
+  夜间亮度 0–255（白天自动关前光） · Night brightness<br><input id="s-bl" type="number" min="0" max="255">
+  <span class="btn" id="s-ok">✓ 保存 Save</span> <span class="btn" id="s-x">✕</span>
+  <p style="color:var(--dim)">有网时自动从邮箱读接下来 40 小时的 OFP（在 Lido 里把 OFP 发到邮箱即可），每 30 分钟查一次，也可以点「🔄 更新」。读完存在手机上，飞行中没网照常显示。<br>
+  When online, OFPs for the next 40 h are read from your mailbox automatically (every 30 min, or tap Update). Everything is stored on the phone for offline use.</p>
+  <p id="s-info" style="color:var(--dim);font-size:12px"></p>
+</div>
+<script src="vendor/pdf.min.js"></script>
+<script src="ofp.js"></script>
+<script src="wx.js"></script>
 <script>
 'use strict';
-const $ = id => document.getElementById(id), MIN = 6e4;
+const $ = id => document.getElementById(id), MIN = 6e4, HOUR = 36e5;
+const API = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem('pnl.' + k); localStorage.setItem('pnl.' + k, v); } catch (e) { return null; } };
 const p2 = n => String(n).padStart(2, '0');
 const hmZ = t => { const d = new Date(t); return p2(d.getUTCHours()) + p2(d.getUTCMinutes()); };
+const dmZ = t => { const d = new Date(t); return p2(d.getUTCDate()) + '/' + hmZ(t) + 'Z'; };
 const T = kg => (kg / 1000).toFixed(1);
 const dur = m => { m = Math.max(0, Math.round(m)); return Math.floor(m / 60) + 'h' + p2(m % 60); };
-let D = null; try { D = JSON.parse(ls('d') || 'null'); } catch (e) {}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+let LEGS = []; try { LEGS = JSON.parse(ls('legs') || '[]'); } catch (e) {}
+let MSG = '';
 
-/* ---------- 读二维码里的数据 ---------- */
-function unb64(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
-async function dec(h) {
-  h = String(h || ''); const i = h.indexOf('#'); if (i >= 0) h = h.slice(i + 1); if (!h) return null;
-  if (h[0] === 'z' && typeof DecompressionStream === 'undefined' && window.AndroidPanel) return JSON.parse(AndroidPanel.inflate(h.slice(1)));
-  let u = unb64(h.slice(1));
-  if (h[0] === 'z') u = new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
-  return JSON.parse(new TextDecoder().decode(u));
+/* =====================================================================
+   1. 从邮箱读 OFP（Google；连不上就走 GitHub 转存，和飞行助手一样）
+   ===================================================================== */
+const postK = body => fetch(API + '?k=' + encodeURIComponent(ls('key') || ''), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch (e) { return { ok: false, error: t.slice(0, 120) }; } });
+const GH = () => ({ tok: ls('ghtok') || '', repo: ls('ghrepo') || 'chunhua1780/flight-box' });
+async function listFiles() {
+  if (ls('key')) { try { const j = await withTimeout(postK({ action: 'ofpmail', days: 3 }), 60000); if (j && j.ok) { if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); } return j.files || []; } if (j && j.error && /key|口令|密码|denied/i.test(j.error)) throw new Error('口令不对 · Wrong password'); } catch (e) { if (/口令/.test(e.message)) throw e; } }
+  const g = GH(); if (!g.tok) throw new Error(ls('key') ? '连不上 Google · Cannot reach Google' : '先在 ⚙︎ 里填口令 · Set the password in ⚙︎');
+  const r = await withTimeout(fetch('https://api.github.com/repos/' + g.repo + '/contents/ofp/index.json?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + g.tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' }), 30000);
+  if (!r.ok) throw new Error('GitHub ' + r.status);
+  return (await r.json()).map(x => ({ id: 'gh:' + x.path, name: x.name, t: x.t, size: x.size }));
 }
-async function take(h) {
-  try { const d = await dec(h); if (!d || !d.f) throw new Error('no data');
-    if (typeof d.n === 'string') d.n = d.n.split(' ').map(x => { const i = x.lastIndexOf('.'); return [x.slice(0, i), +x.slice(i + 1)]; });
-    if (d.c && typeof d.c[0] === 'number') { const c = []; for (let i = 0; i + 2 < d.c.length; i += 3) c.push(d.c.slice(i, i + 3)); d.c = c; } D = d; D.got = Date.now(); ls('d', JSON.stringify(D)); draw(); return true; }
-  catch (e) { alert('读不出这个码 · Could not read this code\n' + e.message); return false; }
+async function getFile(id) {
+  if (/^gh:/.test(id)) { const g = GH(); const r = await fetch('https://api.github.com/repos/' + g.repo + '/contents/' + id.slice(3), { headers: { Authorization: 'Bearer ' + g.tok, Accept: 'application/vnd.github.raw+json' } }); if (!r.ok) throw new Error('GitHub ' + r.status); return new Uint8Array(await r.arrayBuffer()); }
+  const a = await withTimeout(postK({ action: 'ofpget', id }), 120000); if (!a.ok || !a.b64) throw new Error(a.error || '下载失败');
+  const b = atob(a.b64), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u;
+}
+// PDF → 等宽文字（和飞行助手同一个方法）
+async function pdfText(u8, prog) {
+  // App 里：PDF 解析放在主线程（WebView 的后台线程不一定能载入本地文件）
+  if (window.AndroidPanel && !window.pdfjsWorker) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'vendor/pdf.worker.min.js'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+  const doc = await pdfjsLib.getDocument({ data: u8, isEvalSupported: false, stopAtErrors: false }).promise, pages = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const tc = await (await doc.getPage(n)).getTextContent(), rows = {}; let cw = 0, cn = 0;
+    tc.items.forEach(it => { if (!it.str) return; const y = Math.round(it.transform[5] / 2) * 2; (rows[y] = rows[y] || []).push(it); if (it.str.trim().length > 2) { cw += it.width / it.str.length; cn++; } });
+    cw = cn ? cw / cn : 6; const pl = [];
+    Object.keys(rows).map(Number).sort((a, b) => b - a).forEach(y => { let line = '';
+      rows[y].sort((a, b) => a.transform[4] - b.transform[4]).forEach(it => { const col = Math.round(it.transform[4] / cw); if (col > line.length) line += ' '.repeat(col - line.length); else if (line && !/\s$/.test(line)) line += ' '; line += it.str; });
+      pl.push(line); });
+    const ind = Math.min.apply(null, pl.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
+    pl.forEach(l => pages.push(isFinite(ind) ? l.slice(ind) : l));
+    if (prog) prog(n, doc.numPages);
+  }
+  return pages.join('\n');
+}
+const LIDO = /EK\.?\s?(\d{3,4})\.(\d{2})([A-Za-z]{3})(\d{4})\.([A-Z]{3})\.([A-Z]{3})/;
+const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+let busy = false;
+async function update(quiet) {
+  if (busy) return; if (!navigator.onLine) { MSG = '📵 离线 · Offline'; draw(); return; }
+  if (!ls('key') && !GH().tok) { openSet(); return; }
+  busy = true; MSG = '⏳ 查邮箱… Checking mail'; draw();
+  try {
+    const files = await listFiles(), now = Date.now(), day0 = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate());
+    // 每个航班只要最新的一份；日期在 昨天 ~ 后天（UTC）之间
+    const best = {};
+    files.forEach(f => { const m = LIDO.exec(f.name || ''); if (!m) return; const d = Date.UTC(+m[4], MON[m[3].toUpperCase()], +m[2]); if (d < day0 - 864e5 || d > day0 + 2 * 864e5) return;
+      const k = m[1] + m[2] + m[3].toUpperCase() + m[5]; if (!best[k] || (f.t || 0) > (best[k].t || 0)) best[k] = f; });
+    const want = Object.keys(best).map(k => best[k]); let got = 0;
+    for (const f of want) {
+      if (LEGS.some(l => l.fid === f.id)) continue;
+      MSG = '⏳ 下载 ' + f.name.replace(/\.pdf$/i, ''); draw();
+      const u8 = await getFile(f.id);
+      const txt = await pdfText(u8, (n, N) => { if (n % 5 === 0 || n === N) { MSG = '⏳ 读取 ' + n + '/' + N + ' · ' + f.name.slice(0, 16); draw(); } });
+      const o = OFP.parse(txt); if (!o.ok) continue;
+      const leg = summarize(o); leg.fid = f.id; leg.ft = f.t;
+      LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); got++;
+      ls('legs', JSON.stringify(LEGS));
+    }
+    // 只留：还没落地超过 6 小时、40 小时以内起飞的
+    LEGS = LEGS.filter(l => l.std + (l.tx + l.tr) * MIN > now - 6 * HOUR && l.std < now + 40 * HOUR).sort((a, b) => a.std - b.std);
+    ls('legs', JSON.stringify(LEGS)); ls('upd', String(now));
+    MSG = got ? '✅ 收到 ' + got + ' 份 OFP' : '✅ 已是最新 · Up to date';
+  } catch (e) { MSG = '⚠️ ' + e.message; }
+  busy = false; draw();
 }
 
-/* ---------- 太阳高度：算白天 / 黑夜 ---------- */
+/* =====================================================================
+   2. 风险提醒：起飞前看起飞机场，航路上看各 FIR，下降前看目的地和备降场
+   ===================================================================== */
+const FIRN = [
+  [/CONFLICT ZONE|HAZARDOUS SITUATION|SECURITY WARNING|MISSILE|ROCKET|HOSTILE|WEAPON|ARMED CONFLICT/, 'red', '冲突区 / 安全警告', 'Conflict zone / security warning'],
+  [/VOLCANIC|\bVA\s+(CLOUD|ERUPTION)/, 'red', '火山灰', 'Volcanic ash'],
+  [/(?:RTE|ROUTE|SEGMENT|AWY)S?\b[^.]{0,80}\bCLSD|AIRSPACE\s+CLSD|FIR\s+(?:IS\s+)?CLSD/, 'red', '航路 / 空域关闭', 'Route / airspace closed'],
+  [/GNSS|\bGPS\b/, 'amber', 'GPS 干扰', 'GNSS interference'],
+  [/(?:FREQ|HF)[^.]{0,120}\bU\/S\b|RADAR[^.]{0,80}(?:U\/S|NOT AVBL)|CPDLC[^.]{0,40}(?:U\/S|NOT AVBL)|ADS-C[^.]{0,40}NOT AVBL/, 'amber', 'ATC 频率 / 雷达部分不可用', 'ATC frequency / radar partly U/S'],
+  [/\bBIRDS?\b[^.]{0,60}(?:ACTIVIT|MIGRAT|FLOCK|STRIKE)/, 'amber', '鸟群活动', 'Bird activity'],
+  [/ARTILLERY|FIRING|\bEXER\b|MIL(?:ITARY)? EXERCISE|PARA DROP|DANGER AREA|DNG AREA|RESTRICTED AREA|PROHIBITED/, 'amber', '军事活动 / 限制区', 'Military activity / restricted area']
+];
+const FIRALIAS = { ZGGG: 'ZGZU', ZGNN: 'ZGZU', ZJSY: 'ZJSA', ZPPP: 'ZPKM', ZBAA: 'ZBPE', ZSSS: 'ZSHA', ZHHH: 'ZHWH', ZLLL: 'ZLHW', ZWWW: 'ZWUQ' };
+function summarize(o) {
+  const f = o.flight, t = o.times, W = o.weights || {}, F = o.fuel || {}, N = o.navlog || [], X = o.fixes || {};
+  const off0 = t.std + (t.taxi || 0) * MIN, eta0 = off0 + (t.trip || 0) * MIN, ref = f.dateUTC + 12 * HOUR;
+  const apRisk = (icao, at, role) => {
+    const a = o.airports[icao] || {}, out = [];
+    const M = a.metar && a.metar.length ? WX.metar(a.metar[a.metar.length - 1], ref) : null, Tf = a.taf && a.taf.length ? WX.taf(a.taf[a.taf.length - 1], ref) : null;
+    const w = (M || Tf) ? WX.at(Tf, M, at) : null, rate = w ? WX.rate(w) : 'none';
+    if (rate === 'red' || rate === 'amber') out.push({ lv: rate, zh: role[0] + ' ' + icao + ' 天气：' + WX.say(w, 'zh').join('；'), en: role[1] + ' ' + icao + ' weather: ' + WX.say(w, 'en').join('; ') });
+    WX.notams(o.notams[icao], at).filter(n => n.lv !== 'info').slice(0, 5).forEach(n => out.push({ lv: n.lv, zh: role[0] + ' ' + icao + '：' + n.zh, en: role[1] + ' ' + icao + ': ' + n.en }));
+    return out;
+  };
+  const leg = { k: f.no + f.date, no: f.no, date: f.date, dep: f.dep, arr: f.arr, ai: f.depIata, bi: f.arrIata, reg: f.reg || '', ty: f.type || '',
+    std: t.std, tx: t.taxi || 0, tr: t.trip || 0, fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] } };
+  const withC = N.filter(w => X[w.id]), step = Math.max(1, Math.ceil(withC.length / 12));
+  withC.forEach((w, i) => { if (i % step === 0 || i === withC.length - 1) leg.c.push([w.t, Math.round(X[w.id][0] * 10) / 10, Math.round(X[w.id][1] * 10) / 10]); });
+  // 重量
+  if (W.ezfw && W.etow && W.elwt) {
+    const z = W.ezfw[0], tof = (F.tof && F.tof.fuel) || (W.etow[0] - z), trip = (F.trip && F.trip.fuel) || (W.etow[0] - W.elwt[0]);
+    const towL = Math.min(W.etow[1], W.rtow || 1e9), lwL = Math.min(W.elwt[1], W.rlwt || 1e9), tm = towL - (z + tof), lm = lwL - (z + tof - trip);
+    leg.w = { tow: z + tof, towL, ldw: z + tof - trip, lwL, lf: tof - trip };
+    if (tm < 2000) leg.R.dep.push({ lv: tm < 0 ? 'red' : 'amber', zh: '起飞重量余量只有 ' + T(tm) + ' t（限制 ' + T(towL) + ' t）', en: 'TOW margin ' + T(tm) + ' t (limit ' + T(towL) + ' t)' });
+    if (lm < 2000) leg.R.arr.push({ lv: lm < 0 ? 'red' : 'amber', zh: '落地重量余量只有 ' + T(lm) + ' t（限制 ' + T(lwL) + ' t）', en: 'LDW margin ' + T(lm) + ' t (limit ' + T(lwL) + ' t)' });
+  }
+  leg.R.dep = leg.R.dep.concat(apRisk(f.dep, off0, ['起飞', 'DEP']));
+  leg.R.arr = leg.R.arr.concat(apRisk(f.arr, eta0, ['目的地', 'DEST']));
+  (o.alternates || []).forEach(a => apRisk(a.icao, eta0 + (a.time || 0) * MIN, ['备降', 'ALTN']).filter(x => x.lv === 'red' && (/天气/.test(x.zh) || /机场关闭|不能用作备降/.test(x.zh))).forEach(x => leg.R.arr.push(x)));
+  // 航路：每个 FIR 进入前 20 分钟到离开
+  leg.fi.forEach((x, i) => {
+    const t0 = x[3], t1 = i + 1 < leg.fi.length ? leg.fi[i + 1][3] : leg.tr, code = FIRALIAS[x[1]] || x[1], seen = {};
+    (o.notams[code] || []).forEach(n => {
+      const a = off0 + t0 * MIN, b = off0 + t1 * MIN;
+      if ((n.to != null && n.to < a - 30 * MIN) || (n.from != null && n.from > b + 30 * MIN)) return;
+      const r = FIRN.find(q => q[0].test(n.text)); if (!r || seen[r[2]]) return; seen[r[2]] = 1;
+      leg.R.enr.push([t0, t1, { lv: r[1], zh: x[0] + ' ' + x[1] + '：' + r[2], en: x[0] + ' ' + x[1] + ': ' + r[3] }]);
+    });
+  });
+  return leg;
+}
+
+/* =====================================================================
+   3. 白天 / 黑夜（太阳高度）和前光
+   ===================================================================== */
 function sunEl(t, lat, lon) {
   const r = Math.PI / 180, d = t / 864e5 - 10957.5, g = (357.529 + .98560028 * d) * r, q = 280.459 + .98564736 * d;
   const L = (q + 1.915 * Math.sin(g) + .02 * Math.sin(2 * g)) * r, e = (23.439 - 3.6e-7 * d) * r;
@@ -83,131 +211,90 @@ function sunEl(t, lat, lon) {
   const gmst = (18.697374558 + 24.06570982441908 * d) % 24, ha = (gmst * 15 + lon) * r - ra;
   return Math.asin(Math.sin(lat * r) * Math.sin(dec) + Math.cos(lat * r) * Math.cos(dec) * Math.cos(ha)) / r;
 }
-function posAt(el) {   // el = 起飞后分钟
-  const c = D.c || []; if (!c.length) return null;
-  if (el <= c[0][0]) return c[0]; for (let i = 1; i < c.length; i++) if (el <= c[i][0]) { const a = c[i - 1], b = c[i], k = (el - a[0]) / Math.max(1, b[0] - a[0]); return [el, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
-  return c[c.length - 1];
+function posAt(c, el) { if (!c || !c.length) return null; if (el <= c[0][0]) return c[0];
+  for (let i = 1; i < c.length; i++) if (el <= c[i][0]) { const a = c[i - 1], b = c[i], k = (el - a[0]) / Math.max(1, b[0] - a[0]); return [el, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+  return c[c.length - 1]; }
+let MODE = ls('mode') || 'auto', lastBL = null;
+const MODES = { auto: '◐ 自动', day: '☀︎ 白天', night: '☾ 夜间' };
+function setNight(n) {
+  const bl = +(ls('bl') || 40);
+  try { if (window.AndroidPanel && lastBL !== !!n) { lastBL = !!n; AndroidPanel.setBrightness(n ? bl / 255 : 0); } } catch (e) {}
+  try { if (window.fully && fully.setScreenBrightness && lastBL !== !!n) { lastBL = !!n; fully.setScreenBrightness(n ? bl : 0); } } catch (e) {}
+  document.body.classList.toggle('night', !!n); document.querySelector('meta[name=theme-color]').content = n ? '#000000' : '#ffffff';
 }
-let MODE = ls('mode') || 'auto';
-const MODES = { auto: '◐ 自动 Auto', day: '☀︎ 白天 Day', night: '☾ 夜间 Night' };
 
-/* ---------- 画 ---------- */
-function tile(l, v, s, cls) { return '<div class="c ' + (cls || '') + '"><div class="l">' + l + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>'; }
+/* =====================================================================
+   4. 画
+   ===================================================================== */
+const atdOf = l => +(ls('atd.' + l.k) || 0);
+const offOf = l => atdOf(l) || l.std + l.tx * MIN;
+function pick(now) {
+  const pin = ls('pin'); const p = pin && LEGS.find(l => l.k === pin);
+  if (p) return p;
+  return LEGS.find(l => offOf(l) + l.tr * MIN + 60 * MIN > now) || LEGS[LEGS.length - 1];
+}
+const item = x => '<div class="it ' + (x.lv === 'red' ? 'red' : '') + '">' + (x.lv === 'red' ? '⛔ ' : '⚠︎ ') + esc(x.zh) + '<small>' + esc(x.en) + '</small></div>';
 function draw() {
   const now = Date.now();
-  $('utc').textContent = hmZ(now) + 'Z';
   $('b-mode').textContent = MODES[MODE];
-  if (!D) { $('main').style.display = 'none'; $('empty').style.display = 'flex'; setNight(MODE === 'night'); return; }
+  const u = +(ls('upd') || 0); $('st').textContent = MSG || (u ? '邮箱 ' + dmZ(u) : '');
+  const L = pick(now);
+  $('tabs').innerHTML = LEGS.map(l => '<span class="tab' + (L && l.k === L.k ? ' on' : '') + '" data-k="' + esc(l.k) + '">' + esc(l.no) + ' ' + esc(l.ai) + '→' + esc(l.bi) + '<small>' + dmZ(l.std) + (ls('pin') === l.k ? ' · 📌' : '') + '</small></span>').join('');
+  if (!L) { $('main').style.display = 'none'; $('empty').style.display = 'flex';
+    $('empty').innerHTML = !ls('key') && !GH().tok ? '先点 ⚙︎ 填口令（和飞行助手一样）<br><span style="color:var(--dim)">Tap ⚙︎ and enter the password</span>' : '还没有接下来 40 小时的 OFP。<br>在 Lido 里把 OFP 发到邮箱，有网时点「🔄 更新」。<br><span style="color:var(--dim)">No OFP for the next 40 h yet — email it from Lido, then tap Update.</span>';
+    setNight(MODE === 'night'); return; }
   $('main').style.display = 'flex'; $('empty').style.display = 'none';
-  const std = D.s * MIN, off = D.x ? D.x * MIN : std + (D.tx || 0) * MIN, on = off + D.tr * MIN, el = (now - off) / MIN;
-  const m = /^([A-Z]+)(\d+)$/.exec(D.f) || [0, '', D.f];
+  const std = L.std, off = offOf(L), on = off + L.tr * MIN, el = (now - off) / MIN;
+  const m = /^([A-Z]+)(\d+)$/.exec(L.no) || [0, '', L.no];
   $('fl').innerHTML = '<small>' + m[1] + '</small>' + m[2];
-  $('rt').innerHTML = D.ai + ' → ' + D.bi + ' <span>' + D.a + '–' + D.b + '</span>';
-  $('date').textContent = D.d + (D.ty ? ' · ' + D.ty : '') + (D.r ? ' · ' + D.r : '');
+  $('rt').innerHTML = esc(L.ai) + ' → ' + esc(L.bi) + ' <span>' + esc(L.date) + (L.reg ? ' · ' + esc(L.reg) : '') + '</span>';
   const ph = now < off ? 0 : now < on ? 1 : 2;
-  $('ph').textContent = ph === 0 ? '地面 · 起飞前 ' + dur((off - now) / MIN) + ' · Before T/O' : ph === 1 ? '飞行中 · 已飞 ' + dur(el) + ' · 剩 ' + dur(D.tr - el) + ' · Airborne' : '已落地 · Landed';
-  // 白天 / 黑夜
-  const P = ph === 0 ? (D.c || [])[0] : ph === 2 ? (D.c || []).slice(-1)[0] : posAt(el);
+  $('ph').textContent = ph === 0 ? (off - now > 12 * HOUR ? '计划 · Planned' : '起飞前 ' + dur((off - now) / MIN) + ' · Before T/O') : ph === 1 ? '飞行中 · 已飞 ' + dur(el) + ' · 剩 ' + dur(L.tr - el) : '已落地 · Landed';
+  const P = ph === 0 ? (L.c || [])[0] : ph === 2 ? (L.c || []).slice(-1)[0] : posAt(L.c, el);
   setNight(MODE === 'night' || (MODE === 'auto' && P && sunEl(now, P[1], P[2]) < -3));
-  let h = '';
-  h += tile('STD', hmZ(std) + 'Z', D.x ? 'ATD ' + hmZ(off) + 'Z' : '起飞 T/O ≈ ' + hmZ(off) + 'Z（按滑行 ' + (D.tx || 0) + ' 分）');
-  h += tile('ETA ' + D.bi, hmZ(on) + 'Z', '航程 Trip ' + dur(D.tr));
-  // 下一个航路点 / 移交点
-  const N = D.n || [], nx = ph === 1 ? N.find(w => w[1] > el) : ph === 0 ? N[1] : null;
-  if (nx) h += tile('下一点 Next', nx[0], hmZ(off + nx[1] * MIN) + 'Z' + (ph === 1 ? ' · ' + dur(nx[1] - el) : ''));
-  else h += tile('下一点 Next', '—', '');
-  const F = D.fi || [], fx = ph === 2 ? null : F.find(f => f[3] > Math.max(0, el));
-  const cur = ph === 1 ? F.filter(f => f[3] <= el).slice(-1)[0] : null;
-  if (fx) h += tile('下一移交 Next FIR', fx[2] + ' ' + hmZ(off + fx[3] * MIN) + 'Z', '→ ' + fx[0] + ' ' + fx[1] + (ph === 1 ? ' · ' + dur(fx[3] - el) : '') + (cur ? '<br>现在 Now: ' + cur[0] : ''));
-  else h += tile('下一移交 Next FIR', '—', cur ? '现在 Now: ' + cur[0] : '');
-  // 重量 / 油量
-  if (D.z && D.lw) {
-    const ldw = D.z + D.tf - D.tp, mg = D.lw - ldw;
-    h += tile('落地重量 LDW', T(ldw) + ' t', (mg < 0 ? '⚠️ 超重 OVER ' : '余量 margin ') + T(Math.abs(mg)) + ' t · MLW ' + T(D.lw), mg < 2000 ? 'bad' : '');
-  }
-  if (D.tf && D.tp) h += tile('落地油量 LDG fuel', T(D.tf - D.tp) + ' t', 'T/O ' + T(D.tf) + ' − trip ' + T(D.tp));
-  if (D.z && D.tw && ph === 0) { const tow = D.z + D.tf, mg = D.tw - tow; h += tile('起飞重量 TOW', T(tow) + ' t', (mg < 0 ? '⚠️ 超重 OVER ' : '余量 margin ') + T(Math.abs(mg)) + ' t · MTOW ' + T(D.tw), mg < 2000 ? 'bad' : ''); }
-  if (D.z) h += tile('ZFW', T(D.z) + ' t', D.za ? '实际 actual' : 'OFP');
-  if ($('grid').innerHTML !== h) $('grid').innerHTML = h;   // 墨水屏：内容没变就不重画
-  $('upd').textContent = '扫码 ' + new Date(D.got || now).toTimeString().slice(0, 5);
+  // 一行：STD/ATD（点了改） · ETA · 下一个移交点
+  const fx = ph === 1 ? (L.fi || []).find(f => f[3] > el) : ph === 0 ? (L.fi || [])[0] : null;
+  $('row').innerHTML = '<div class="c" id="c-atd"><div class="l">' + (atdOf(L) ? 'ATD ✎' : 'STD ✎') + '</div><div class="v edit">' + hmZ(atdOf(L) || std) + 'Z</div><div class="s">' + (atdOf(L) ? 'STD ' + hmZ(std) + 'Z' : '点这里填实际 · tap for ATD') + '</div></div>' +
+    '<div class="c"><div class="l">ETA ' + esc(L.bi) + '</div><div class="v">' + hmZ(on) + 'Z</div><div class="s">Trip ' + dur(L.tr) + '</div></div>' +
+    '<div class="c"><div class="l">下一移交 FIR</div><div class="v">' + (fx ? esc(fx[2]) : '—') + '</div><div class="s">' + (fx ? hmZ(off + fx[3] * MIN) + 'Z → ' + esc(fx[1]) : '') + '</div></div>';
+  // 提醒：按阶段
+  let h = '', list = [], title = '';
+  if (ph === 0 || el < 20) { title = '🛫 起飞 · Departure ' + L.ai; list = L.R.dep; }
+  else if (ph === 1 && el < L.tr - 60) { title = '✈️ 航路 · En route'; list = L.R.enr.filter(r => el >= r[0] - 20 && el <= r[1]).map(r => r[2]); }
+  else { title = '🛬 落地 · Arrival ' + L.bi; list = L.R.arr; }
+  h = '<h3>' + title + '</h3>' + (list.length ? list.map(item).join('') : '<div class="ok">✓ 没有特别提醒 · Nothing special</div>');
+  if (L.w && (ph === 0 || el >= L.tr - 60)) h += '<div class="s" style="margin-top:6px">' + (ph === 0 ? 'TOW ' + T(L.w.tow) + ' / ' + T(L.w.towL) + ' t · ' : '') + 'LDW ' + T(L.w.ldw) + ' / ' + T(L.w.lwL) + ' t · 落地油 LDG fuel ' + T(L.w.lf) + ' t</div>';
+  if ($('rk').innerHTML !== h) $('rk').innerHTML = h;   // 墨水屏：没变就不重画
 }
-let lastBL = null;
-function setNight(n) {
-  // Fully Kiosk 浏览器（PLUS）：白天关前光，夜里开一点
-  try { if (window.fully && fully.setScreenBrightness && lastBL !== !!n) { lastBL = !!n; fully.setScreenBrightness(n ? +(ls('bl') || 40) : 0); } } catch (e) {}
-  // 自己的安卓 App：白天亮度 0（墨水屏前光关），夜里开一点
-  try { if (window.AndroidPanel && lastBL !== !!n) { lastBL = !!n; AndroidPanel.setBrightness(n ? (+(ls('bl') || 40)) / 255 : 0); } } catch (e) {}
-  document.body.classList.toggle('night', !!n); document.querySelector('meta[name=theme-color]').content = n ? '#000000' : '#ffffff'; }
 
-/* ---------- 改 ATD（手机上直接改，不用重扫） ---------- */
-$('grid').addEventListener('click', e => {
-  const c = e.target.closest('.c'); if (!c || !D || c.querySelector('.l').textContent !== 'STD') return;
-  const v = prompt('ATD（UTC，4 位，例如 0815；留空 = 按计划）', D.x ? hmZ(D.x * MIN) : ''); if (v === null) return;
-  if (!/^\d{4}$/.test(v.trim())) { D.x = 0; }
-  else { const s = D.s * MIN, d0 = Date.UTC(new Date(s).getUTCFullYear(), new Date(s).getUTCMonth(), new Date(s).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
-    D.x = Math.round([d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - s) - Math.abs(b - s))[0] / MIN); }
-  ls('d', JSON.stringify(D)); draw();
-});
+/* ---------- 操作 ---------- */
+$('tabs').onclick = e => { const t = e.target.closest('.tab'); if (!t) return; ls('pin', ls('pin') === t.dataset.k ? '' : t.dataset.k); draw(); };
+$('row').onclick = e => {
+  if (!e.target.closest('#c-atd')) return; const L = pick(Date.now()); if (!L) return;
+  const v = prompt(L.no + ' 实际起飞 ATD（UTC，4 位，例如 0815；留空 = 按计划）\nActual T/O time (UTC, e.g. 0815; empty = plan)', atdOf(L) ? hmZ(atdOf(L)) : ''); if (v === null) return;
+  if (!/^\d{4}$/.test(v.trim())) ls('atd.' + L.k, '');
+  else { const s = L.std, d0 = Date.UTC(new Date(s).getUTCFullYear(), new Date(s).getUTCMonth(), new Date(s).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
+    ls('atd.' + L.k, String([d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - s) - Math.abs(b - s))[0])); }
+  draw();
+};
+$('b-up').onclick = () => update(false);
 $('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 'night' : 'auto'; ls('mode', MODE); draw(); };
+function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('bl') || 40; $('s-info').textContent = navigator.userAgent; $('set').style.display = 'block'; }
+$('b-set').onclick = openSet; $('s-x').onclick = () => { $('set').style.display = 'none'; };
+$('s-ok').onclick = () => { ls('key', $('s-key').value.trim()); ls('bl', String(Math.max(0, Math.min(255, +$('s-bl').value || 40)))); lastBL = null; $('set').style.display = 'none'; draw(); update(false); };
 
-/* ---------- 扫码 ---------- */
-let stream = null, scanning = false;
-function camStop() { scanning = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('cam').style.display = 'none'; }
-$('b-camx').onclick = camStop;
-$('b-scan').onclick = async () => {
-  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } }); }
-  catch (e) {
-    if (window.AndroidPanel && AndroidPanel.camOk && !AndroidPanel.camOk()) { if (confirm('相机权限被关掉了。点「确定」去设置里打开：权限 → 相机 → 允许。\nCamera permission is off — open Settings to allow it?')) AndroidPanel.openSettings(); return; }
-    if (confirm('相机打不开（' + (e.name || '') + ' ' + (e.message || '') + '）。\n改用「拍照」：用相机拍一张二维码照片？\nCamera failed — take a photo of the QR code instead?')) $('f-img').click(); return; }
-  const v = $('vid'); v.srcObject = stream; $('cam').style.display = 'flex'; await v.play(); scanning = true;
-  let bd = null; try { if ('BarcodeDetector' in window) bd = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
-  const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
-  const loop = async () => {
-    if (!scanning) return;
-    let txt = null;
-    try {
-      if (bd) { const r = await bd.detect(v); if (r.length) txt = r[0].rawValue; }
-      else if (v.videoWidth) { cv.width = v.videoWidth; cv.height = v.videoHeight; cx.drawImage(v, 0, 0); const r = jsQR(cx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: 'dontInvert' }); if (r) txt = r.data; }
-    } catch (e) { bd = null; }
-    if (txt && txt.indexOf('#') >= 0) { camStop(); take(txt); return; }
-    setTimeout(loop, 250);
-  };
-  loop();
-};
-
-/* ---------- 拍照扫码：不需要浏览器的摄像头权限（用手机自己的相机拍） ---------- */
-$('f-img').onchange = async () => {
-  const f = $('f-img').files[0]; $('f-img').value = ''; if (!f) return;
-  $('upd').textContent = '读取中… Reading';
-  let im; try { im = await createImageBitmap(f); } catch (e) { alert('照片打不开 · Cannot open photo'); draw(); return; }
-  let txt = null;
-  try { if ('BarcodeDetector' in window) { const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(im); if (r.length) txt = r[0].rawValue; } } catch (e) {}
-  for (const W of [1600, 2400, 1000, 3200]) {   // 大照片先缩小再找，找不到换个大小再试
-    if (txt) break;
-    const k = Math.min(1, W / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
-    const x = c.getContext('2d'); x.drawImage(im, 0, 0, c.width, c.height);
-    const r = jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height); if (r) txt = r.data;
-  }
-  if (txt && txt.indexOf('#') >= 0) take(txt); else { alert('照片里没找到二维码。拍近一点、拍正、别反光。\nNo QR code found — get closer, hold it straight, avoid glare.'); draw(); }
-};
-/* ---------- 粘贴：用别的扫码软件扫到的网址，复制过来 ---------- */
-$('b-paste').onclick = async () => {
-  let t = ''; try { t = await navigator.clipboard.readText(); } catch (e) {}
-  if (!t || t.indexOf('#') < 0) t = prompt('把扫到的整个网址粘贴到这里 · Paste the scanned link here', '') || '';
-  if (t.indexOf('#') >= 0) take(t.trim());
-};
-
-/* ---------- 屏幕常亮 ---------- */
+/* ---------- 屏幕常亮（网页版用；App 自己会常亮） ---------- */
 let wl = null;
 async function wake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible' && !wl) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); } } catch (e) {} }
 document.addEventListener('visibilitychange', () => { wake(); draw(); });
 document.addEventListener('click', wake);
+window.addEventListener('online', () => update(true));
 
-(async () => {
-  if (location.hash.length > 2) { await take(location.hash); try { history.replaceState(null, '', location.pathname); } catch (e) {} }
-  draw(); wake(); setInterval(draw, 20000);
-  if (!window.AndroidPanel && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-})();
+draw(); wake(); setInterval(draw, 20000);
+// 有网：打开时、之后每 30 分钟自动读邮箱
+setTimeout(() => { if (Date.now() - +(ls('upd') || 0) > 10 * MIN) update(true); }, 1500);
+setInterval(() => { if (Date.now() - +(ls('upd') || 0) > 30 * MIN) update(true); }, 5 * MIN);
+if (!window.AndroidPanel && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>

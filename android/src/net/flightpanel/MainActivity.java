@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
         while (!z.finished()) { int n = z.inflate(buf); if (n == 0 && (z.needsInput() || z.needsDictionary())) break; o.write(buf, 0, n); }
         z.end(); return o.toString("UTF-8"); } catch (Exception e) { return ""; }
     }
-    @JavascriptInterface public String version() { return "1.1"; }
+    @JavascriptInterface public String version() { return "2.0"; }
     @JavascriptInterface public boolean camOk() { return MainActivity.this.camOk(); }
     @JavascriptInterface public void openSettings() { runOnUiThread(new Runnable() { public void run() { MainActivity.this.openSettings(); } }); }
   }

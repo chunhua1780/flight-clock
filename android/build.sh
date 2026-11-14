@@ -3,7 +3,7 @@
 set -e
 SDK=${ANDROID_HOME:-/opt/android-sdk}; BT=$SDK/build-tools/35.0.0; JAR=$SDK/platforms/android-34/android.jar
 cd "$(dirname "$0")"; rm -rf out && mkdir -p out/res out/classes out/assets/panel/vendor
-cp ../panel/index.html ../panel/manifest.json out/assets/panel/ && cp ../panel/vendor/jsQR.js out/assets/panel/vendor/
+cp ../panel/index.html ../panel/manifest.json ../assist/ofp.js ../assist/wx.js out/assets/panel/ && cp ../panel/vendor/pdf.min.js ../panel/vendor/pdf.worker.min.js out/assets/panel/vendor/
 $BT/aapt2 compile --dir res -o out/res.zip
 $BT/aapt2 link -o out/base.apk -I $JAR --manifest AndroidManifest.xml -A out/assets out/res.zip --java out/gen --min-sdk-version 26 --target-sdk-version 34
 javac -nowarn -source 8 -target 8 -encoding UTF-8 -classpath $JAR -d out/classes $(find src out/gen -name '*.java') 2>&1 | grep -v "bootstrap\|^warning\|^1 warning\|^Picked" || true
