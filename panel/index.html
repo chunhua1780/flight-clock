@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.json">
+<title>Flight Panel</title>
+<style>
+:root{--bg:#fff;--fg:#000;--dim:#444;--line:#000;--red:#c00000}
+body.night{--bg:#000;--fg:#d8d8d8;--dim:#8a8a8a;--line:#555;--red:#ff5a4f}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,"Roboto","Noto Sans SC",sans-serif;-webkit-user-select:none;user-select:none}
+#app{min-height:100%;display:flex;flex-direction:column;padding:10px 14px}
+.top{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;color:var(--dim);font-weight:600}
+.fl{font-weight:900;line-height:.95;letter-spacing:-.02em;font-size:min(30vw,26vh);text-align:center;margin:6px 0 2px;white-space:nowrap}
+.fl small{font-size:.45em;font-weight:800;margin-right:.08em}
+.rt{text-align:center;font-size:min(7vw,6vh);font-weight:800}
+.rt span{font-weight:500;color:var(--dim);font-size:.6em}
+.ph{text-align:center;font-size:15px;font-weight:700;margin:4px 0 8px;color:var(--dim)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:2px solid var(--line);flex:1;align-content:start}
+.c{padding:8px 6px;border-bottom:1px solid var(--line)}
+.c:nth-child(odd){border-right:1px solid var(--line)}
+.c.w{grid-column:1/-1;border-right:0}
+.l{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.03em}
+.v{font-size:min(8.5vw,30px);font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums}
+.s{font-size:13px;color:var(--dim);font-weight:600}
+.bad .v,.bad .s{color:var(--red)}
+.bad{outline:3px solid var(--red);outline-offset:-3px}
+.foot{display:flex;gap:8px;justify-content:space-between;align-items:center;padding-top:8px;font-size:13px;color:var(--dim)}
+.btn{border:2px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:700;color:var(--fg);background:var(--bg);font-size:14px}
+#empty{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;font-size:17px;line-height:1.5}
+#cam{position:fixed;inset:0;background:#000;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff}
+#cam video{max-width:96vw;max-height:70vh}
+@media (orientation:landscape){.fl{font-size:min(15vw,24vh)}.grid{grid-template-columns:repeat(4,1fr)}.c:nth-child(odd){border-right:0}.c{border-right:1px solid var(--line)}.c.w{grid-column:span 2}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="main" style="display:flex;flex-direction:column;flex:1">
+    <div class="top"><span id="date"></span><span id="utc" class="num"></span></div>
+    <div class="fl" id="fl"></div>
+    <div class="rt" id="rt"></div>
+    <div class="ph" id="ph"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+  <div id="empty"><div>📱 <b>副屏 · Side display</b></div><div>在 iPad 飞行助手点「📱 副屏」，<br>然后在这里点「📷 扫码」。<br><span style="color:var(--dim)">Tap “Side display” in Flight Assist on the iPad,<br>then tap “Scan” here.</span></div></div>
+  <div class="foot"><span class="btn" id="b-scan">📷 扫码 Scan</span><span id="upd"></span><span class="btn" id="b-mode">◐ 自动</span></div>
+</div>
+<div id="cam"><video id="vid" playsinline muted></video><div id="camt">对准 iPad 上的二维码 · Point at the QR code</div><span class="btn" id="b-camx" style="color:#fff;background:#000;border-color:#fff">✕ 取消 Cancel</span></div>
+<script src="vendor/jsQR.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id), MIN = 6e4;
+const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem('pnl.' + k); localStorage.setItem('pnl.' + k, v); } catch (e) { return null; } };
+const p2 = n => String(n).padStart(2, '0');
+const hmZ = t => { const d = new Date(t); return p2(d.getUTCHours()) + p2(d.getUTCMinutes()); };
+const T = kg => (kg / 1000).toFixed(1);
+const dur = m => { m = Math.max(0, Math.round(m)); return Math.floor(m / 60) + 'h' + p2(m % 60); };
+let D = null; try { D = JSON.parse(ls('d') || 'null'); } catch (e) {}
+
+/* ---------- 读二维码里的数据 ---------- */
+function unb64(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+async function dec(h) {
+  h = String(h || ''); const i = h.indexOf('#'); if (i >= 0) h = h.slice(i + 1); if (!h) return null;
+  let u = unb64(h.slice(1));
+  if (h[0] === 'z') u = new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  return JSON.parse(new TextDecoder().decode(u));
+}
+async function take(h) {
+  try { const d = await dec(h); if (!d || !d.f) throw new Error('no data');
+    if (typeof d.n === 'string') d.n = d.n.split(' ').map(x => { const i = x.lastIndexOf('.'); return [x.slice(0, i), +x.slice(i + 1)]; });
+    if (d.c && typeof d.c[0] === 'number') { const c = []; for (let i = 0; i + 2 < d.c.length; i += 3) c.push(d.c.slice(i, i + 3)); d.c = c; } D = d; D.got = Date.now(); ls('d', JSON.stringify(D)); draw(); return true; }
+  catch (e) { alert('读不出这个码 · Could not read this code\n' + e.message); return false; }
+}
+
+/* ---------- 太阳高度：算白天 / 黑夜 ---------- */
+function sunEl(t, lat, lon) {
+  const r = Math.PI / 180, d = t / 864e5 - 10957.5, g = (357.529 + .98560028 * d) * r, q = 280.459 + .98564736 * d;
+  const L = (q + 1.915 * Math.sin(g) + .02 * Math.sin(2 * g)) * r, e = (23.439 - 3.6e-7 * d) * r;
+  const dec = Math.asin(Math.sin(e) * Math.sin(L)), ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const gmst = (18.697374558 + 24.06570982441908 * d) % 24, ha = (gmst * 15 + lon) * r - ra;
+  return Math.asin(Math.sin(lat * r) * Math.sin(dec) + Math.cos(lat * r) * Math.cos(dec) * Math.cos(ha)) / r;
+}
+function posAt(el) {   // el = 起飞后分钟
+  const c = D.c || []; if (!c.length) return null;
+  if (el <= c[0][0]) return c[0]; for (let i = 1; i < c.length; i++) if (el <= c[i][0]) { const a = c[i - 1], b = c[i], k = (el - a[0]) / Math.max(1, b[0] - a[0]); return [el, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+  return c[c.length - 1];
+}
+let MODE = ls('mode') || 'auto';
+const MODES = { auto: '◐ 自动 Auto', day: '☀︎ 白天 Day', night: '☾ 夜间 Night' };
+
+/* ---------- 画 ---------- */
+function tile(l, v, s, cls) { return '<div class="c ' + (cls || '') + '"><div class="l">' + l + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>'; }
+function draw() {
+  const now = Date.now();
+  $('utc').textContent = hmZ(now) + 'Z';
+  $('b-mode').textContent = MODES[MODE];
+  if (!D) { $('main').style.display = 'none'; $('empty').style.display = 'flex'; setNight(MODE === 'night'); return; }
+  $('main').style.display = 'flex'; $('empty').style.display = 'none';
+  const std = D.s * MIN, off = D.x ? D.x * MIN : std + (D.tx || 0) * MIN, on = off + D.tr * MIN, el = (now - off) / MIN;
+  const m = /^([A-Z]+)(\d+)$/.exec(D.f) || [0, '', D.f];
+  $('fl').innerHTML = '<small>' + m[1] + '</small>' + m[2];
+  $('rt').innerHTML = D.ai + ' → ' + D.bi + ' <span>' + D.a + '–' + D.b + '</span>';
+  $('date').textContent = D.d + (D.ty ? ' · ' + D.ty : '') + (D.r ? ' · ' + D.r : '');
+  const ph = now < off ? 0 : now < on ? 1 : 2;
+  $('ph').textContent = ph === 0 ? '地面 · 起飞前 ' + dur((off - now) / MIN) + ' · Before T/O' : ph === 1 ? '飞行中 · 已飞 ' + dur(el) + ' · 剩 ' + dur(D.tr - el) + ' · Airborne' : '已落地 · Landed';
+  // 白天 / 黑夜
+  const P = ph === 0 ? (D.c || [])[0] : ph === 2 ? (D.c || []).slice(-1)[0] : posAt(el);
+  setNight(MODE === 'night' || (MODE === 'auto' && P && sunEl(now, P[1], P[2]) < -3));
+  let h = '';
+  h += tile('STD', hmZ(std) + 'Z', D.x ? 'ATD ' + hmZ(off) + 'Z' : '起飞 T/O ≈ ' + hmZ(off) + 'Z（按滑行 ' + (D.tx || 0) + ' 分）');
+  h += tile('ETA ' + D.bi, hmZ(on) + 'Z', '航程 Trip ' + dur(D.tr));
+  // 下一个航路点 / 移交点
+  const N = D.n || [], nx = ph === 1 ? N.find(w => w[1] > el) : ph === 0 ? N[1] : null;
+  if (nx) h += tile('下一点 Next', nx[0], hmZ(off + nx[1] * MIN) + 'Z' + (ph === 1 ? ' · ' + dur(nx[1] - el) : ''));
+  else h += tile('下一点 Next', '—', '');
+  const F = D.fi || [], fx = ph === 2 ? null : F.find(f => f[3] > Math.max(0, el));
+  const cur = ph === 1 ? F.filter(f => f[3] <= el).slice(-1)[0] : null;
+  if (fx) h += tile('下一移交 Next FIR', fx[2] + ' ' + hmZ(off + fx[3] * MIN) + 'Z', '→ ' + fx[0] + ' ' + fx[1] + (ph === 1 ? ' · ' + dur(fx[3] - el) : '') + (cur ? '<br>现在 Now: ' + cur[0] : ''));
+  else h += tile('下一移交 Next FIR', '—', cur ? '现在 Now: ' + cur[0] : '');
+  // 重量 / 油量
+  if (D.z && D.lw) {
+    const ldw = D.z + D.tf - D.tp, mg = D.lw - ldw;
+    h += tile('落地重量 LDW', T(ldw) + ' t', (mg < 0 ? '⚠️ 超重 OVER ' : '余量 margin ') + T(Math.abs(mg)) + ' t · MLW ' + T(D.lw), mg < 2000 ? 'bad' : '');
+  }
+  if (D.tf && D.tp) h += tile('落地油量 LDG fuel', T(D.tf - D.tp) + ' t', 'T/O ' + T(D.tf) + ' − trip ' + T(D.tp));
+  if (D.z && D.tw && ph === 0) { const tow = D.z + D.tf, mg = D.tw - tow; h += tile('起飞重量 TOW', T(tow) + ' t', (mg < 0 ? '⚠️ 超重 OVER ' : '余量 margin ') + T(Math.abs(mg)) + ' t · MTOW ' + T(D.tw), mg < 2000 ? 'bad' : ''); }
+  if (D.z) h += tile('ZFW', T(D.z) + ' t', D.za ? '实际 actual' : 'OFP');
+  if ($('grid').innerHTML !== h) $('grid').innerHTML = h;   // 墨水屏：内容没变就不重画
+  $('upd').textContent = '扫码 ' + new Date(D.got || now).toTimeString().slice(0, 5);
+}
+function setNight(n) { document.body.classList.toggle('night', !!n); document.querySelector('meta[name=theme-color]').content = n ? '#000000' : '#ffffff'; }
+
+/* ---------- 改 ATD（手机上直接改，不用重扫） ---------- */
+$('grid').addEventListener('click', e => {
+  const c = e.target.closest('.c'); if (!c || !D || c.querySelector('.l').textContent !== 'STD') return;
+  const v = prompt('ATD（UTC，4 位，例如 0815；留空 = 按计划）', D.x ? hmZ(D.x * MIN) : ''); if (v === null) return;
+  if (!/^\d{4}$/.test(v.trim())) { D.x = 0; }
+  else { const s = D.s * MIN, d0 = Date.UTC(new Date(s).getUTCFullYear(), new Date(s).getUTCMonth(), new Date(s).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
+    D.x = Math.round([d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - s) - Math.abs(b - s))[0] / MIN); }
+  ls('d', JSON.stringify(D)); draw();
+});
+$('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 'night' : 'auto'; ls('mode', MODE); draw(); };
+
+/* ---------- 扫码 ---------- */
+let stream = null, scanning = false;
+function camStop() { scanning = false; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('cam').style.display = 'none'; }
+$('b-camx').onclick = camStop;
+$('b-scan').onclick = async () => {
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } }); }
+  catch (e) { alert('打不开相机 · Camera not available\n' + e.message); return; }
+  const v = $('vid'); v.srcObject = stream; $('cam').style.display = 'flex'; await v.play(); scanning = true;
+  let bd = null; try { if ('BarcodeDetector' in window) bd = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
+  const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  const loop = async () => {
+    if (!scanning) return;
+    let txt = null;
+    try {
+      if (bd) { const r = await bd.detect(v); if (r.length) txt = r[0].rawValue; }
+      else if (v.videoWidth) { cv.width = v.videoWidth; cv.height = v.videoHeight; cx.drawImage(v, 0, 0); const r = jsQR(cx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: 'dontInvert' }); if (r) txt = r.data; }
+    } catch (e) { bd = null; }
+    if (txt && txt.indexOf('#') >= 0) { camStop(); take(txt); return; }
+    setTimeout(loop, 250);
+  };
+  loop();
+};
+
+/* ---------- 屏幕常亮 ---------- */
+let wl = null;
+async function wake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible' && !wl) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); } } catch (e) {} }
+document.addEventListener('visibilitychange', () => { wake(); draw(); });
+document.addEventListener('click', wake);
+
+(async () => {
+  if (location.hash.length > 2) { await take(location.hash); try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+  draw(); wake(); setInterval(draw, 20000);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
