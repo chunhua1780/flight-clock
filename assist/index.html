@@ -241,6 +241,7 @@ div.en,.wl .en{display:block;margin-left:0}
 .tr .hn{font-size:11px}
 .nowbar{background:var(--gold);color:#1a1204;font-weight:800;font-size:12px;border-radius:6px;padding:3px 8px;margin:4px 0}
 .firrow{font-size:11.5px;color:#f2b8ff;padding:3px 4px;border-bottom:1px dashed #5a3a6a}
+.small{font-size:11.5px;margin-top:3px}
 .dbtns{position:relative;padding:6px 10px 2px;border-top:1px solid var(--line)}
 .dtog{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:13px;font-weight:700;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.01))}
 .dtog .dt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim);font-weight:600}
@@ -534,6 +535,7 @@ div.en,.wl .en{display:block;margin-left:0}
 <script src="vendor/qrcode.js"></script>
 <script src="panelqr.js"></script>
 <script src="wx.js"></script>
+<script src="live.js"></script>
 <script src="ekparse.js"></script>
 <script src="brief.js"></script>
 <script src="notamx.js"></script>
@@ -903,13 +905,15 @@ function candidates() {
 /* ---------------- 某机场在时间 t 的天气 / 跑道 / NOTAM ---------------- */
 function assess(c, t) {
   const ref = S.ofp.flight.dateUTC + 12 * 3600e3;
-  const M = c.metar && c.metar.length ? WX.metar(c.metar[c.metar.length - 1], ref) : null;
-  const T = c.taf && c.taf.length ? WX.taf(c.taf[c.taf.length - 1], ref) : null;
+  let M = c.metar && c.metar.length ? WX.metar(c.metar[c.metar.length - 1], ref) : null;
+  let T = c.taf && c.taf.length ? WX.taf(c.taf[c.taf.length - 1], ref) : null;
+  const LV = window.LIVE && LIVE.wx(c.icao); if (LV) { if (LV.M) M = LV.M; if (LV.T) T = LV.T; }   // 有网时取到的最新 METAR / TAF 优先
   const w = (M || T) ? WX.at(T, M, t) : null;
   const notes = WX.notams(S.ofp.notams[c.icao], t);
   const closed = WX.closedRwys(S.ofp.notams[c.icao], t);
   const plannedRwy = (S.ofp.alternates.find(a => a.icao === c.icao) || {}).rwy || (c.icao === S.ofp.flight.arr ? (S.ofp.navlog[S.ofp.navlog.length - 1] || {}).rwy : null);
   const rw = c.db ? WX.runway(c.db[6], w && w.main.wind, closed, plannedRwy) : null;
+  if (window.LIVE) LIVE.pickRwy(rw, c.icao, t, c.icao === S.ofp.flight.dep ? 'dep' : 'arr');   // ATIS 上在用的跑道（3 小时内）
   let rate = w ? WX.rate(w) : 'none';
   if (notes.some(n => n.lv === 'red' && /机场关闭|不能用作备降/.test(n.zh))) rate = 'red';
   else if (rw && rw.allLimited && rate === 'green') rate = 'amber';      // 每条跑道都有 NOTAM 限制
@@ -1145,7 +1149,7 @@ function card(c, t, d, mins, cur) {
   const tags = (c.ek && c.ek.a ? '<span class="tag">' + th(c.ek.a + ' 类', 'Cat ' + c.ek.a) + '</span>' : '') + (c.roles || []).map(roleTag).join('');
   const hs = ekHints(c.ek, t).filter(h => h.lv !== 'info' || /Fuel and Go|地面服务|停机位/.test(h.zh)).slice(0, 3);
   const pk = a.rw && a.rw.pick;
-  const rw = pk ? '<b>' + th('预计跑道', 'Expected RWY') + ' ' + esc(pk.id) + '</b>' + (pk.head == null ? ' ' + th('（没有风的资料）', '(no wind data)') : (a.rw.calm ? ' ' + th('（风小）', '(light wind)') : '') + ' · ' + th('逆风', 'head') + ' ' + pk.head + ' / ' + th('侧风', 'cross') + ' ' + pk.cross + (pk.tail ? ' / <span class="t-amber">' + th('顺风', 'tail') + ' ' + pk.tail + '</span>' : '')) + (a.rw.allLimited ? ' <span class="t-red">' + th('所有跑道都有限制', 'all runways restricted') + '</span>' : '') : '';
+  const rw = pk ? '<b>' + (a.rw.atis ? 'ATIS ' + esc(a.rw.atis) + ' · ' + th('在用跑道', 'RWY in use') : th('预计跑道', 'Expected RWY')) + ' ' + esc(pk.id) + '</b>' + (pk.head == null ? ' ' + th('（没有风的资料）', '(no wind data)') : (a.rw.calm ? ' ' + th('（风小）', '(light wind)') : '') + ' · ' + th('逆风', 'head') + ' ' + pk.head + ' / ' + th('侧风', 'cross') + ' ' + pk.cross + (pk.tail ? ' / <span class="t-amber">' + th('顺风', 'tail') + ' ' + pk.tail + '</span>' : '')) + (a.rw.allLimited ? ' <span class="t-red">' + th('所有跑道都有限制', 'all runways restricted') + '</span>' : '') : '';
   const nt = a.notes.filter(n => n.lv !== 'info').slice(0, 3).map(n => '<span class="t-' + n.lv + '">● ' + th(esc(n.zh), esc(n.en || n.zh)) + '</span>').join('<br>');
   return '<div class="ap' + (cur ? ' cur' : '') + '" onclick="openSheet(\'' + c.icao + '\')" style="border-left:5px solid ' + (CATC[cat] || '#22304a') + '"><div class="h">' + catTag(cat) + '<span class="dot ' + dotc + '"></span><span class="id">' + c.icao + '</span>' +
     '<span class="nm">' + esc(c.iata || '') + ' ' + esc((c.db && c.db[2]) || c.name || '') + tags + '</span>' +
@@ -1153,7 +1157,7 @@ function card(c, t, d, mins, cur) {
     '<div class="w wl">' + wxHtml(a, t) + '</div>' +
     (c.ek || !S.EK ? '' : '<div class="hint t-amber">' + th('不在公司机场授权表里', 'Not in the authorisation table') + '</div>') +
     (hs.length ? '<div class="hint">' + hs.map(h => '<span class="t-' + h.lv + '">◆ ' + th(esc(h.zh), esc(h.en)) + '</span>').join('　') + '</div>' : '') +
-    (rw ? '<div class="n">' + rw + '</div>' : '') + (nt ? '<div class="n">' + nt + '</div>' : '') +
+    (rw ? '<div class="n">' + rw + '</div>' : '') + (window.LIVE && S.ofp ? LIVE.line(c.icao, c.icao === S.ofp.flight.dep ? 'dep' : 'arr') : '') + (nt ? '<div class="n">' + nt + '</div>' : '') +
     '<div class="n t-info">' + th('按 ' + hmZ(t) + ' 到达估算', 'Assessed for arrival ' + hmZ(t)) + '</div></div>';
 }
 let lastList = 0;
@@ -1170,7 +1174,7 @@ function renderList(force) {
   updateMap(p, arr.filter(x => x.d <= R2 && usable(x)));
   if (S.tab === 'now') {
     const n2 = arr.filter(x => usable(x) && x.d <= R2).length;
-    title = summary(cur, n2);
+    title = (window.LIVE ? LIVE.impact(true) : '') + summary(cur, n2);
     arr = cur.length ? cur : arr.filter(usable).sort((a, b) => a.d - b.d).slice(0, 5);
   }
   else if (S.tab === 'route') {
@@ -1182,7 +1186,7 @@ function renderList(force) {
   else if (S.tab === 'plan') {
     const keep = ['dest', 'destAltn', 'fuelEnroute'];
     arr = arr.filter(x => (x.c.roles || []).some(r => keep.includes(r))).sort((a, b) => keep.indexOf((a.c.roles || [])[0]) - keep.indexOf((b.c.roles || [])[0]));
-    title = th('目的地和备降场（按计划时间）', 'Destination and alternates (planned times)');
+    title = th('目的地和备降场（按计划时间）', 'Destination and alternates (planned times)') + '</div>' + (window.LIVE ? LIVE.impact(false) : '') + '<div>';
   } else { arr = arr.filter(x => x.c.ofp).sort((a, b) => a.d - b.d); title = th('OFP 里有天气的机场 ' + arr.length + ' 个', arr.length + ' airports with OFP weather'); }
   const curSet = new Set(cur.map(x => x.c.icao));
   const html = arr.map(x => {
@@ -1376,6 +1380,7 @@ function useText(txt) {
   const prevK = lsGet('ofpk'), newK = (typeof OFL !== 'undefined') ? OFL.keyOf(r) : null;
   if (!useText.auto) lsSet('ofppin', String(Date.now()));   // 手动载入的：12 小时内不自动换到别的班
   if (newK) { OFL.snap(prevK, S.atd, S.fix); lsSet('ofpk', newK); OFL.save(txt, null, null, r).then(e => { if (e && newK !== prevK) { setATD(e.atd || null); if (e.fix) { S.fix = e.fix; lsSet('fix', JSON.stringify(e.fix)); fixBar(); tick(); } } }); }
+  setTimeout(() => { try { LIVE.fetch(true); } catch (e) {} }, 800);   // 有网：马上查实时天气 / ATIS
   S.fix = null; lsSet('fix', ''); S.ofp = r; lsSet('ofp', JSON.stringify(r)); lsSet('ofptext1', txt.slice(0, 6000)); lsSet('ofptext', txt);   // 原文也存着：以后解析规则改进了可以自动重新读
   if (S.atd && Math.abs(S.atd - (r.times.std || 0)) > 18 * 3600e3) setATD(null);
   atdDays();
@@ -1626,7 +1631,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v68';
+const APPV = 'v69';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -2028,6 +2033,7 @@ $('b-print').onclick = () => window.print();
 /* ---------------- 开始 ---------------- */
 Promise.all([apReady, ekReady]).then(() => {
   S.started = 1;
+  setTimeout(() => { try { LIVE.fetch(false); } catch (e) {} }, 3000);
   if (S.ofp) {
     $('t-fl').textContent = S.ofp.flight.no + ' · ' + S.ofp.flight.date;
     delete $('t-rt').dataset.i; $('t-rt').textContent = S.ofp.flight.dep + ' → ' + S.ofp.flight.arr + ' · ' + S.ofp.flight.reg + ' · STD ' + hmZ(S.ofp.times.std) + ' · TRIP ' + dur(S.ofp.times.trip);

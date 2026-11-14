@@ -87,6 +87,7 @@ function postJson_(text) {
   if (j.action === 'diag') { const pr = PropertiesService.getScriptProperties(); let L = []; try { L = JSON.parse(pr.getProperty('diag_log') || '[]'); } catch (e) {} L.push({ t: Date.now(), r: String(JSON.stringify(j.r || {})).slice(0, 3000) }); pr.setProperty('diag_log', JSON.stringify(L.slice(-30))); return JSON.stringify({ ok: true }); }
   if (j.action === 'diagget') return JSON.stringify({ ok: true, log: JSON.parse(PropertiesService.getScriptProperties().getProperty('diag_log') || '[]') });
   if (j.action === 'ofpmail') return JSON.stringify(ofpMail_(j));
+  if (j.action === 'live') return JSON.stringify(live_(j));
   if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
   if (j.action === 'relay') return JSON.stringify(relay_(true));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
@@ -922,3 +923,26 @@ function relay_(force) {
   }
   return { ok: true, added: added, total: keep.length };
 }
+
+/* ---------- 实时天气 + D-ATIS（飞行助手收到 OFP 后用）----------
+   METAR / TAF：aviationweather.gov（全球）；ATIS：atis.info（只有美国大机场有 D-ATIS）。缓存 5 分钟。 */
+function live_(j) {
+  const ids = (j.icaos || []).map(function (x) { return String(x).toUpperCase(); }).filter(function (x) { return /^[A-Z]{4}$/.test(x); }).slice(0, 12);
+  if (!ids.length) return { ok: false, error: 'no airports' };
+  const cache = CacheService.getScriptCache(), ck = 'live:' + ids.join(','), hit = cache.get(ck);
+  if (hit) return JSON.parse(hit);
+  const q = ids.join(','), reqs = [
+    { url: 'https://aviationweather.gov/api/data/metar?format=json&hours=3&ids=' + q, muteHttpExceptions: true },
+    { url: 'https://aviationweather.gov/api/data/taf?format=json&ids=' + q, muteHttpExceptions: true }
+  ].concat(ids.map(function (i) { return { url: 'https://atis.info/api/' + i, muteHttpExceptions: true, followRedirects: true }; }));
+  let rs = []; try { rs = UrlFetchApp.fetchAll(reqs); } catch (e) { return { ok: false, error: String(e) }; }
+  const out = {}; ids.forEach(function (i) { out[i] = { m: null, mt: 0, t: null, tt: 0, atis: null }; });
+  try { JSON.parse(rs[0].getContentText()).forEach(function (m) { const o = out[m.icaoId]; if (o && m.rawOb && m.obsTime * 1000 > o.mt) { o.m = m.rawOb; o.mt = m.obsTime * 1000; } }); } catch (e) {}
+  try { JSON.parse(rs[1].getContentText()).forEach(function (t) { const o = out[t.icaoId], it = Date.parse(t.issueTime) || 0; if (o && t.rawTAF && it >= o.tt) { o.t = t.rawTAF; o.tt = it; } }); } catch (e) {}
+  ids.forEach(function (i, k) { try { const r = rs[2 + k]; if (!r || r.getResponseCode() !== 200) return; const a = JSON.parse(r.getContentText());
+    if (Array.isArray(a) && a.length && a[0].datis) out[i].atis = a.map(function (x) { return { type: x.type, code: x.code, text: x.datis, time: x.time }; }); } catch (e) {} });
+  const res = { ok: true, t: Date.now(), ap: out };
+  try { cache.put(ck, JSON.stringify(res), 300); } catch (e) {}
+  return res;
+}
+
