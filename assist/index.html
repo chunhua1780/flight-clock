@@ -657,7 +657,8 @@ function scrubBar(el, pv) {
 }
 
 /* ---------------- 机场数据库 ---------------- */
-const apReady = fetch('data/airports.json').then(r => r.json()).then(j => { S.AP = j; }).catch(() => {});
+const apLoad = fetch('data/airports.json').then(r => r.json()).then(j => { S.AP = j; }).catch(() => {}), apReady = Promise.race([apLoad, new Promise(r => setTimeout(r, 4000))]);   // 连着没网的热点时请求会卡住：最多等 4 秒，界面照常显示
+apLoad.then(() => { if (S.ofp && S.started) try { drawRoute(); tick(); } catch (e) {} });
 const apPos = icao => { const a = S.AP[icao]; return a ? [a[3], a[4]] : null; };
 
 /* ---------------- 公司机场授权表（OMA 12.2.5） ---------------- */
@@ -1616,7 +1617,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v65';
+const APPV = 'v66';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -2017,6 +2018,7 @@ $('b-print').onclick = () => window.print();
 
 /* ---------------- 开始 ---------------- */
 Promise.all([apReady, ekReady]).then(() => {
+  S.started = 1;
   if (S.ofp) {
     $('t-fl').textContent = S.ofp.flight.no + ' · ' + S.ofp.flight.date;
     delete $('t-rt').dataset.i; $('t-rt').textContent = S.ofp.flight.dep + ' → ' + S.ofp.flight.arr + ' · ' + S.ofp.flight.reg + ' · STD ' + hmZ(S.ofp.times.std) + ' · TRIP ' + dur(S.ofp.times.trip);
