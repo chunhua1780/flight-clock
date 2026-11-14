@@ -92,8 +92,24 @@ public class MainActivity extends Activity {
   class Bridge {
     /** 0 = 关前光，0–1 = 亮度，-1 = 跟系统 */
     @JavascriptInterface public void setBrightness(final float v) {
-      runOnUiThread(new Runnable() { public void run() { WindowManager.LayoutParams lp = getWindow().getAttributes();
-        lp.screenBrightness = v < 0 ? WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE : Math.min(0.3f, v); getWindow().setAttributes(lp); } });
+      runOnUiThread(new Runnable() { public void run() {
+        float x = v < 0 ? -1f : Math.min(0.3f, v);
+        // 1) 系统亮度（有「修改系统设置」权限时）：0 才是真正关前光；只调窗口亮度时 0 会被当成「最低」，灯还微亮
+        if (x >= 0 && Settings.System.canWrite(MainActivity.this)) {
+          try { Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
+                Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, Math.round(x * 255)); } catch (Exception e) { }
+        }
+        // 2) 窗口亮度
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = x < 0 ? WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE : x; getWindow().setAttributes(lp);
+      } });
+    }
+    @JavascriptInterface public boolean canWrite() { return Settings.System.canWrite(MainActivity.this); }
+    @JavascriptInterface public void askWrite() {
+      runOnUiThread(new Runnable() { public void run() {
+        Toast.makeText(MainActivity.this, "请打开「允许修改系统设置」，这样白天才能完全关掉背光", Toast.LENGTH_LONG).show();
+        try { startActivity(new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { }
+      } });
     }
     /** 老版本 WebView 没有 DecompressionStream：在这里解压二维码里的数据 */
     @JavascriptInterface public String inflate(String b64) {
@@ -102,7 +118,7 @@ public class MainActivity extends Activity {
         while (!z.finished()) { int n = z.inflate(buf); if (n == 0 && (z.needsInput() || z.needsDictionary())) break; o.write(buf, 0, n); }
         z.end(); return o.toString("UTF-8"); } catch (Exception e) { return ""; }
     }
-    @JavascriptInterface public String version() { return "3.2"; }
+    @JavascriptInterface public String version() { return "3.3"; }
     /** 个人版：打包时放进去的口令（公开下载的版本里没有这个文件） */
     @JavascriptInterface public String presetKey() {
       try { java.io.InputStream in = getAssets().open("preset.txt"); byte[] b = new byte[512]; int n = in.read(b); in.close(); return n > 0 ? new String(b, 0, n, "UTF-8").trim() : ""; } catch (Exception e) { return ""; }

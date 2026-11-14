@@ -56,7 +56,7 @@ html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-fam
   </div>
   <div id="empty"></div>
   <div class="foot"><span id="st" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span><span class="btn" id="b-menu">☰</span></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新（读日历和邮箱）|Update (calendar & mail)"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新（读日历和邮箱）|Update (calendar & mail)"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光（白天完全关灯）|Allow backlight control (fully off in daylight)"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="set">
   <b>⚙︎ <span data-i="设置|Settings"></span></b><br>
@@ -272,6 +272,7 @@ const item = x => '<div class="it ' + (x.lv === 'red' ? 'red' : 'amb') + '">' + 
 const tile = (l, v, s, id, cls) => '<div class="c ' + (cls || '') + '"' + (id ? ' id="' + id + '"' : '') + '><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + (s || '') + '</div></div>';
 function draw() {
   const now = Date.now(), F = flights(now);
+  permBtn();
   $('b-mode').textContent = MODES[MODE][2] + X(MODES[MODE][0], MODES[MODE][1]); $('b-lang').textContent = '🌐 ' + ({ zh: '中文', en: 'English', both: '中文 + English' })[LANG];
   const u = +(ls('upd') || 0); $('st').textContent = MSG || ((u ? X('更新于 ', 'Updated ') + dmZ(u) + ' · ' : '') + hmZ(now) + 'Z');
   const L = pick(now, F);
@@ -332,6 +333,11 @@ $('b-menu').onclick = () => $('menu').classList.toggle('open');
 $('menu').addEventListener('click', e => { if (e.target.closest('.btn')) setTimeout(() => $('menu').classList.remove('open'), 300); });
 $('b-lang').onclick = () => { LANG = LANG === 'both' ? 'zh' : LANG === 'zh' ? 'en' : 'both'; ls('lang', LANG); MSG = ''; applyLang(); $('rk').innerHTML = ''; draw(); };
 $('b-up').onclick = () => update(false);
+// 安卓：没有「修改系统设置」权限时，背光关不彻底 → 菜单里显示一个按钮去打开
+const permOk = () => { try { return !window.AndroidPanel || !AndroidPanel.canWrite || AndroidPanel.canWrite(); } catch (e) { return true; } };
+$('b-perm').onclick = () => { try { AndroidPanel.askWrite(); } catch (e) {} };
+function permBtn() { $('b-perm').style.display = permOk() ? 'none' : ''; }
+document.addEventListener('visibilitychange', () => { permBtn(); lastBL = null; draw(); });
 $('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 'night' : 'auto'; ls('mode', MODE); draw(); };
 function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('blp') || 20; $('s-info').textContent = navigator.userAgent; $('set').style.display = 'block'; }
 $('b-set').addEventListener('click', openSet); $('s-x').onclick = () => { $('set').style.display = 'none'; };

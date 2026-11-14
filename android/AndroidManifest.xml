@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="net.flightpanel" android:versionCode="8" android:versionName="3.2">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="net.flightpanel" android:versionCode="9" android:versionName="3.3">
   <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
   <uses-permission android:name="android.permission.CAMERA" />
   <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.WRITE_SETTINGS" />
   <application android:label="Flight Panel" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar.Fullscreen">
     <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask" android:showWhenLocked="true" android:turnScreenOn="true"
       android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize">
