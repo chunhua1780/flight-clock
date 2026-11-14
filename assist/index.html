@@ -142,7 +142,7 @@ button{font-family:inherit}
 #tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
 #tabs .btn{min-width:0;white-space:nowrap;padding-left:4px;padding-right:4px}
 #side{container-type:inline-size}
-@container (max-width:380px){#tabs{grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:5px;padding:6px 8px}#tabs .btn{font-size:12px}.dbtns{grid-template-columns:repeat(auto-fill,minmax(52px,1fr))!important;gap:5px!important;padding:6px 8px 2px!important}.db{font-size:10.5px!important;padding:5px 1px!important;line-height:1.1;text-align:center}.db i{width:28px!important;height:28px!important;font-size:15px!important}.db{min-width:0;overflow:hidden}.db span{white-space:normal!important;overflow-wrap:anywhere}}
+@container (max-width:380px){#tabs{grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:5px;padding:6px 8px}#tabs .btn{font-size:12px}.dmenu{grid-template-columns:repeat(auto-fill,minmax(52px,1fr))!important;gap:5px!important}.db{font-size:10.5px!important;padding:5px 1px!important;line-height:1.1;text-align:center}.db i{width:28px!important;height:28px!important;font-size:15px!important}.db{min-width:0;overflow:hidden}.db span{white-space:normal!important;overflow-wrap:anywhere}}
 #tabs .btn.on{background:var(--on);border-color:#3a5584}
 #list{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px 8px 20px}
 .ap{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--card);cursor:pointer}
@@ -185,7 +185,8 @@ details summary{cursor:pointer;color:var(--blue);font-size:12px;margin-top:3px}
 #msg{font-size:13px;color:var(--amber);margin-top:8px;white-space:pre-wrap}
 #atdbox{display:flex;align-items:center;gap:6px}
 #atd{width:86px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:16px;text-align:center}
-.disc{font-size:10.5px;color:#6f7d98;padding:6px 10px;border-top:1px solid var(--line)}
+.disc{font-size:10.5px;color:#6f7d98;padding:4px 10px 6px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.disc.full{white-space:normal}
 .en{color:#8d9ab3;font-size:.86em;font-weight:400;margin-left:4px}
 div.en,.wl .en{display:block;margin-left:0}
 #tabs .btn .en{display:block;margin-left:0;font-size:10px}
@@ -240,7 +241,12 @@ div.en,.wl .en{display:block;margin-left:0}
 .tr .hn{font-size:11px}
 .nowbar{background:var(--gold);color:#1a1204;font-weight:800;font-size:12px;border-radius:6px;padding:3px 8px;margin:4px 0}
 .firrow{font-size:11.5px;color:#f2b8ff;padding:3px 4px;border-bottom:1px dashed #5a3a6a}
-.dbtns{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;padding:8px 10px 2px;border-top:1px solid var(--line)}
+.dbtns{position:relative;padding:6px 10px 2px;border-top:1px solid var(--line)}
+.dtog{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:13px;font-weight:700;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.01))}
+.dtog .dt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim);font-weight:600}
+.dbtns.open .dtog b{transform:rotate(180deg)}
+.dmenu{display:none;position:absolute;left:10px;right:10px;bottom:100%;margin-bottom:6px;z-index:800;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.55);grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+.dbtns.open .dmenu{display:grid}
 .db{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px 7px;border-radius:12px;text-decoration:none;color:var(--text);font-size:12px;font-weight:700;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.01));border:1px solid var(--line);transition:transform .12s,border-color .2s,background .2s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .db i{font-style:normal;font-size:18px;line-height:1;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(226,185,100,.14);color:var(--gold)}
 .db:hover{border-color:var(--gold);background:linear-gradient(180deg,rgba(226,185,100,.14),rgba(226,185,100,.03))}
@@ -467,7 +473,7 @@ div.en,.wl .en{display:block;margin-left:0}
       <button class="btn sm" data-tab="all" data-i="OFP 天气|OFP WX"></button>
     </div>
     <div id="list"></div>
-    <div class="dbtns"><a href="#" id="b-pnl" class="db"><i>📱</i><span data-i="副屏|Side display"></span></a><a href="#" id="b-trip" class="db"><i>🎬</i><span data-i="联动演示|Trip demo"></span></a><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a></div><div class="disc"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
+    <div class="dbtns" id="dbt"><a href="#" id="b-tools" class="dtog"><span style="font-size:16px">☰</span><span class="dt" data-i="演示 · OFP 解读 · Brief · 记录本 · RMATE|Demo · Decode · Brief · Logbook · RMATE"></span><b>▴</b></a><div class="dmenu"><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a></div></div><div class="disc" onclick="this.classList.toggle('full')"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
   </div>
 </div>
 
@@ -1620,7 +1626,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v67';
+const APPV = 'v68';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -2076,8 +2082,9 @@ function demoStop() {
   $('demo').style.display = 'none'; S.follow = true; drawRoute(); lastList = 0; S.userScroll = 0; tick();
 }
 $('b-demo').onclick = e => { e.preventDefault(); demoStart(); };
-$('b-trip').onclick = e => { e.preventDefault(); TRIP.start(); };
-$('b-pnl').onclick = e => { e.preventDefault(); PANEL.show(); };
+// 工具菜单：点一下展开，点里面的按钮或别处就收起
+$('b-tools').onclick = e => { e.preventDefault(); e.stopPropagation(); $('dbt').classList.toggle('open'); };
+document.addEventListener('click', e => { if (!e.target.closest('#b-tools')) $('dbt').classList.remove('open'); });
 
 const SIM = new URLSearchParams(location.search).get('sim');
 if (SIM != null) setTimeout(() => { if (S.ofp) { const at = (S.ofp.times.std || 0) + 20 * MIN; S.sim = at + (+SIM) * MIN - Date.now(); setATD(at); } }, 800);
