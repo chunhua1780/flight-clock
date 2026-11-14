@@ -464,7 +464,7 @@ div.en,.wl .en{display:block;margin-left:0}
       <button class="btn sm" data-tab="all" data-i="OFP 天气|OFP WX"></button>
     </div>
     <div id="list"></div>
-    <div class="dbtns"><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a></div><div class="disc"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
+    <div class="dbtns"><a href="#" id="b-trip" class="db"><i>🎬</i><span data-i="联动演示|Trip demo"></span></a><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a></div><div class="disc"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
   </div>
 </div>
 
@@ -521,6 +521,7 @@ div.en,.wl .en{display:block;margin-left:0}
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
 <script src="ofp.js"></script>
+<script src="demotrip.js"></script>
 <script src="wx.js"></script>
 <script src="ekparse.js"></script>
 <script src="brief.js"></script>
@@ -1613,7 +1614,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v62';
+const APPV = 'v63';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -2028,7 +2029,7 @@ Promise.all([apReady, ekReady]).then(() => {
 /* ---------------- 演示：从起飞到落地快放（不改真实起飞时间，不发给时钟） ---------------- */
 function demoStart() {
   if (!S.ofp) { toast(th('先载入 OFP', 'Load an OFP first')); return; }
-  if (S.demo) { demoStop(); return; }
+  if (S.demo) { if (S.demo.trip) TRIP.stop(); else demoStop(); return; }
   const o = S.ofp, t0 = (o.times.std || Date.now()) + ((o.times.taxi || 15) * MIN);
   S.demo = { keep: { atd: S.atd, sim: S.sim || 0, fix: S.fix, lastFir: S.lastFir, firToast: S.firToast }, speed: 120, play: true, last: Date.now(), t0, lastL: 0 };
   S.atd = t0; S.fix = null; S.lastFir = undefined; S.firToast = null; S.drag = null; S.follow = true; S.userScroll = 0;
@@ -2068,6 +2069,7 @@ function demoStop() {
   $('demo').style.display = 'none'; S.follow = true; drawRoute(); lastList = 0; S.userScroll = 0; tick();
 }
 $('b-demo').onclick = e => { e.preventDefault(); demoStart(); };
+$('b-trip').onclick = e => { e.preventDefault(); TRIP.start(); };
 
 const SIM = new URLSearchParams(location.search).get('sim');
 if (SIM != null) setTimeout(() => { if (S.ofp) { const at = (S.ofp.times.std || 0) + 20 * MIN; S.sim = at + (+SIM) * MIN - Date.now(); setATD(at); } }, 800);

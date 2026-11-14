@@ -41,6 +41,7 @@
   const endOf = e => (e.std || 0) + ((e.trip || 0) + 120) * 60e3;            // 计划落地后 2 小时算这一班结束
   // 自动：现在这一班已经飞完、库里有下一班 → 换过去；还没有任何 OFP → 用最近的那一班
   async function auto() {
+    if (typeof S !== 'undefined' && S.demo) return;
     if (Date.now() - +(ls('ofppin') || 0) < 12 * 36e5) return;
     const L = (await all()).filter(e => endOf(e) > Date.now()).sort((a, b) => a.std - b.std); if (!L.length) return;
     const curK = ls('ofpk'), cur = curK ? await get(curK) : null, next = L[0];
