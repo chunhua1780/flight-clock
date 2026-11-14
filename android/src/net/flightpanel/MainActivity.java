@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.widget.Toast;
 import android.util.Base64;
 import android.view.View;
 import android.view.WindowManager;
@@ -44,8 +46,8 @@ public class MainActivity extends Activity {
     });
     web.setWebChromeClient(new WebChromeClient() {
       @Override public void onPermissionRequest(PermissionRequest r) {
-        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) r.grant(r.getResources());
-        else { pending = r; requestPermissions(new String[] { Manifest.permission.CAMERA }, 1); }
+        if (camOk()) { r.grant(r.getResources()); return; }
+        pending = r; requestPermissions(new String[] { Manifest.permission.CAMERA }, 1);
       }
       @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
         fileCb = cb; try { startActivityForResult(p.createIntent(), 2); } catch (Exception e) { fileCb = null; cb.onReceiveValue(null); }
@@ -55,6 +57,8 @@ public class MainActivity extends Activity {
     web.addJavascriptInterface(new Bridge(), "AndroidPanel");
     setContentView(web);
     open(getIntent());
+    // 一打开就要相机权限（扫码用），不要等到扫码时才问
+    if (!camOk()) requestPermissions(new String[] { Manifest.permission.CAMERA }, 1);
   }
   static String mime(String p) {
     if (p.endsWith(".html")) return "text/html"; if (p.endsWith(".js")) return "application/javascript";
@@ -65,9 +69,16 @@ public class MainActivity extends Activity {
     web.loadUrl(BASE + "index.html" + (f != null && f.length() > 2 ? "#" + f : ""));
   }
   @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); if (i.getData() != null) open(i); }
-  @Override public void onRequestPermissionsResult(int c, String[] p, int[] g) {
-    if (pending != null) { if (g.length > 0 && g[0] == PackageManager.PERMISSION_GRANTED) pending.grant(pending.getResources()); else pending.deny(); pending = null; }
+  boolean camOk() { return checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED; }
+  void openSettings() {
+    Toast.makeText(this, "请在「权限」里打开「相机」 · Turn on Camera in Permissions", Toast.LENGTH_LONG).show();
+    try { startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { }
   }
+  @Override public void onRequestPermissionsResult(int c, String[] p, int[] g) {
+    boolean ok = g.length > 0 && g[0] == PackageManager.PERMISSION_GRANTED;
+    if (pending != null) { if (ok) pending.grant(pending.getResources()); else pending.deny(); pending = null; }
+  }
+  @Override protected void onResume() { super.onResume(); if (web != null) web.evaluateJavascript("window.onCamPerm && onCamPerm(" + camOk() + ")", null); }
   @Override protected void onActivityResult(int c, int res, Intent data) {
     if (c == 2 && fileCb != null) { fileCb.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data)); fileCb = null; }
   }
@@ -91,6 +102,8 @@ public class MainActivity extends Activity {
         while (!z.finished()) { int n = z.inflate(buf); if (n == 0 && (z.needsInput() || z.needsDictionary())) break; o.write(buf, 0, n); }
         z.end(); return o.toString("UTF-8"); } catch (Exception e) { return ""; }
     }
-    @JavascriptInterface public String version() { return "1.0"; }
+    @JavascriptInterface public String version() { return "1.1"; }
+    @JavascriptInterface public boolean camOk() { return MainActivity.this.camOk(); }
+    @JavascriptInterface public void openSettings() { runOnUiThread(new Runnable() { public void run() { MainActivity.this.openSettings(); } }); }
   }
 }

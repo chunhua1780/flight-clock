@@ -156,7 +156,9 @@ function camStop() { scanning = false; if (stream) stream.getTracks().forEach(t 
 $('b-camx').onclick = camStop;
 $('b-scan').onclick = async () => {
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } }); }
-  catch (e) { if (confirm('浏览器不让用摄像头。改用「拍照」：用相机拍一张二维码照片？\nCamera blocked — take a photo of the QR code instead?')) $('f-img').click(); return; }
+  catch (e) {
+    if (window.AndroidPanel && AndroidPanel.camOk && !AndroidPanel.camOk()) { if (confirm('相机权限被关掉了。点「确定」去设置里打开：权限 → 相机 → 允许。\nCamera permission is off — open Settings to allow it?')) AndroidPanel.openSettings(); return; }
+    if (confirm('相机打不开（' + (e.name || '') + ' ' + (e.message || '') + '）。\n改用「拍照」：用相机拍一张二维码照片？\nCamera failed — take a photo of the QR code instead?')) $('f-img').click(); return; }
   const v = $('vid'); v.srcObject = stream; $('cam').style.display = 'flex'; await v.play(); scanning = true;
   let bd = null; try { if ('BarcodeDetector' in window) bd = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
   const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
