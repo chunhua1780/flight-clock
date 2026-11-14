@@ -7,11 +7,11 @@
 <link rel="manifest" href="manifest.json">
 <title>Flight Panel</title>
 <style>
-:root{--bg:#fff;--fg:#000;--dim:#444;--line:#000;--red:#c00000;--amb:#b85c00;--blue:#1d4fb8;--grn:#16733a}
-body.night{--bg:#000;--fg:#d8d8d8;--dim:#8a8a8a;--line:#555;--red:#ff5a4f;--amb:#ffa23a;--blue:#7fb0ff;--grn:#5fd18a}
+/* 三色屏：永远白底，只用黑和红 */
+:root{--bg:#fff;--fg:#000;--dim:#333;--line:#000;--red:#d00000;--amb:#000;--blue:#000;--grn:#000}
 #main{display:flex;flex-direction:column;flex:1}
 .ph.p0{color:var(--blue)}.ph.p1{color:var(--grn)}.ph.p2{color:var(--dim)}
-.it.amb{border-color:var(--amb)}.ok.good{color:var(--grn)}
+.it.amb{border-color:#000}.ok.good{color:var(--grn)}
 .c.w2{grid-column:span 2}
 *{box-sizing:border-box}
 input,textarea{-webkit-user-select:text!important;user-select:text!important}
@@ -59,7 +59,7 @@ html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-fam
 <div id="set">
   <b>⚙︎ 设置 · Settings</b><br>
   口令（和飞行助手里填的一样） · Password<br><input id="s-key" type="password" autocomplete="off">
-  夜间亮度 0–255（白天自动关前光） · Night brightness<br><input id="s-bl" type="number" min="0" max="255">
+  夜里背光亮度 5–30%（白天自动关，夜里慢慢亮起一点） · Night backlight %<br><input id="s-bl" type="number" min="5" max="30">
   <span class="btn" id="s-ok">✓ 保存 Save</span> <span class="btn" id="s-x">✕</span>
   <p style="color:var(--dim)">有网时自动从邮箱读接下来 40 小时的 OFP（在 Lido 里把 OFP 发到邮箱即可），每 30 分钟查一次，也可以点「🔄 更新」。读完存在手机上，飞行中没网照常显示。<br>
   When online, OFPs for the next 40 h are read from your mailbox automatically (every 30 min, or tap Update). Everything is stored on the phone for offline use.</p>
@@ -179,7 +179,7 @@ function summarize(o) {
     return out;
   };
   const leg = { k: f.no + f.date, no: f.no, date: f.date, dep: f.dep, arr: f.arr, ai: f.depIata, bi: f.arrIata, reg: f.reg || '', ty: f.type || '',
-    std: t.std, tx: t.taxi || 0, tr: t.trip || 0, n: N.map(w => [w.id, w.t]), fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] } };
+    std: t.std, tx: t.taxi || 0, tr: t.trip || 0, fl: (+(String(t.crzFl || '').replace(/\D/g, '')) || 350) * 100, n: N.map(w => [w.id, w.t]), fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] } };
   const withC = N.filter(w => X[w.id]), step = Math.max(1, Math.ceil(withC.length / 12));
   withC.forEach((w, i) => { if (i % step === 0 || i === withC.length - 1) leg.c.push([w.t, Math.round(X[w.id][0] * 10) / 10, Math.round(X[w.id][1] * 10) / 10]); });
   // 重量
@@ -220,13 +220,28 @@ function posAt(c, el) { if (!c || !c.length) return null; if (el <= c[0][0]) ret
   for (let i = 1; i < c.length; i++) if (el <= c[i][0]) { const a = c[i - 1], b = c[i], k = (el - a[0]) / Math.max(1, b[0] - a[0]); return [el, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
   return c[c.length - 1]; }
 let MODE = ls('mode') || 'auto', lastBL = null;
-const MODES = { auto: '◐ 自动', day: '☀︎ 白天', night: '☾ 夜间' };
-function setNight(n) {
-  const bl = +(ls('bl') || 40);
-  try { if (window.AndroidPanel && lastBL !== !!n) { lastBL = !!n; AndroidPanel.setBrightness(n ? bl / 255 : 0); } } catch (e) {}
-  try { if (window.fully && fully.setScreenBrightness && lastBL !== !!n) { lastBL = !!n; fully.setScreenBrightness(n ? bl : 0); } } catch (e) {}
-  document.body.classList.toggle('night', !!n); document.querySelector('meta[name=theme-color]').content = n ? '#000000' : '#ffffff';
+const MODES = { auto: '💡 自动', day: '○ 背光关', night: '● 背光开' };
+// 背光：屏幕永远白底黑字。白天关；天黑了慢慢亮起一点点（默认 20%，最多 30%）
+const BLMAX = 0.3, blPct = () => Math.max(5, Math.min(30, +(ls('blp') || 20))) / 100;
+let blCur = 0, blIv = null;
+function blApply(v) {
+  try { if (window.AndroidPanel) AndroidPanel.setBrightness(v); } catch (e) {}
+  try { if (window.fully && fully.setScreenBrightness) fully.setScreenBrightness(Math.round(v * 255)); } catch (e) {}
 }
+function setNight(n) {
+  const target = n ? Math.min(BLMAX, blPct()) : 0;
+  if (lastBL === target) return; lastBL = target; clearInterval(blIv);
+  // 慢慢变：大约 3 秒，分 12 步
+  const from = blCur, steps = 12; let k = 0;
+  blIv = setInterval(() => { k++; blCur = from + (target - from) * k / steps; blApply(Math.max(0, Math.min(BLMAX, blCur))); if (k >= steps) clearInterval(blIv); }, 250);
+}
+// 飞机此刻的高度（英尺）：地面 0；起飞后 20 分钟爬到巡航高度；落地前 30 分钟开始下降
+function altAt(L, ph, el) {
+  const cr = L.fl || 35000; if (ph !== 1) return 0;
+  if (el < 20) return cr * el / 20; if (el > L.tr - 30) return cr * Math.max(0, L.tr - el) / 30; return cr;
+}
+// 天黑没有：太阳在地平线以下多少度。高空看得更远（地平线下沉），巡航时太阳"落山"更晚
+function isDark(now, P, alt) { const dip = 1.06 * Math.sqrt(Math.max(0, alt)) / 60; return sunEl(now, P[1], P[2]) < -(dip + 2); }
 
 /* =====================================================================
    4. 画
@@ -270,7 +285,7 @@ function draw() {
   $('ph').className = 'ph p' + ph;
   $('ph').textContent = ph === 0 ? (off - now > 12 * HOUR ? '计划 · Planned ' + dmZ(off) : '起飞前 ' + dur((off - now) / MIN) + ' · Before T/O') : ph === 1 ? '✈ 已飞 ' + dur(el) + ' · 剩 ' + dur(L.tr - el) + ' · Airborne' : '已落地 · Landed';
   const P = L.c && L.c.length ? (ph === 0 ? L.c[0] : ph === 2 ? L.c[L.c.length - 1] : posAt(L.c, el)) : null;
-  setNight(MODE === 'night' || (MODE === 'auto' && P && sunEl(now, P[1], P[2]) < -3));
+  setNight(MODE === 'night' || (MODE === 'auto' && P && isDark(now, P, altAt(L, ph, el))));
   // 信息格：STD/ATD（点了改）· ETA · 下一个点 · 下一个移交点
   let row = tile(atdOf(L) ? 'ATD ✎' : 'STD ✎', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) + 'Z' : '点这里填实际起飞 · tap for ATD', 'c-atd');
   row += tile('ETA ' + esc(L.bi), hmZ(on) + 'Z', L.noOfp ? '按日历 · from roster' : 'Trip ' + dur(L.tr));
@@ -309,9 +324,9 @@ $('row').onclick = e => {
 };
 $('b-up').onclick = () => update(false);
 $('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 'night' : 'auto'; ls('mode', MODE); draw(); };
-function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('bl') || 40; $('s-info').textContent = navigator.userAgent; $('set').style.display = 'block'; }
+function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('blp') || 20; $('s-info').textContent = navigator.userAgent; $('set').style.display = 'block'; }
 $('b-set').addEventListener('click', openSet); $('s-x').onclick = () => { $('set').style.display = 'none'; };
-$('s-ok').onclick = () => { ls('key', $('s-key').value.trim()); ls('bl', String(Math.max(0, Math.min(255, +$('s-bl').value || 40)))); lastBL = null; $('set').style.display = 'none'; draw(); update(false); };
+$('s-ok').onclick = () => { ls('key', $('s-key').value.trim()); ls('blp', String(Math.max(5, Math.min(30, +$('s-bl').value || 20)))); lastBL = null; $('set').style.display = 'none'; draw(); update(false); };
 
 /* ---------- 屏幕常亮（网页版用；App 自己会常亮） ---------- */
 let wl = null;
