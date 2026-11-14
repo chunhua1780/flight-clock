@@ -1,4 +1,4 @@
-const CACHE = 'pnl-v9', FILES = ['./', 'index.html', 'manifest.json', 'ofp.js', 'wx.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'];
+const CACHE = 'pnl-v10', FILES = ['./', 'index.html', 'manifest.json', 'ofp.js', 'wx.js', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => { if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return; e.respondWith(fetch(e.request).then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); } return r; }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('index.html')))); });
