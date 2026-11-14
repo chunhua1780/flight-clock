@@ -130,7 +130,11 @@ function draw() {
   if ($('grid').innerHTML !== h) $('grid').innerHTML = h;   // 墨水屏：内容没变就不重画
   $('upd').textContent = '扫码 ' + new Date(D.got || now).toTimeString().slice(0, 5);
 }
-function setNight(n) { document.body.classList.toggle('night', !!n); document.querySelector('meta[name=theme-color]').content = n ? '#000000' : '#ffffff'; }
+let lastBL = null;
+function setNight(n) {
+  // Fully Kiosk 浏览器（PLUS）：白天关前光，夜里开一点
+  try { if (window.fully && fully.setScreenBrightness && lastBL !== !!n) { lastBL = !!n; fully.setScreenBrightness(n ? +(ls('bl') || 40) : 0); } } catch (e) {}
+  document.body.classList.toggle('night', !!n); document.querySelector('meta[name=theme-color]').content = n ? '#000000' : '#ffffff'; }
 
 /* ---------- 改 ATD（手机上直接改，不用重扫） ---------- */
 $('grid').addEventListener('click', e => {
