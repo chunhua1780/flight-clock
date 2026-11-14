@@ -1149,7 +1149,7 @@ function card(c, t, d, mins, cur) {
   const tags = (c.ek && c.ek.a ? '<span class="tag">' + th(c.ek.a + ' 类', 'Cat ' + c.ek.a) + '</span>' : '') + (c.roles || []).map(roleTag).join('');
   const hs = ekHints(c.ek, t).filter(h => h.lv !== 'info' || /Fuel and Go|地面服务|停机位/.test(h.zh)).slice(0, 3);
   const pk = a.rw && a.rw.pick;
-  const rw = pk ? '<b>' + (a.rw.atis ? 'ATIS ' + esc(a.rw.atis) + ' · ' + th('在用跑道', 'RWY in use') : th('预计跑道', 'Expected RWY')) + ' ' + esc(pk.id) + '</b>' + (pk.head == null ? ' ' + th('（没有风的资料）', '(no wind data)') : (a.rw.calm ? ' ' + th('（风小）', '(light wind)') : '') + ' · ' + th('逆风', 'head') + ' ' + pk.head + ' / ' + th('侧风', 'cross') + ' ' + pk.cross + (pk.tail ? ' / <span class="t-amber">' + th('顺风', 'tail') + ' ' + pk.tail + '</span>' : '')) + (a.rw.allLimited ? ' <span class="t-red">' + th('所有跑道都有限制', 'all runways restricted') + '</span>' : '') : '';
+  const rw = pk ? '<b>' + (a.rw.atis ? esc(a.rw.atis) + ' · ' + th('在用跑道', 'RWY in use') : a.rw.obs ? '🛰 ' + th('实际在用跑道', 'RWY in use (observed)') : th('预计跑道', 'Expected RWY')) + ' ' + esc(pk.id) + '</b>' + (pk.head == null ? ' ' + th('（没有风的资料）', '(no wind data)') : (a.rw.calm ? ' ' + th('（风小）', '(light wind)') : '') + ' · ' + th('逆风', 'head') + ' ' + pk.head + ' / ' + th('侧风', 'cross') + ' ' + pk.cross + (pk.tail ? ' / <span class="t-amber">' + th('顺风', 'tail') + ' ' + pk.tail + '</span>' : '')) + (a.rw.allLimited ? ' <span class="t-red">' + th('所有跑道都有限制', 'all runways restricted') + '</span>' : '') : '';
   const nt = a.notes.filter(n => n.lv !== 'info').slice(0, 3).map(n => '<span class="t-' + n.lv + '">● ' + th(esc(n.zh), esc(n.en || n.zh)) + '</span>').join('<br>');
   return '<div class="ap' + (cur ? ' cur' : '') + '" onclick="openSheet(\'' + c.icao + '\')" style="border-left:5px solid ' + (CATC[cat] || '#22304a') + '"><div class="h">' + catTag(cat) + '<span class="dot ' + dotc + '"></span><span class="id">' + c.icao + '</span>' +
     '<span class="nm">' + esc(c.iata || '') + ' ' + esc((c.db && c.db[2]) || c.name || '') + tags + '</span>' +
@@ -1631,7 +1631,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v69';
+const APPV = 'v70';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {

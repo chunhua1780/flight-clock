@@ -16,7 +16,7 @@
     const ids = [o.flight.dep, o.flight.arr].concat((o.alternates || []).map(a => a.icao)).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 10);
     busy = true;
     try {
-      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'live', icaos: ids }) });
+      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'live', icaos: ids, pos: posOf(ids) }) });
       const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { ok: false, error: t.slice(0, 80) }; }
       if (j.ok && j.ap) { L = { k: keyOf(), t: Date.now(), ap: j.ap }; lsSet('live', JSON.stringify(L)); err = ''; if (typeof lastList !== 'undefined') lastList = 0; renderList(true); }
       else err = /unknown|action|未知/i.test(j.error || '') || !j.error ? 'old' : j.error;
@@ -24,6 +24,18 @@
     busy = false;
   }
 
+  function posOf(ids) { const P = {}; try { candidates().forEach(c => { if (ids.indexOf(c.icao) >= 0 && c.pos) P[c.icao] = [Math.round(c.pos[0] * 1000) / 1000, Math.round(c.pos[1] * 1000) / 1000]; }); } catch (e) {} return P; }
+  // ADS-B 观察：最近 40 分钟对准跑道落地 / 起飞的飞机，航迹最接近哪个跑道方向
+  const dif = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+  function endsOf(icao) { const c = candidates().find(x => x.icao === icao), out = []; ((c && c.db && c.db[6]) || []).forEach(r => { [[r[0], r[1]], [r[2], r[3]]].forEach(e => { if (e[0]) out.push({ id: e[0], hdg: e[1] != null ? e[1] : (parseInt(e[0], 10) || 0) * 10 }); }); }); return out; }
+  function traffic(icao, kind) {
+    const a = cur() && cur()[icao], L = a && a.tr && (kind === 'dep' ? a.tr.d : a.tr.a); if (!L || !L.length) return null;
+    const E = endsOf(icao); if (!E.length) return null;
+    const cnt = {}, last = {};
+    L.forEach(x => { const m = E.filter(e => dif(e.hdg, x.k) < 25); if (!m.length) return; const k = m.map(e => e.id).sort().join('/'); cnt[k] = (cnt[k] || 0) + 1; last[k] = Math.max(last[k] || 0, x.t); });
+    const ks = Object.keys(cnt).sort((p, q) => cnt[q] - cnt[p]); if (!ks.length) return null;
+    return { ids: ks[0].split('/'), n: cnt[ks[0]], tot: L.length, ago: Math.round((Date.now() - last[ks[0]]) / 60e3) };
+  }
   // ATIS 文字里正在用的跑道：落地（ILS/APCH/LDG/ARR…）和起飞（DEPG/DEP/TKOF…）分开
   function atisRwy(tx) {
     const T = ' ' + String(tx || '').toUpperCase().replace(/\b(?:RUNWAYS?|RWYS?|RYS?)\b/g, 'RWY') + ' ';
@@ -52,14 +64,18 @@
   // 给 assess() 用：ATIS 跑道（只在 3 小时以内用，ATIS 说的是现在）
   function pickRwy(rw, icao, t, kind) {
     if (!rw || !rw.all || Math.abs(t - Date.now()) > 3 * 3600e3) return;
-    const A = atisOf(icao, kind); if (!A || !A.rwy.length) return;
-    const e = rw.all.find(x => A.rwy.some(r => same(r, x.id))); if (e) { rw.pick = e; rw.atis = A.code || 'ATIS'; }
+    const A = atisOf(icao, kind);
+    if (A && A.rwy.length) { const e = rw.all.find(x => A.rwy.some(r => same(r, x.id))); if (e) { rw.pick = e; rw.atis = 'ATIS ' + (A.code || ''); return; } }
+    // 没有 ATIS：用 ADS-B 看到的实际起降方向（至少 2 架、30 分钟内）
+    const F = traffic(icao, kind); if (F && F.n >= 2 && F.ago <= 30) { const e = rw.all.find(x => F.ids.some(r => same(r, x.id))); if (e) { rw.pick = e; rw.obs = F; } }
   }
   // 机场卡片里的一行：ATIS / 实时天气
   function line(icao, kind) {
     const A = atisOf(icao, kind), a = cur() && cur()[icao];
-    if (A) return '<div class="small">📻 <b>ATIS ' + esc(A.code || '') + ' ' + esc(A.time || '') + 'Z</b> · ' + th('落地', 'ARR') + ' ' + (atisRwy(A.text).arr.join(' ') || '—') + ' · ' + th('起飞', 'DEP') + ' ' + (atisRwy(A.text).dep.join(' ') || '—') + '</div>';
-    if (a && (a.m || a.t)) return '<div class="small" style="color:var(--dim)">🌐 ' + th('实时天气', 'Live WX') + (a.mt ? ' METAR ' + hmZ(a.mt).slice(0, 4) + 'Z' : '') + (a.t ? ' · TAF' : '') + ' · ' + th('这个机场网上没有 ATIS', 'no online ATIS here') + '</div>';
+    const FA = traffic(icao, 'arr'), FD = traffic(icao, 'dep');
+    const obs = FA || FD ? '<div class="small">🛰 ' + th('ADS-B 观察（近 40 分钟）', 'ADS-B observed (last 40 min)') + '：' + (FA ? th('落地 ', 'landing ') + FA.ids.join('/') + ' ×' + FA.n : '') + (FA && FD ? ' · ' : '') + (FD ? th('起飞 ', 'departing ') + FD.ids.join('/') + ' ×' + FD.n : '') + '</div>' : '';
+    if (A) return obs + '<div class="small">📻 <b>ATIS ' + esc(A.code || '') + ' ' + esc(A.time || '') + 'Z</b> · ' + th('落地', 'ARR') + ' ' + (atisRwy(A.text).arr.join(' ') || '—') + ' · ' + th('起飞', 'DEP') + ' ' + (atisRwy(A.text).dep.join(' ') || '—') + '</div>';
+    if (a && (a.m || a.t)) return obs + '<div class="small" style="color:var(--dim)">🌐 ' + th('实时天气', 'Live WX') + (a.mt ? ' METAR ' + hmZ(a.mt).slice(0, 4) + 'Z' : '') + (a.t ? ' · TAF' : '') + ' · ' + (obs ? th('没有网上 ATIS，跑道按实际起降', 'no online ATIS — runway from observed traffic') : th('没有网上 ATIS，跑道按风推算', 'no online ATIS — runway from wind')) + '</div>';
     return '';
   }
 
@@ -86,7 +102,7 @@
     const src = cur() && cur()[o.flight.arr] && (cur()[o.flight.arr].t || cur()[o.flight.arr].m) ? '🌐 ' + th('实时预报', 'live forecast') + ' ' + hmZ(L.t).slice(0, 4) + 'Z' : '📄 ' + th('OFP 里的预报', 'OFP forecast') + (err === 'old' ? ' · ' + th('后台要更新才能查实时', 'update the backend for live data') : navigator.onLine ? '' : ' · ' + th('离线', 'offline'));
     return '<div class="ap" style="border-left:5px solid ' + col + ';cursor:default"><div class="h"><span class="id">🛬 ' + esc(o.flight.arr) + '</span><span style="flex:1">' + th('预达 ', 'ETA ') + hmZ(eta) + ' ' + th('时的影响', 'impact') + '</span>' +
       '<span class="small" style="cursor:pointer" onclick="event.stopPropagation();LIVE.fetch(true)">⟳</span></div>' +
-      (pk ? '<div class="small"><b>' + (a.rw.atis ? 'ATIS ' + esc(a.rw.atis) + ' · ' + th('在用跑道', 'RWY in use') : th('预计跑道', 'Expected RWY')) + ' ' + esc(pk.id) + '</b>' + (pk.head != null ? ' · ' + th('逆风', 'head') + ' ' + pk.head + ' / ' + th('侧风', 'cross') + ' ' + pk.cross + (pk.tail ? ' / ' + th('顺风', 'tail') + ' ' + pk.tail : '') : '') + '</div>' : '') +
+      (pk ? '<div class="small"><b>' + (a.rw.atis ? esc(a.rw.atis) + ' · ' + th('在用跑道', 'RWY in use') : a.rw.obs ? '🛰 ' + th('实际在用跑道', 'RWY in use (observed)') : th('预计跑道', 'Expected RWY')) + ' ' + esc(pk.id) + '</b>' + (pk.head != null ? ' · ' + th('逆风', 'head') + ' ' + pk.head + ' / ' + th('侧风', 'cross') + ' ' + pk.cross + (pk.tail ? ' / ' + th('顺风', 'tail') + ' ' + pk.tail : '') : '') + '</div>' : '') +
       it.map(x => '<div class="' + (x.lv === 'red' ? 't-red' : x.lv === 'amber' ? 't-amber' : '') + '" style="margin-top:3px">' + (x.lv === 'ok' ? '☁︎ ' : '● ') + thb(esc(x.zh), esc(x.en)) + '</div>').join('') +
       line(o.flight.arr, 'arr') + '<div class="small" style="color:var(--dim);margin-top:3px">' + src + '</div></div>';
   }

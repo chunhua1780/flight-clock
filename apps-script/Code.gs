@@ -357,6 +357,7 @@ function legsOf_(ev) {
 // ======== 定时器：自动跟踪正在进行的航班 ========
 function poll() {
   const now = Date.now();
+  try { rwWatch_(); } catch (e) {}   // 飞行助手要的机场：看实际起降方向
   // 日历 10 分钟读一次就够（每分钟都读太浪费额度）
   const cache = CacheService.getScriptCache();
   let list = null;
@@ -941,8 +942,42 @@ function live_(j) {
   try { JSON.parse(rs[1].getContentText()).forEach(function (t) { const o = out[t.icaoId], it = Date.parse(t.issueTime) || 0; if (o && t.rawTAF && it >= o.tt) { o.t = t.rawTAF; o.tt = it; } }); } catch (e) {}
   ids.forEach(function (i, k) { try { const r = rs[2 + k]; if (!r || r.getResponseCode() !== 200) return; const a = JSON.parse(r.getContentText());
     if (Array.isArray(a) && a.length && a[0].datis) out[i].atis = a.map(function (x) { return { type: x.type, code: x.code, text: x.datis, time: x.time }; }); } catch (e) {} });
+  // 实际在用跑道：看 ADS-B 上正在起降的飞机（全球有 ADS-B 覆盖的地方都行）。之后 3 小时每几分钟自动再看
+  const pos = j.pos || {}, W = rwW_();
+  ids.forEach(function (i) { if (pos[i]) W[i] = { p: pos[i], exp: Date.now() + 3 * 3600e3 }; });
+  rwWsave_(W);
+  ids.forEach(function (i) { if (pos[i]) { try { rwSample_(i, pos[i]); } catch (e) {} } out[i].tr = rwHist_(i); });
   const res = { ok: true, t: Date.now(), ap: out };
-  try { cache.put(ck, JSON.stringify(res), 300); } catch (e) {}
+  try { cache.put(ck, JSON.stringify(res), 120); } catch (e) {}
   return res;
+}
+
+/* ---------- 实际在用跑道（ADS-B 观察）----------
+   机场 12 海里内、4000 英尺以下：下降的 = 正在落地，上升的 = 刚起飞；记下它们的航迹方向，保留 40 分钟。 */
+function rwW_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('rw_watch') || '{}'); } catch (e) { return {}; } }
+function rwWsave_(W) { const now = Date.now(); Object.keys(W).forEach(function (k) { if (W[k].exp < now) delete W[k]; }); PropertiesService.getScriptProperties().setProperty('rw_watch', JSON.stringify(W)); }
+function rwHist_(icao) { try { return JSON.parse(CacheService.getScriptCache().get('rwh:' + icao) || '{"a":[],"d":[]}'); } catch (e) { return { a: [], d: [] }; } }
+function rwBrg_(la1, lo1, la2, lo2) { const r = Math.PI / 180, y = Math.sin((lo2 - lo1) * r) * Math.cos(la2 * r), x = Math.cos(la1 * r) * Math.sin(la2 * r) - Math.sin(la1 * r) * Math.cos(la2 * r) * Math.cos((lo2 - lo1) * r); return (Math.atan2(y, x) / r + 360) % 360; }
+function rwDif_(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+function rwSample_(icao, p) {
+  const r = UrlFetchApp.fetch('https://api.adsb.lol/v2/point/' + p[0] + '/' + p[1] + '/12', { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return;
+  const now = Date.now(), H = rwHist_(icao), keep = function (L) { const seen = {}; return L.filter(function (x) { return now - x.t < 40 * 60e3; }).sort(function (a, b) { return b.t - a.t; }).filter(function (x) { if (seen[x.h]) return false; seen[x.h] = 1; return true; }).slice(0, 40); };
+  (JSON.parse(r.getContentText()).ac || []).forEach(function (x) {
+    const alt = x.alt_baro, rate = x.baro_rate != null ? x.baro_rate : x.geom_rate, trk = x.track;
+    if (typeof alt !== 'number' || alt > 4000 || alt < 50 || trk == null || rate == null || (x.gs || 0) < 100) return;
+    if (x.lat == null) return;
+    // 只算对准跑道的：落地的要朝着机场飞（不是在三边），起飞的要离机场而去
+    if (rate < -300 && rwDif_(rwBrg_(x.lat, x.lon, p[0], p[1]), trk) < 30) H.a.push({ h: x.hex, t: now, k: Math.round(trk) });
+    else if (rate > 300 && rwDif_(rwBrg_(p[0], p[1], x.lat, x.lon), trk) < 40) H.d.push({ h: x.hex, t: now, k: Math.round(trk) });
+  });
+  H.a = keep(H.a); H.d = keep(H.d);
+  CacheService.getScriptCache().put('rwh:' + icao, JSON.stringify(H), 3600);
+}
+// 每分钟由 poll() 调用：轮流看 1–2 个机场（每个机场大约 3–5 分钟看一次）
+function rwWatch_() {
+  const W = rwW_(), ks = Object.keys(W).filter(function (k) { return W[k].exp > Date.now(); }); if (!ks.length) return;
+  const pr = PropertiesService.getScriptProperties(), n = (+pr.getProperty('rw_rr') || 0) % ks.length; pr.setProperty('rw_rr', String(n + 2));
+  [ks[n], ks[(n + 1) % ks.length]].filter(function (k, i, a) { return a.indexOf(k) === i; }).forEach(function (k) { try { rwSample_(k, W[k].p); } catch (e) {} });
 }
 
