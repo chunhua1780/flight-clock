@@ -27,7 +27,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .s{font-size:13px;color:var(--dim);font-weight:600}
 .bad .v,.bad .s{color:var(--red)}
 .bad{outline:3px solid var(--red);outline-offset:-3px}
-.foot{display:flex;gap:8px;justify-content:space-between;align-items:center;padding-top:8px;font-size:13px;color:var(--dim)}
+.foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;padding-top:8px;font-size:13px;color:var(--dim)}
 .btn{border:2px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:700;color:var(--fg);background:var(--bg);font-size:14px}
 #empty{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;font-size:17px;line-height:1.5}
 #cam{position:fixed;inset:0;background:#000;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff}
@@ -45,7 +45,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
     <div class="grid" id="grid"></div>
   </div>
   <div id="empty"><div>📱 <b>副屏 · Side display</b></div><div>在 iPad 飞行助手点「📱 副屏」，<br>然后在这里点「📷 扫码」。<br><span style="color:var(--dim)">Tap “Side display” in Flight Assist on the iPad,<br>then tap “Scan” here.</span></div></div>
-  <div class="foot"><span class="btn" id="b-scan">📷 扫码 Scan</span><span id="upd"></span><span class="btn" id="b-mode">◐ 自动</span></div>
+  <div class="foot"><span class="btn" id="b-scan">📷 扫码 Scan</span><label class="btn" for="f-img">🖼 拍照 Photo</label><input type="file" id="f-img" accept="image/*" capture="environment" style="display:none"><span class="btn" id="b-paste">📋</span><span id="upd"></span><span class="btn" id="b-mode">◐ 自动</span></div>
 </div>
 <div id="cam"><video id="vid" playsinline muted></video><div id="camt">对准 iPad 上的二维码 · Point at the QR code</div><span class="btn" id="b-camx" style="color:#fff;background:#000;border-color:#fff">✕ 取消 Cancel</span></div>
 <script src="vendor/jsQR.js"></script>
@@ -153,7 +153,7 @@ function camStop() { scanning = false; if (stream) stream.getTracks().forEach(t 
 $('b-camx').onclick = camStop;
 $('b-scan').onclick = async () => {
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } }); }
-  catch (e) { alert('打不开相机 · Camera not available\n' + e.message); return; }
+  catch (e) { if (confirm('浏览器不让用摄像头。改用「拍照」：用相机拍一张二维码照片？\nCamera blocked — take a photo of the QR code instead?')) $('f-img').click(); return; }
   const v = $('vid'); v.srcObject = stream; $('cam').style.display = 'flex'; await v.play(); scanning = true;
   let bd = null; try { if ('BarcodeDetector' in window) bd = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
   const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
@@ -168,6 +168,28 @@ $('b-scan').onclick = async () => {
     setTimeout(loop, 250);
   };
   loop();
+};
+
+/* ---------- 拍照扫码：不需要浏览器的摄像头权限（用手机自己的相机拍） ---------- */
+$('f-img').onchange = async () => {
+  const f = $('f-img').files[0]; $('f-img').value = ''; if (!f) return;
+  $('upd').textContent = '读取中… Reading';
+  let im; try { im = await createImageBitmap(f); } catch (e) { alert('照片打不开 · Cannot open photo'); draw(); return; }
+  let txt = null;
+  try { if ('BarcodeDetector' in window) { const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(im); if (r.length) txt = r[0].rawValue; } } catch (e) {}
+  for (const W of [1600, 2400, 1000, 3200]) {   // 大照片先缩小再找，找不到换个大小再试
+    if (txt) break;
+    const k = Math.min(1, W / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+    const x = c.getContext('2d'); x.drawImage(im, 0, 0, c.width, c.height);
+    const r = jsQR(x.getImageData(0, 0, c.width, c.height).data, c.width, c.height); if (r) txt = r.data;
+  }
+  if (txt && txt.indexOf('#') >= 0) take(txt); else { alert('照片里没找到二维码。拍近一点、拍正、别反光。\nNo QR code found — get closer, hold it straight, avoid glare.'); draw(); }
+};
+/* ---------- 粘贴：用别的扫码软件扫到的网址，复制过来 ---------- */
+$('b-paste').onclick = async () => {
+  let t = ''; try { t = await navigator.clipboard.readText(); } catch (e) {}
+  if (!t || t.indexOf('#') < 0) t = prompt('把扫到的整个网址粘贴到这里 · Paste the scanned link here', '') || '';
+  if (t.indexOf('#') >= 0) take(t.trim());
 };
 
 /* ---------- 屏幕常亮 ---------- */
