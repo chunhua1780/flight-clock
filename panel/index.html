@@ -80,6 +80,7 @@ const dur = m => { m = Math.max(0, Math.round(m)); return Math.floor(m / 60) + '
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
 let LEGS = []; try { LEGS = JSON.parse(ls('legs') || '[]'); } catch (e) {}
+try { if (!ls('key') && window.AndroidPanel && AndroidPanel.presetKey) { const k = AndroidPanel.presetKey(); if (k) ls('key', k); } } catch (e) {}   // 个人版 App：口令已经装好
 let MSG = '';
 
 /* =====================================================================
