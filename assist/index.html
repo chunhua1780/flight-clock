@@ -242,6 +242,7 @@ div.en,.wl .en{display:block;margin-left:0}
 .nowbar{background:var(--gold);color:#1a1204;font-weight:800;font-size:12px;border-radius:6px;padding:3px 8px;margin:4px 0}
 .firrow{font-size:11.5px;color:#f2b8ff;padding:3px 4px;border-bottom:1px dashed #5a3a6a}
 .small{font-size:11.5px;margin-top:3px}
+.nmapb{display:inline-block;margin-top:4px;padding:2px 9px;border:1px solid #ff3b30;color:#ff6b60;border-radius:9px;font-size:12px;cursor:pointer}.nmapb.on{background:#ff3b30;color:#fff}.nmtip{background:rgba(255,59,48,.9);color:#fff;border:0;font-weight:700;font-size:11px}
 #firpop{max-height:70vh;overflow:auto}
 #ivov{position:fixed;inset:0;z-index:5000;background:var(--bg);display:flex;flex-direction:column}#ivov .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}.ivin{flex:1;overflow:auto;padding:10px 14px 30px}
 .ivc{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:8px 0;background:var(--panel)}.ivloc{font-size:11.5px;color:var(--gold);border:1px solid var(--gold);border-radius:8px;padding:0 6px}.ivzh{color:var(--dim);font-size:13px;margin-top:2px}.ivref{margin-top:6px;font-size:14px;font-weight:700}.ivwhy{margin-top:5px;font-size:12.5px;color:var(--dim)}#ivov details{margin:6px 0}#ivov summary{cursor:pointer;padding:6px 2px}
@@ -621,9 +622,21 @@ function applyTheme() {
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = THEME === 'light' ? '#f7f9fc' : '#0b1220';
   if (L_land) L_land.setStyle(MAPC().land);
 }
+// 国界：跨 180° 经线的国家（斐济、俄罗斯远东……）先接好，再左右各复制一份，太平洋那边地图就是完整的
+function worldCopies(fc) {
+  const unwrap = ring => { const out = []; let off = 0, prev = null; ring.forEach(p => { let x = p[0] + off; if (prev != null && Math.abs(x - prev) > 180) { off += x > prev ? -360 : 360; x = p[0] + off; } out.push([x, p[1]]); prev = x; }); return out; };
+  const fix = g => g.type === 'Polygon' ? { type: 'Polygon', coordinates: g.coordinates.map(unwrap) } : g.type === 'MultiPolygon' ? { type: 'MultiPolygon', coordinates: g.coordinates.map(pl => pl.map(unwrap)) } : g;
+  const shift = (g, d) => g.type === 'Polygon' ? { type: 'Polygon', coordinates: g.coordinates.map(r => r.map(p => [p[0] + d, p[1]])) } : { type: 'MultiPolygon', coordinates: g.coordinates.map(pl => pl.map(r => r.map(p => [p[0] + d, p[1]]))) };
+  const feats = [];
+  const bb = g => { let a = 1e9, b = -1e9; (g.type === 'Polygon' ? [g.coordinates] : g.coordinates).forEach(pl => pl.forEach(r => r.forEach(p => { if (p[0] < a) a = p[0]; if (p[0] > b) b = p[0]; }))); return [a, b]; };
+  fc.features.forEach(f => { if (!f.geometry) return; const g = fix(f.geometry), x = bb(g); feats.push({ type: 'Feature', properties: f.properties, geometry: g });
+    if (x[0] < -100) feats.push({ type: 'Feature', properties: f.properties, geometry: shift(g, 360) });     // 美洲、东太平洋：在 180° 右边再画一份
+    if (x[1] > 100) feats.push({ type: 'Feature', properties: f.properties, geometry: shift(g, -360) }); });  // 东亚、大洋洲：在 -180° 左边再画一份
+  return { type: 'FeatureCollection', features: feats };
+}
 const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 2, maxZoom: 10, zoomSnap: .5, worldCopyJump: true }).setView([24, 80], 4);
 fetch('data/countries.json').then(r => r.json()).then(topo => {
-  L_land = L.geoJSON(topojson.feature(topo, topo.objects.countries), { style: Object.assign({ weight: .8, fillOpacity: 1 }, MAPC().land), interactive: false }).addTo(map);
+  L_land = L.geoJSON(worldCopies(topojson.feature(topo, topo.objects.countries)), { renderer: L.canvas({ padding: .5 }), style: Object.assign({ weight: .8, fillOpacity: 1 }, MAPC().land), interactive: false }).addTo(map);
   drawRoute();
 }).catch(() => {});
 let L_route, L_done, L_plane, L_wps = [], L_aps = [], L_apm = {};
@@ -1642,7 +1655,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v76';
+const APPV = 'v77';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1741,13 +1754,30 @@ let TR = {}; try { TR = JSON.parse(lsGet('tr') || '{}'); } catch (e) {}
 const nseg = () => '<span class="nseg"><span class="' + (NMODE === 'raw' ? 'on' : '') + '" onclick="setNmode(\'raw\')">' + tt('原文', 'Original') + '</span><span class="' + (NMODE === 'dec' ? 'on' : '') + '" onclick="setNmode(\'dec\')">' + tt('解读', 'Decoded') + '</span></span>';
 function setNmode(m) { NMODE = m; lsSet('nmode', m); const s = $('sheet-in'); if ($('sheet').classList.contains('open') && s.dataset.re) { const f = s.dataset.re.split('|'); if (f[0] === 'ap') openSheet(f[1]); else openFir(f[1]); } }
 // 一条 NOTAM 按当前设置显示：原文 / 中文白话 / 英文白话
+// NOTAM 里的区域（坐标点 / 半径）：点「🗺 地图」在地图上画出来（红色），再点一次消失
+const NMAP = { L: {},
+  find(id) { let r = null; Object.values((S.ofp && S.ofp.notams) || {}).some(L => L.some(n => { if (n.id === id) { r = n; return true; } return false; })); return r; },
+  toggle(id) {
+    if (NMAP.L[id]) { map.removeLayer(NMAP.L[id]); delete NMAP.L[id]; NMAP.btns(); return; }
+    const n = NMAP.find(id), A = n && WX.area(n.text); if (!A) return;
+    const st = { color: '#ff3b30', weight: 2.5, dashArray: '6 4', fillColor: '#ff3b30', fillOpacity: .16 };
+    const lay = A.poly ? L.polygon(A.poly, st) : A.c ? L.circle(A.c, Object.assign({ radius: A.r * 1852 }, st)) : L.circleMarker(A.pt, Object.assign({ radius: 9 }, st));
+    lay.bindTooltip(esc(n.id), { permanent: true, direction: 'center', className: 'nmtip' }).on('click', () => NMAP.toggle(id)).addTo(map);
+    NMAP.L[id] = lay; NMAP.btns();
+    try { $('sheet').classList.remove('open'); hideFirPop(); } catch (e) {}
+    S.follow = false; rcOn(false); map.fitBounds(lay.getBounds ? lay.getBounds().pad(1.2) : L.latLng(A.pt).toBounds(80000), { maxZoom: 8 });
+    toast('🗺 ' + th('通告区域已画在地图上（红色）。点区域或再点一次「🗺」就消失', 'NOTAM area drawn in red — tap it or 🗺 again to hide'), 4000);
+  },
+  btns() { document.querySelectorAll('.nmapb').forEach(b => b.classList.toggle('on', !!NMAP.L[b.dataset.id])); }
+};
+function nmapBtn(n) { return WX.area(n.text) ? ' <span class="nmapb' + (NMAP.L[n.id] ? ' on' : '') + '" data-id="' + esc(n.id) + '" onclick="event.stopPropagation();NMAP.toggle(this.dataset.id)">🗺 ' + th('地图', 'Map') + '</span>' : ''; }
 function notamHtml(n) {
-  if (NMODE === 'raw') return '<div class="raw">' + esc(n.text) + '</div>';
+  if (NMODE === 'raw') return '<div class="raw">' + esc(n.text) + nmapBtn(n) + '</div>';
   const z = NX.zh(n.text, n.id, TR), e = NX.en(n.text);
   const zh = z.full ? esc(z.s) : '<span style="color:var(--amber);font-size:11.5px">（还没翻成中文，有网时会自动翻译。先看英文白话：）</span><br>' + esc(e);
-  if (LANG === 'en') return '<div class="ndec">' + esc(e) + '</div>';
-  if (LANG === 'zh') return '<div class="ndec">' + zh + '</div>';
-  return '<div class="ndec">' + zh + '<div class="en2">' + esc(e) + '</div></div>';
+  if (LANG === 'en') return '<div class="ndec">' + esc(e) + nmapBtn(n) + '</div>';
+  if (LANG === 'zh') return '<div class="ndec">' + zh + nmapBtn(n) + '</div>';
+  return '<div class="ndec">' + zh + '<div class="en2">' + esc(e) + '</div>' + nmapBtn(n) + '</div>';
 }
 // 联网时把所有 NOTAM 翻成中文，存在 iPad 上（飞行中离线也能看）
 let trBusy = false;
@@ -1759,7 +1789,7 @@ async function translateNotams(quiet) {
   try {
     for (let i = 0; i < all.length; i += 40) {
       const part = all.slice(i, i + 40);
-      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'translate', texts: part.map(n => NX.en(n.text)), to: 'zh-CN' }) });
+      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'translate', texts: part.map(n => NX.en(n.text)), to: 'zh-CN', ids: part.map(n => n.id), k: (S.ofp.flight.no + S.ofp.flight.date).replace(/[^\w.-]/g, '') }) });
       const j = JSON.parse(await r.text());
       if (!j.ok) break;
       j.out.forEach((t, k) => { if (t) TR[part[k].id] = t; });

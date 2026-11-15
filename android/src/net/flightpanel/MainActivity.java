@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
   @Override protected void onCreate(Bundle b) {
     super.onCreate(b);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    refreshUseWeb();
     web = new WebView(this);
     WebSettings s = web.getSettings();
     s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true); s.setMediaPlaybackRequiresUserGesture(false);
@@ -39,6 +40,8 @@ public class MainActivity extends Activity {
       @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
         Uri u = r.getUrl(); if (!HOST.equals(u.getHost())) return null;
         String p = u.getPath(); if (p == null || p.equals("/")) p = "/index.html";
+        // 先用自动更新下载的新版（files/web/…），没有再用 App 里自带的
+        try { java.io.File f = new java.io.File(webDir(), p.substring(1)); if (useWeb && f.isFile()) return new WebResourceResponse(mime(p), "utf-8", new java.io.FileInputStream(f)); } catch (Exception e) { }
         try { return new WebResourceResponse(mime(p), "utf-8", getAssets().open("panel" + p)); }
         catch (Exception e) { return new WebResourceResponse("text/plain", "utf-8", 404, "Not found", null, null); }
       }
@@ -57,9 +60,36 @@ public class MainActivity extends Activity {
     web.addJavascriptInterface(new Bridge(), "AndroidPanel");
     setContentView(web);
     open(getIntent());
+    checkUpdate(); new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() { public void run() { checkUpdate(); new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this, 6 * 3600 * 1000L); } }, 6 * 3600 * 1000L);
     // 一打开就要相机权限（扫码用），不要等到扫码时才问
     if (!camOk()) requestPermissions(new String[] { Manifest.permission.CAMERA }, 1);
   }
+  /* ---------- 自动更新页面：比较网站上的 files.json 版本，新了就整套下载，换上，重新载入 ---------- */
+  static final String UPD = "https://chunhua1780.github.io/flight-cloch/panel/";
+  volatile boolean useWeb = false;   // 下载的新版比 App 自带的新，才用下载的
+  void refreshUseWeb() { String d = getSharedPreferences("upd", 0).getString("v", ""); useWeb = d.compareTo(bundledVer()) > 0 && webDir().isDirectory(); }
+  java.io.File webDir() { return new java.io.File(getFilesDir(), "web"); }
+  String bundledVer() { try { java.io.InputStream in = getAssets().open("panel/files.json"); String t = new java.util.Scanner(in, "UTF-8").useDelimiter("\\A").next(); in.close(); return new org.json.JSONObject(t).optString("v", "0"); } catch (Exception e) { return "0"; } }
+  String curVer() { String d = getSharedPreferences("upd", 0).getString("v", ""); String b = bundledVer(); return d.compareTo(b) > 0 && webDir().isDirectory() ? d : b; }
+  static byte[] get(String u) throws Exception {
+    java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection(); c.setConnectTimeout(15000); c.setReadTimeout(60000); c.setUseCaches(false);
+    if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
+    java.io.InputStream in = c.getInputStream(); ByteArrayOutputStream o = new ByteArrayOutputStream(); byte[] b = new byte[32768]; int n; while ((n = in.read(b)) > 0) o.write(b, 0, n); in.close(); return o.toByteArray();
+  }
+  void checkUpdate() {
+    new Thread(new Runnable() { public void run() { try {
+      org.json.JSONObject j = new org.json.JSONObject(new String(get(UPD + "files.json?ts=" + System.currentTimeMillis()), "UTF-8"));
+      String v = j.optString("v", ""); if (v.compareTo(curVer()) <= 0) return;
+      org.json.JSONArray fs = j.getJSONArray("files"); java.io.File tmp = new java.io.File(getFilesDir(), "web_new"); del(tmp); tmp.mkdirs();
+      for (int i = 0; i < fs.length(); i++) { String f = fs.getString(i); if (f.contains("..") || f.startsWith("/")) continue;
+        byte[] b = get(UPD + f + "?v=" + v); java.io.File out = new java.io.File(tmp, f); out.getParentFile().mkdirs(); java.io.FileOutputStream w = new java.io.FileOutputStream(out); w.write(b); w.close(); }
+      java.io.FileOutputStream w = new java.io.FileOutputStream(new java.io.File(tmp, "files.json")); w.write(j.toString().getBytes("UTF-8")); w.close();
+      java.io.File cur = webDir(), old = new java.io.File(getFilesDir(), "web_old"); del(old); if (cur.exists()) cur.renameTo(old); tmp.renameTo(cur); del(old);
+      getSharedPreferences("upd", 0).edit().putString("v", v).commit(); refreshUseWeb();
+      runOnUiThread(new Runnable() { public void run() { Toast.makeText(MainActivity.this, "副屏已自动更新 · Panel updated", Toast.LENGTH_SHORT).show(); web.reload(); } });
+    } catch (Exception e) { } } }).start();
+  }
+  static void del(java.io.File f) { if (f == null || !f.exists()) return; java.io.File[] k = f.listFiles(); if (k != null) for (java.io.File x : k) del(x); f.delete(); }
   static String mime(String p) {
     if (p.endsWith(".html")) return "text/html"; if (p.endsWith(".js")) return "application/javascript";
     if (p.endsWith(".json")) return "application/json"; if (p.endsWith(".png")) return "image/png"; return "application/octet-stream";
@@ -123,11 +153,12 @@ public class MainActivity extends Activity {
       try { java.util.zip.GZIPInputStream z = new java.util.zip.GZIPInputStream(new java.io.ByteArrayInputStream(Base64.decode(b64, Base64.DEFAULT)));
         ByteArrayOutputStream o = new ByteArrayOutputStream(); byte[] buf = new byte[16384]; int n; while ((n = z.read(buf)) > 0) o.write(buf, 0, n); z.close(); return o.toString("UTF-8"); } catch (Exception e) { return ""; }
     }
-    @JavascriptInterface public String version() { return "3.5"; }
+    @JavascriptInterface public String version() { return "4.0"; }
     /** 个人版：打包时放进去的口令（公开下载的版本里没有这个文件） */
     @JavascriptInterface public String presetKey() {
       try { java.io.InputStream in = getAssets().open("preset.txt"); byte[] b = new byte[512]; int n = in.read(b); in.close(); return n > 0 ? new String(b, 0, n, "UTF-8").trim() : ""; } catch (Exception e) { return ""; }
     }
+    @JavascriptInterface public String webVer() { return curVer(); }
     @JavascriptInterface public boolean camOk() { return MainActivity.this.camOk(); }
     @JavascriptInterface public void openSettings() { runOnUiThread(new Runnable() { public void run() { MainActivity.this.openSettings(); } }); }
   }

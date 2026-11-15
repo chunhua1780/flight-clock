@@ -335,6 +335,20 @@
     return out;
   }
 
-  root.WX = { metar, taf, at, rate, say, sayOne, runway, notams, closedRwys, hhmmZ, wxzh, sched };
+  // NOTAM 里的区域：「2510N05440E-2600N05530E-…」连成一圈；「RADIUS 10NM CENTRE 253000N0551500E」画圆。返回 { poly:[[lat,lon]…] } 或 { c:[lat,lon], r: 海里 } 或 null
+  function area(text) {
+    const T = String(text || '').toUpperCase(), pts = [];
+    const re = /\b(\d{2})(\d{2})(\d{2}(?:\.\d+)?)?\s?([NS])\s?(\d{3})(\d{2})(\d{2}(?:\.\d+)?)?\s?([EW])\b/g; let m;
+    while ((m = re.exec(T))) {
+      const la = (+m[1] + +m[2] / 60 + (m[3] ? +m[3] / 3600 : 0)) * (m[4] === 'S' ? -1 : 1), lo = (+m[5] + +m[6] / 60 + (m[7] ? +m[7] / 3600 : 0)) * (m[8] === 'W' ? -1 : 1);
+      if (Math.abs(la) <= 90 && Math.abs(lo) <= 180) pts.push({ p: [la, lo], i: m.index });
+    }
+    if (!pts.length) return null;
+    const rad = /RADIUS\s+(?:OF\s+)?(\d+(?:\.\d+)?)\s*(NM|KM)\b/.exec(T) || /(\d+(?:\.\d+)?)\s*(NM|KM)\s+RADIUS/.exec(T);
+    if (rad && pts.length <= 2) return { c: pts[0].p, r: +rad[1] * (rad[2] === 'KM' ? 0.54 : 1) };
+    if (pts.length >= 3) { const poly = pts.map(x => x.p); return { poly }; }
+    return { pt: pts[0].p };
+  }
+  root.WX = { metar, taf, at, rate, say, sayOne, runway, notams, closedRwys, hhmmZ, wxzh, sched, area };
   if (typeof module !== 'undefined') module.exports = root.WX;
 })(typeof window !== 'undefined' ? window : globalThis);

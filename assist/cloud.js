@@ -41,9 +41,12 @@
         }
         if (x.brief && !lsGet('aib.' + (m.no || '') + (m.date || '')) && m.no) {
           const b = await gh('ofpdata/' + x.k + '.brief.json');
-          if (b) { const d = await b.json(); lsSet('aib.' + m.no + m.date, JSON.stringify({ ver: 3, t: d.t, items: d.items || [], dropped: 0, cloud: 1 })); }
+          if (b) { const d = await b.json(); lsSet('aib.' + m.no + m.date, JSON.stringify({ ver: 4, t: d.t, items: d.items || [], dropped: 0, cloud: 1 })); }
         }
       }
+      // 当前这份 OFP 的通告译文（云端已经翻好的）：合进来，就不用再翻
+      try { if (S.ofp) { const k = keyOf(S.ofp), x = idx.find(e => e.k === k);
+        if (x && x.tr && +(lsGet('cloudtr.' + k) || 0) < x.tr) { const r2 = await gh('ofpdata/' + k + '.tr.json'); if (r2) { const m = await r2.json(); if (typeof TR === 'object') { Object.assign(TR, m); lsSet('tr', JSON.stringify(TR)); } lsSet('cloudtr.' + k, String(x.tr)); } } } } catch (e) {}
       if (got) { if (!quiet) toast('☁️ ' + th('从云端收到 ' + got + ' 份 OFP', got + ' OFP(s) from the cloud'), 3000); try { await OFL.auto(); } catch (e) {} }
     } catch (e) {}
     finally { busy = false; }

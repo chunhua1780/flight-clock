@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-17b';
+const BACKEND_VER = '2026-11-17c';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -1073,6 +1073,7 @@ function translate_(j) {
     }
     part.forEach(function (i) { if (out[i]) try { cache.put('tr3_' + hash_(texts[i]), out[i], 21600); } catch (e) {} });
   }
+  if (j.k && Array.isArray(j.ids) && j.ids.length === texts.length) { try { trStore_(j.k, j.ids, out); } catch (e) {} }   // 存到云端：手机、另一台 iPad 直接用
   return { ok: true, out: out, v: 3, ds: dsName_() };
 }
 function ofpBrief_(j) {
@@ -1214,4 +1215,13 @@ function briefStore_(k, items) {
     ghPut_('ofpdata/' + k + '.brief.json', Utilities.base64Encode(JSON.stringify({ t: Date.now(), items: items }), Utilities.Charset.UTF_8), 'brief ' + k);
     cloudIdxSave_(cloudIdx_(), { k: k, brief: Date.now() }); } catch (e) {}
 }
-
+// 通告译文存到云端（按通告编号）：ofpdata/<航班>.tr.json
+function trStore_(k, ids, out, again) {
+  k = String(k).replace(/[^\w.-]/g, ''); if (!k) return;
+  const path = 'ofpdata/' + k + '.tr.json', cur = gh_('get', path); let m = {}, sha = null;
+  if (cur && cur.code === 200 && cur.j) { sha = cur.j.sha; try { m = JSON.parse(Utilities.newBlob(Utilities.base64Decode(cur.j.content)).getDataAsString('UTF-8')); } catch (e) { m = {}; } }
+  ids.forEach(function (id, i) { if (out[i]) m[id] = out[i]; });
+  const body = { message: 'tr ' + k, content: Utilities.base64Encode(JSON.stringify(m), Utilities.Charset.UTF_8) }; if (sha) body.sha = sha;
+  const r = gh_('put', path, body); if (r && r.code === 409 && !again) return trStore_(k, ids, out, 1);   // 同时有人在写：重读再写一次
+  cloudIdxSave_(cloudIdx_(), { k: k, tr: Object.keys(m).length });
+}
