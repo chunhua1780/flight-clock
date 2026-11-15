@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-15a';
+const BACKEND_VER = '2026-11-15b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -135,6 +135,8 @@ function plans_() {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN && p.token !== TOKEN) return out_({ ok: false, error: 'unauthorized' });
+  // 查后台版本和自动更新情况（不需要口令，不含任何私人资料）
+  if (p.action === 'ver') { let u = null; try { u = JSON.parse(PropertiesService.getScriptProperties().getProperty('upd_last') || 'null'); } catch (x) {} return out_({ ok: true, v: BACKEND_VER, lastCheck: u }); }
   try {
     if (p.action === 'photo') return out_(photo_(p));
     if (p.action === 'ofpcheck') return out_(ofpCheck_());
