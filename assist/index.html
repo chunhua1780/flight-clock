@@ -243,8 +243,10 @@ div.en,.wl .en{display:block;margin-left:0}
 .firrow{font-size:11.5px;color:#f2b8ff;padding:3px 4px;border-bottom:1px dashed #5a3a6a}
 .small{font-size:11.5px;margin-top:3px}
 #firpop{max-height:70vh;overflow:auto}
+#ivov{position:fixed;inset:0;z-index:5000;background:var(--bg);display:flex;flex-direction:column}#ivov .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}.ivin{flex:1;overflow:auto;padding:10px 14px 30px}
+.ivc{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:8px 0;background:var(--panel)}.ivloc{font-size:11.5px;color:var(--gold);border:1px solid var(--gold);border-radius:8px;padding:0 6px}.ivzh{color:var(--dim);font-size:13px;margin-top:2px}.ivref{margin-top:6px;font-size:14px;font-weight:700}.ivwhy{margin-top:5px;font-size:12.5px;color:var(--dim)}#ivov details{margin:6px 0}#ivov summary{cursor:pointer;padding:6px 2px}
 .wac{font-size:13px;line-height:1.45;margin-top:6px}
-#wacov{position:fixed;inset:0;z-index:2500;background:var(--bg);display:flex;flex-direction:column}#wacov .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+#wacov{position:fixed;inset:0;z-index:5000;background:var(--bg);display:flex;flex-direction:column}#wacov .bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
 .wacin{flex:1;overflow:auto;padding:10px 14px 30px}.wacin details{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0;background:var(--panel)}.wacin summary{cursor:pointer;font-size:14px}
 .dbtns{position:relative;padding:6px 10px 2px;border-top:1px solid var(--line)}
 .dtog{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-size:13px;font-weight:700;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.01))}
@@ -478,7 +480,7 @@ div.en,.wl .en{display:block;margin-left:0}
       <button class="btn sm" data-tab="all" data-i="OFP 天气|OFP WX"></button>
     </div>
     <div id="list"></div>
-    <div class="dbtns" id="dbt"><a href="#" id="b-tools" class="dtog"><span style="font-size:16px">☰</span><span class="dt" data-i="演示 · 解读 · Brief · 记录本 · 应急 · RMATE|Demo · Decode · Brief · Logbook · Contingency · RMATE"></span><b>▴</b></a><div class="dmenu"><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-wac" class="db" onclick="event.preventDefault();WAC.route()"><i>🌐</i><span data-i="应急程序|Contingency"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a></div></div><div class="disc" onclick="this.classList.toggle('full')"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
+    <div class="dbtns" id="dbt"><a href="#" id="b-tools" class="dtog"><span style="font-size:16px">☰</span><span class="dt" data-i="演示 · 解读 · Brief · 记录本 · 应急 · 题库 · RMATE|Demo · Decode · Brief · Logbook · Contingency · Interview · RMATE"></span><b>▴</b></a><div class="dmenu"><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-wac" class="db" onclick="event.preventDefault();WAC.route()"><i>🌐</i><span data-i="应急程序|Contingency"></span></a><a href="#" id="b-iv" class="db" onclick="event.preventDefault();IVDB.open()"><i>📚</i><span data-i="面试题库|Interview"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a></div></div><div class="disc" onclick="this.classList.toggle('full')"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
   </div>
 </div>
 
@@ -543,6 +545,7 @@ div.en,.wl .en{display:block;margin-left:0}
 <script src="wac.js"></script>
 <script src="aibrief.js"></script>
 <script src="cloud.js"></script>
+<script src="ivdb.js"></script>
 <script src="ekparse.js"></script>
 <script src="brief.js"></script>
 <script src="notamx.js"></script>
@@ -1639,7 +1642,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v75';
+const APPV = 'v76';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {

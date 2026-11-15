@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-17a';
+const BACKEND_VER = '2026-11-17b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -84,6 +84,14 @@ function postJson_(text) {
   if (j.action === 'ofpbrief') return JSON.stringify(ofpBrief_(j));
   // 云端：解析好的 OFP 原文存到你的 GitHub 私有仓库（flight-box/ofpdata），手机和 iPad 有网时自动下载
   if (j.action === 'ofpsave') return JSON.stringify(ofpSave_(j));
+  // 面试题库：AI 按意思找最相关的几条（中文、英文都行）
+  if (j.action === 'rank') {
+    const g = gemini_('An Emirates B777 first officer preparing for the command upgrade interview asks (Chinese or English): "' + String(j.q || '').slice(0, 400) + '". '
+      + 'Below is a list of interview topics, one per line: id|phase|topic|Chinese title|manual references. Pick the up to 6 most relevant topics (understand the meaning, translate Chinese, consider synonyms and abbreviations). '
+      + 'Return JSON {"r":[{"i":id number,"why":"one short sentence in Simplified Chinese why it is relevant"}]} most relevant first; [] if nothing fits. Do not invent topics.\n' + String(j.list || '').slice(0, 60000), true, 0);
+    if (!g.ok) return JSON.stringify(g);
+    try { return JSON.stringify({ ok: true, r: JSON.parse(g.out).r || [] }); } catch (e) { return JSON.stringify({ ok: false, error: 'bad JSON' }); }
+  }
   // 联网解读：用 Google Gemini（打开 Google 搜索）把 OFP 里的一段用白话讲清楚。Key 放在「项目设置 → 脚本属性」GEMINI_KEY
   if (j.action === 'explain') return JSON.stringify(explain_(j));
   // 学到的东西：所有设备共用（iPad、电脑），下载到设备上离线用
