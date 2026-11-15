@@ -70,7 +70,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><span id="warn"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="wpl"></div></div>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新（读日历和邮箱）|Update (calendar & mail)"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光（白天完全关灯）|Allow backlight control (fully off in daylight)"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示（快放整个航班）|Demo (fast-forward the flight)"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新（读日历和邮箱）|Update (calendar & mail)"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光（白天完全关灯）|Allow backlight control (fully off in daylight)"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划（云端 / 邮箱 / 手机文件）|Choose OFP (cloud / mail / file)"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-demo">▶ <span data-i="演示（快放整个航班）|Demo (fast-forward the flight)"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="sheet"></div>
 <div id="set">
@@ -395,6 +395,41 @@ const tile = (l, v, s, id) => '<div class="c"' + (id ? ' id="' + id + '"' : '') 
 let CUR = null, wplTouch = 0;
 let WARN = { list: [] }, WSIG = '', wTimer = null;
 // ---------- 演示：把这个航班快放一遍（大约 90 秒），看看哪里有问题 ----------
+// ---------- 📂 选择飞行计划：云端 / 邮箱 / 手机里的文件（自动推送不来时，自己拿） ----------
+async function useOfpText(txt, src, id) {
+  const o = OFP.parse(txt); if (!o.ok) throw new Error(X('这个文件里没认出 OFP（', 'No OFP found in this file (') + (o.warnings || []).join('; ') + ')');
+  const leg = summarize(o); leg.fid = id || ('local:' + leg.k + ':' + txt.length); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]).sort((a, b) => a.std - b.std); ls('legs', JSON.stringify(LEGS));
+  ls('pin', leg.k); if (src !== 'cloud') cloudUp(txt, o); return leg;
+}
+async function pickOfp() {
+  const sh = $('sheet'); sh.style.display = 'block'; sh.scrollTop = 0;
+  const log = m => { $('pk-st').innerHTML = m; };
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">📂 ' + X('选择飞行计划', 'Choose OFP') + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>'
+    + '<div id="pk-st" class="ok" style="color:#000;font-weight:700"></div><span class="btn" id="pk-file">📄 ' + X('从手机里选 PDF / 文字文件', 'Pick a PDF / text file on the phone') + '</span><div id="pk-list"></div>';
+  $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); };
+  $('pk-file').onclick = () => $('f-ofp').click();
+  const rows = []; log('⏳ ' + X('正在看云端和邮箱…', 'Checking cloud and mail…'));
+  const errs = [];
+  try { const j = await withTimeout(postK({ action: 'ofpmail', days: 7 }), 90000); if (j && j.ok) { if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); }
+      (j.files || []).filter(f => LIDO.test(f.name || '') || /OFP/i.test((f.name || '') + ' ' + (f.subject || ''))).forEach(f => rows.push({ src: 'mail', id: f.id, t: f.t, name: f.name + ' · ' + X('收到 ', 'received ') + dmZ(f.t) + ' · ' + ((f.size || 0) / 1e6).toFixed(1) + ' MB' })); }
+    else errs.push(X('邮箱：', 'Mail: ') + ((j && j.error) || '?')); } catch (e) { errs.push(X('邮箱：', 'Mail: ') + e.message); }
+  try { const r = await ghRaw('ofpdata/index.json'); if (r) (await r.json()).filter(x => x.meta && x.meta.std > Date.now() - 7 * 864e5).forEach(x => rows.push({ src: 'cloud', id: x.k, t: x.meta.std, name: (x.meta.no || x.k) + ' ' + (x.meta.depI || x.meta.dep || '') + '→' + (x.meta.arrI || x.meta.arr || '') + ' ' + dmZ(x.meta.std) })); else errs.push(X('云端：', 'Cloud: ') + (GH().tok ? X('读不到（GitHub）', 'not reachable') : X('还没有同步码（先在有网时点一次 🔄 更新）', 'no sync key yet'))); } catch (e) { errs.push(X('云端：', 'Cloud: ') + e.message); }
+  rows.sort((a, b) => b.t - a.t);
+  $('pk-list').innerHTML = rows.map((r, i) => '<div class="nt" data-i="' + i + '" style="cursor:pointer"><b>' + (r.src === 'cloud' ? '☁️ ' : '📧 ') + esc(r.name) + '</b>' + (LEGS.some(l => l.fid && l.fid.indexOf(r.id) >= 0) ? ' <span class="tm">✓ ' + X('手机里已有', 'on phone') + '</span>' : '') + '</div>').join('') || '<div class="ok">' + X('云端和邮箱里都没找到 OFP', 'No OFP in cloud or mail') + '</div>';
+  log(errs.length ? '⚠️ ' + errs.map(esc).join('<br>⚠️ ') : X('点一个来下载、读取（会存在手机里，离线可用）', 'Tap one to download and read it (stored on the phone)'));
+  $('pk-list').onclick = async e => { const d = e.target.closest('[data-i]'); if (!d) return; const r = rows[+d.dataset.i];
+    try {
+      if (r.src === 'cloud') { log('⏳ ' + X('云端下载…', 'Downloading…')); const f = await ghRaw('ofpdata/' + r.id + '.txt.gz'); if (!f) throw new Error('GitHub'); const txt = await gunzip(new Uint8Array(await f.arrayBuffer())); const leg = await useOfpText(txt, 'cloud', 'cloud:' + r.id + ':' + txt.length); log('✅ ' + esc(leg.no) + ' ' + X('已读入', 'loaded')); }
+      else { log('⏳ ' + X('从邮箱下载…（大文件要 10–60 秒）', 'Downloading from mail… (10–60 s)')); const u8 = await getFile(r.id);
+        const txt = await pdfText(u8, (n, N) => log('⏳ ' + X('读取 PDF ', 'Reading PDF ') + n + '/' + N)); const leg = await useOfpText(txt, 'mail', r.id); log('✅ ' + esc(leg.no) + ' ' + X('已读入，并传到云端', 'loaded and uploaded to the cloud')); }
+      setTimeout(() => { sh.style.display = 'none'; draw(); }, 900);
+    } catch (x) { log('❌ ' + X('失败：', 'Failed: ') + esc(x.message || String(x))); } };
+}
+$('f-ofp').onchange = async () => { const f = $('f-ofp').files[0]; $('f-ofp').value = ''; if (!f) return; const log = m => { const s = $('pk-st'); if (s) s.innerHTML = m; else MSG = m.replace(/<[^>]+>/g, ''); };
+  try { log('⏳ ' + X('读取 ', 'Reading ') + esc(f.name)); const u8 = new Uint8Array(await f.arrayBuffer());
+    const txt = /%PDF/.test(String.fromCharCode.apply(null, u8.subarray(0, 1024))) ? await pdfText(u8, (n, N) => log('⏳ ' + X('读取 PDF ', 'Reading PDF ') + n + '/' + N)) : new TextDecoder().decode(u8);
+    const leg = await useOfpText(txt, 'file'); log('✅ ' + esc(leg.no) + ' ' + X('已读入，并传到云端', 'loaded and uploaded to the cloud')); setTimeout(() => { $('sheet').style.display = 'none'; draw(); }, 900);
+  } catch (x) { log('❌ ' + X('失败：', 'Failed: ') + esc(x.message || String(x))); } };
 let DEMO = null, BLINK = false;
 // 有新航班下载下来：顶上弹出绿色提示，点「查看」切过去
 let NEWL = [];
@@ -447,8 +482,9 @@ function draw() {
     + '<div class="lg" data-k="">🔁 ' + X('自动（按时间选当前航段）', 'Auto (current leg by time)') + (ls('pin') ? '' : ' ✓') + '</div>' + (L ? '<div class="lg" data-k="#cs">✎ ' + X('改呼号', 'Change callsign') + '</div>' : '');
   if ($('legs').innerHTML !== lg) $('legs').innerHTML = lg;
   if (!L) { ['main', 'row', 'top'].forEach(i => $(i).style.display = 'none'); $('empty').style.display = 'flex';
-    const eh = !ls('key') && !GH().tok ? '<div>' + X('填口令（和飞行助手里的一样）', 'Password (same as Flight Assist)') + '</div><input id="e-key" type="password" autocomplete="off" style="font-size:18px;padding:8px;width:80%;border:2px solid var(--line);border-radius:8px"><span class="btn" id="e-ok">✓ ' + X('保存并读取', 'Save') + '</span>' : X('还没有航班。有网时点 ☰ → 🔄 更新。', 'No flights yet — when online tap ☰ → Update.');
+    const eh = !ls('key') && !GH().tok ? '<div>' + X('填口令（和飞行助手里的一样）', 'Password (same as Flight Assist)') + '</div><input id="e-key" type="password" autocomplete="off" style="font-size:18px;padding:8px;width:80%;border:2px solid var(--line);border-radius:8px"><span class="btn" id="e-ok">✓ ' + X('保存并读取', 'Save') + '</span>' : X('还没有航班。', 'No flights yet.') + '<br><span class="btn" id="e-pick">📂 ' + X('选择飞行计划（云端 / 邮箱 / 手机文件）', 'Choose OFP') + '</span><span class="btn" id="e-up">🔄 ' + X('更新', 'Update') + '</span><span class="btn" id="e-set">⚙︎ ' + X('设置', 'Settings') + '</span><div class="ok" id="e-msg"></div>';
     if ($('empty').dataset.h !== eh) { $('empty').dataset.h = eh; $('empty').innerHTML = eh; }
+    if ($('e-pick')) { $('e-pick').onclick = () => pickOfp(); $('e-up').onclick = () => update(false); $('e-set').onclick = openSet; $('e-msg').textContent = MSG || ''; }
     const ek = $('e-ok'); if (ek) ek.onclick = () => { const v = $('e-key').value.trim(); if (!v) return; ls('key', v); MSG = ''; draw(); update(false); };
     setNight(MODE === 'night'); return; }
   ['row', 'top'].forEach(i => $(i).style.display = ''); $('main').style.display = 'flex'; $('empty').style.display = 'none';
@@ -522,6 +558,7 @@ $('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $(
   if (t.dataset.k === '#cs') { const L = CUR; const v = prompt(X('ATC 呼号（例如 UAE2AK；留空 = 用 OFP 上的 ', 'ATC callsign (e.g. UAE2AK; empty = OFP ') + (L.cs || L.no) + '）', ls('cs.' + L.k) || ''); if (v !== null) ls('cs.' + L.k, v.trim().toUpperCase().replace(/\s+/g, '')); }
   else ls('pin', t.dataset.k); draw(); };
 $('b-demo').onclick = () => demo();
+$('b-pick').onclick = () => pickOfp();
 $('newb').onclick = e => { const b = e.target.closest('[data-k]'); if (b) { ls('pin', b.dataset.k); draw(); } $('newb').style.display = 'none'; }; $('demob').onclick = () => demo();
 $('board').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
 $('warn').onclick = () => { if ($('wpop').style.display === 'block') $('wpop').style.display = 'none'; else showWarn(0); };
