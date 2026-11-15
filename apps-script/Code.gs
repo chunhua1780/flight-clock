@@ -88,6 +88,7 @@ function postJson_(text) {
   if (j.action === 'diagget') return JSON.stringify({ ok: true, log: JSON.parse(PropertiesService.getScriptProperties().getProperty('diag_log') || '[]') });
   if (j.action === 'ofpmail') return JSON.stringify(ofpMail_(j));
   if (j.action === 'live') return JSON.stringify(live_(j));
+  if (j.action === 'wac') return JSON.stringify(WAC_GZ ? { ok: true, d: Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(WAC_GZ), 'application/x-gzip')).getDataAsString('UTF-8') } : { ok: false, error: 'no data' });
   if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
   if (j.action === 'relay') return JSON.stringify(relay_(true));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
@@ -981,3 +982,5 @@ function rwWatch_() {
   [ks[n], ks[(n + 1) % ks.length]].filter(function (k, i, a) { return a.indexOf(k) === i; }).forEach(function (k) { try { rwSample_(k, W[k].p); } catch (e) {} });
 }
 
+/* 途经国家空域应急资料（公司资料，gzip+base64）。公开版本里是空的，只有你自己的那份 Code.gs 里有。 */
+const WAC_GZ = '';
