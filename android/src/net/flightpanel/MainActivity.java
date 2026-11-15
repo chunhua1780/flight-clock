@@ -118,7 +118,12 @@ public class MainActivity extends Activity {
         while (!z.finished()) { int n = z.inflate(buf); if (n == 0 && (z.needsInput() || z.needsDictionary())) break; o.write(buf, 0, n); }
         z.end(); return o.toString("UTF-8"); } catch (Exception e) { return ""; }
     }
-    @JavascriptInterface public String version() { return "3.4"; }
+    /** 云端的 OFP 原文是 gzip：老版本 WebView 没有 DecompressionStream，在这里解压 */
+    @JavascriptInterface public String gunzip(String b64) {
+      try { java.util.zip.GZIPInputStream z = new java.util.zip.GZIPInputStream(new java.io.ByteArrayInputStream(Base64.decode(b64, Base64.DEFAULT)));
+        ByteArrayOutputStream o = new ByteArrayOutputStream(); byte[] buf = new byte[16384]; int n; while ((n = z.read(buf)) > 0) o.write(buf, 0, n); z.close(); return o.toString("UTF-8"); } catch (Exception e) { return ""; }
+    }
+    @JavascriptInterface public String version() { return "3.5"; }
     /** 个人版：打包时放进去的口令（公开下载的版本里没有这个文件） */
     @JavascriptInterface public String presetKey() {
       try { java.io.InputStream in = getAssets().open("preset.txt"); byte[] b = new byte[512]; int n = in.read(b); in.close(); return n > 0 ? new String(b, 0, n, "UTF-8").trim() : ""; } catch (Exception e) { return ""; }

@@ -262,14 +262,42 @@
     [/\b(?:TWY|TAXIWAY)\s+([A-Z]{1,2}\d{0,2})\b[^.]{0,80}?\b(?:CLSD|NOT AVBL)/, 'info', m => '滑行道 ' + m[1] + ' 关闭'],
     [/\bBIRD/, 'info', () => '鸟情活动'],
   ];
+  // NOTAM 里的时段（D 项）：「DAILY 2200-0400」「EV TUE, THU AND SAT FM 1130 TO 1430」「MON-FRI 0800-1600」「1130-1430 TUE THU SAT」
+  // 返回：true = [t0, t1] 里有生效的时段；false = 都不生效；null = 看不出时段（按整个有效期算）
+  const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  function sched(text, t0, t1) {
+    const T = ' ' + String(text || '').toUpperCase().replace(/\s+/g, ' ') + ' ';
+    const re = /(?:\bFM\s*|\bFROM\s*|\bBTN\s*)?\b([01]\d|2[0-3])([0-5]\d)\s*(?:-|TO|AND)\s*([01]\d|2[0-4])([0-5]\d)\b/g;
+    let m, found = false, any = false;
+    while ((m = re.exec(T))) {
+      const near = T.slice(Math.max(0, m.index - 70), m.index + m[0].length + 50);
+      if (!/\bDAILY\b|\bEVERY DAY\b|\bEV\b|\bEVERY\b|\b(MON|TUE|WED|THU|FRI|SAT|SUN)\b|\bH24\b/.test(near)) continue;
+      found = true;
+      let days = [0, 1, 2, 3, 4, 5, 6];
+      const rg = /\b(MON|TUE|WED|THU|FRI|SAT|SUN)\s*(?:-|TO|THRU)\s*(MON|TUE|WED|THU|FRI|SAT|SUN)\b/.exec(near);
+      if (rg) { days = []; for (let d = DAYS.indexOf(rg[1]); ; d = (d + 1) % 7) { days.push(d); if (d === DAYS.indexOf(rg[2])) break; } }
+      else if (!/\bDAILY\b|\bEVERY DAY\b/.test(near)) { const L = near.match(/\b(MON|TUE|WED|THU|FRI|SAT|SUN)\b/g); if (L) days = L.map(x => DAYS.indexOf(x)); }
+      const s = +m[1] * 60 + +m[2], e = +m[3] * 60 + +m[4];
+      for (let d = Math.floor(t0 / 864e5) - 1; d <= Math.floor(t1 / 864e5) + 1; d++) {
+        if (days.indexOf(new Date(d * 864e5).getUTCDay()) < 0) continue;
+        const a = d * 864e5 + s * 6e4, b = d * 864e5 + (e > s ? e : e + 1440) * 6e4;
+        if (a <= t1 && b >= t0) any = true;
+      }
+    }
+    return found ? any : null;
+  }
   function notams(list, t) {
     const out = [], seen = {};
     (list || []).forEach(n => {
       const valid = (n.from == null || n.from <= t + 3 * 3600e3) && (n.to == null || n.to >= t - 3600e3);
       if (!valid) return;
       const tx = n.text;
+      if (sched(tx, t - 3600e3, t + 3600e3) === false) return;   // 有固定时段、但我们前后 1 小时都不在时段里：不影响
       for (const [re, lv, fn] of RULES) {
-        const m = re.exec(tx);
+        // 同一条通告里可能有几段（例如「RWY 13R/31L CLSD EV TUE… RWY 13L/31R CLSD EV MON, WED…」）：取在我们时间里生效的那一段
+        let m = null; const rg = new RegExp(re.source, re.flags.indexOf('g') < 0 ? re.flags + 'g' : re.flags); let mm;
+        while ((mm = rg.exec(tx))) { const nx = tx.slice(mm.index + 4).search(/\bRWY\s*\d{2}|\bTWY\b/), seg = tx.slice(mm.index, nx < 0 ? mm.index + 220 : mm.index + 4 + nx);
+          if (sched(seg, t - 3600e3, t + 3600e3) !== false) { m = mm; break; } if (mm.index === rg.lastIndex) rg.lastIndex++; }
         if (!m) continue;
         // 「ON RWY 19L NOT AVBL」「TO RWY…」这种说的是滑行/转弯，不是跑道本身
         if (re.source.indexOf('\\bRWY') === 0 && /\b(ON|TO|FM|FROM|VIA|ONTO|INTO|CROSSING)\s*$/.test(tx.slice(Math.max(0, m.index - 8), m.index))) continue;
@@ -279,8 +307,8 @@
         const zh = fn(m);
         const key = zh;
         if (seen[key]) { seen[key].ids.push(n.id); return; }
-        const sched = /\b(MON|TUE|WED|THU|FRI|SAT|SUN|DAILY|\d{4}-\d{4})\b/.test(tx.slice(0, 60));
-        const item = { lv, zh: zh + (sched ? '（有时段）' : ''), en: toEn(zh) + (sched ? ' (scheduled)' : ''), ids: [n.id], raw: tx, cat: n.cat };
+        const hasSch = /\b(MON|TUE|WED|THU|FRI|SAT|SUN|DAILY|\d{4}-\d{4})\b/.test(tx.slice(0, 60));
+        const item = { lv, zh: zh + (hasSch ? '（有时段）' : ''), en: toEn(zh) + (hasSch ? ' (scheduled)' : ''), ids: [n.id], raw: tx, cat: n.cat };
         seen[key] = item; out.push(item);
         return;
       }
@@ -293,18 +321,20 @@
     const out = [];
     (list || []).forEach(n => {
       if (!((n.from == null || n.from <= t + 3600e3) && (n.to == null || n.to >= t))) return;
+      if (sched(n.text, t - 3600e3, t + 3600e3) === false) return;
       // 有时段的也算进去（保守）；「ON RWY xx NOT AVBL」这种滑行限制不算
       const re = /\bRWY\s*(\d{2}[LRC]?)(?:\/(\d{2}[LRC]?))?\s+(?:IS\s+)?(?:CLSD|NOT\s+AVBL)/g;
       let m; while ((m = re.exec(n.text))) {
         if (/\b(ON|TO|FM|FROM|VIA|ONTO|INTO)\s*$/.test(n.text.slice(Math.max(0, m.index - 8), m.index))) continue;
         if (/TAKE\s?OFF|TKOF|DEP(ARTURE)?S?\s*$/.test(n.text.slice(Math.max(0, m.index - 16), m.index))) continue;   // 只限起飞的不影响落地
         if (/\b(TWY|TAXIWAY|TAXILANE|RET|RAPID\s+EXIT|APRON|STAND)\b/.test(n.text.slice(0, m.index))) continue;   // 主语是滑行道 / 脱离道：跑道本身没关
+        { const nx = n.text.slice(m.index + 4).search(/\bRWY\s*\d{2}|\bTWY\b/), seg = n.text.slice(m.index, nx < 0 ? m.index + 220 : m.index + 4 + nx); if (sched(seg, t - 3600e3, t + 3600e3) === false) continue; }   // 这一段的时段不在我们时间里
         out.push(m[1]); if (m[2]) out.push(m[2]);
       }
     });
     return out;
   }
 
-  root.WX = { metar, taf, at, rate, say, sayOne, runway, notams, closedRwys, hhmmZ, wxzh };
+  root.WX = { metar, taf, at, rate, say, sayOne, runway, notams, closedRwys, hhmmZ, wxzh, sched };
   if (typeof module !== 'undefined') module.exports = root.WX;
 })(typeof window !== 'undefined' ? window : globalThis);

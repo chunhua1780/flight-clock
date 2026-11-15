@@ -18,21 +18,53 @@
   let busy = false, msg = '';
   async function fetchB(force) {
     if (!S.ofp || busy || !navigator.onLine || !lsGet('key')) return;
-    load(); if (B && !force && B.ver === 3) return;   // 旧版（没有 DeepSeek 复核）的结果：有网时重读一次
+    load(); if (B && !force && B.ver === 4) return;   // 旧版（没按我们的时间筛）的结果：有网时重读一次
     const text = lsGet('ofptext') || ''; if (text.length < 1000) return;
     busy = true; msg = '⏳ ' + th('AI 正在读整份 OFP…（约半分钟）', 'AI is reading the whole OFP… (~30 s)'); redraw();
+    try { if (window.CLOUD) await CLOUD.upload(text, S.ofp); } catch (e) {}   // 先把原文存到云端，另一台设备就不用再下载解析
     try {
-      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'ofpbrief', text }) });
+      const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'ofpbrief', text, win: winText(), k: keyOf().replace(/[^\w.-]/g, '') }) });
       const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { ok: false, error: t.slice(0, 80) }; }
       if (j.ok && j.items) {
         // 核对原文：引用的那句在 OFP 里找得到才算
         const N = ' ' + norm(text) + ' ';
         const items = j.items.map(x => Object.assign({}, x, { ok: norm(x.src).length >= 8 && N.indexOf(' ' + norm(x.src) + ' ') >= 0 || N.indexOf(norm(x.src)) >= 0 }));
-        B = { ver: 3, t: Date.now(), items: items.filter(x => x.ok), dropped: items.filter(x => !x.ok).length, model: j.model, ds: j.ds === true ? 'DeepSeek' : (j.ds || '') };
+        const kept = items.filter(x => x.ok), inT = kept.filter(x => inTime(x));
+        B = { ver: 4, t: Date.now(), items: inT, dropped: items.filter(x => !x.ok).length, outT: kept.length - inT.length, model: j.model, ds: j.ds === true ? 'DeepSeek' : (j.ds || '') };
         lsSet('aib.' + keyOf(), JSON.stringify(B)); msg = '';
       } else msg = /unknown|action/i.test(j.error || '') || !j.error ? th('后台要更新才能用 AI 解读', 'Update the backend to use the AI briefing') : '⚠️ ' + j.error;
     } catch (e) { msg = th('没连上', 'Could not connect'); }
     busy = false; redraw();
+  }
+  // ---------- 我们的时间窗（UTC）：起飞前后、到达 ±1 小时、各备降场 ETA ±1 小时、每个管制区进出 ±1 小时 ----------
+  const H = 36e5, hm = t => { const d = new Date(t); return String(d.getUTCDate()).padStart(2, '0') + ' ' + String(d.getUTCHours()).padStart(2, '0') + String(d.getUTCMinutes()).padStart(2, '0') + 'Z'; };
+  function windows() {
+    const o = S.ofp, t = o.times, off = S.atd || (t.std + (t.taxi || 0) * 6e4), eta = S.atd ? atP(t.trip || 0) : (t.sta || off + (t.trip || 0) * 6e4);
+    const W = { dep: [t.std - H, off + H], arr: [eta - H, eta + H], altn: {}, fir: {}, all: [t.std - H, eta + H] };
+    (o.alternates || []).forEach(a => { const x = eta + (a.time || 0) * 6e4; W.altn[a.icao] = [x - H, x + H]; });
+    try { firLegs().forEach(l => { if (l.tIn && l.tOut) W.fir[l.code] = [l.tIn - H, l.tOut + H]; }); } catch (e) {}
+    return W;
+  }
+  function winText() {
+    if (!S.ofp) return ''; const o = S.ofp, W = windows(), L = [];
+    L.push('Departure ' + o.flight.dep + ': ' + hm(W.dep[0]) + ' – ' + hm(W.dep[1]));
+    L.push('Destination ' + o.flight.arr + ': ' + hm(W.arr[0]) + ' – ' + hm(W.arr[1]));
+    Object.keys(W.altn).forEach(k => L.push('Alternate ' + k + ': ' + hm(W.altn[k][0]) + ' – ' + hm(W.altn[k][1])));
+    Object.keys(W.fir).forEach(k => L.push('FIR ' + k + ': ' + hm(W.fir[k][0]) + ' – ' + hm(W.fir[k][1])));
+    return L.join('\n');
+  }
+  // AI 说的那条通告：在 OFP 里找到原通告，看它的有效期和固定时段，在我们的时间窗里才保留
+  function inTime(x) {
+    if (!S.ofp || (x.ph || 'gen') === 'gen') return true;
+    const W = windows(), q = norm(x.src); let win = W.all;
+    if (x.ph === 'dep') win = W.dep; else if (x.ph === 'arr') win = W.arr;
+    else if (x.ph === 'altn') win = W.altn[x.icao] || [W.arr[0], W.arr[1] + 2 * H];
+    else if (x.ph === 'enr') win = W.fir[x.icao] || Object.keys(W.fir).filter(k => (FIRALIAS[k] || k) === x.icao).map(k => W.fir[k])[0] || W.all;
+    let n = null; Object.values(S.ofp.notams || {}).some(L => L.some(m => { if (norm(m.text).indexOf(q) >= 0) { n = m; return true; } return false; }));
+    const own = WX.sched(x.src, win[0], win[1]); if (own === false) return false;   // AI 引用的那一句自己带时段（例如「EV TUE, THU AND SAT FM 1130 TO 1430」）
+    if (!n) return true;   // 不是通告（天气、公司说明……）：照常
+    if ((n.to != null && n.to < win[0]) || (n.from != null && n.from > win[1])) return false;
+    return own === true || WX.sched(n.text, win[0], win[1]) !== false;
   }
   function redraw() { try { lastList = 0; renderList(true); } catch (e) {} }
   const PH = { dep: ['🛫 起飞', '🛫 Departure'], enr: ['✈️ 航路', '✈️ En route'], arr: ['🛬 目的地', '🛬 Destination'], altn: ['🔁 备降场', '🔁 Alternates'], gen: ['📋 公司 / 签派', '📋 Company / dispatch'] };
@@ -47,6 +79,7 @@
         badge(x) + '<div class="small" style="color:var(--dim);font-family:ui-monospace,Menlo,monospace">“' + esc(x.src) + '”</div></div>').join('');
     });
     const nOk = L.filter(x => x.v === 'ok').length, nFix = L.filter(x => x.v === 'fix' || x.v === 'dis').length;
+    if (B.outT) h += '<div class="small" style="color:var(--dim);margin-top:6px">⏱ ' + th('另有 ' + B.outT + ' 条通告不在我们经过的时间内（前后 1 小时），已去掉', B.outT + ' NOTAM item(s) not in force during our times (±1 h) — hidden') + '</div>';
     h += '<div class="small" style="color:var(--dim);margin-top:6px">' + (B.ds ? th('Gemini 解读 · ' + B.ds + ' 复核：' + nOk + ' 条一致，' + nFix + ' 条有修正 / 分歧', 'Gemini briefing · ' + B.ds + ' review: ' + nOk + ' agree, ' + nFix + ' corrected / disputed') + ' · ' : th('只有 Gemini（后台还没填第二个 AI 的 Key）', 'Gemini only (no reviewer key yet)') + ' · ') + th('每条都已核对 OFP 原文（引号里是原句）', 'Each item checked against the OFP (quoted text)') + (B.dropped ? ' · ' + th('有 ' + B.dropped + ' 条找不到原文，已去掉', B.dropped + ' unverifiable item(s) removed') : '') + ' · ' + th('AI 解读仅供参考', 'AI aid only') + '</div></div>';
     return h;
   }

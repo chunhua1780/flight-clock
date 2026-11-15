@@ -140,7 +140,9 @@ async function update(quiet) {
     const best = {};
     files.forEach(f => { const m = LIDO.exec(f.name || ''); if (!m) return; const d = Date.UTC(+m[4], MON[m[3].toUpperCase()], +m[2]); if (d < day0 - 864e5 || d > day0 + 2 * 864e5) return;
       const k = m[1] + m[2] + m[3].toUpperCase() + m[5]; if (!best[k] || (f.t || 0) > (best[k].t || 0)) best[k] = f; });
-    const want = Object.keys(best).map(k => best[k]); let got = 0;
+    // 云端（GitHub 私有仓库）有的直接下载原文：快，不用在手机上解析 PDF
+    let got = 0; try { got += await cloudSync(now); } catch (e) {}
+    const want = Object.keys(best).map(k => best[k]).filter(f => { const m = LIDO.exec(f.name || ''); return !(m && LEGS.some(l => /^cloud:/.test(l.fid || '') && last4(l.no) === last4(m[1]) && l.date === m[2] + m[3].toUpperCase())); });
     for (const f of want) {
       if (LEGS.some(l => l.fid === f.id)) continue;
       MSG = '⏳ ' + X('下载 ', 'Downloading ') + f.name.replace(/\.pdf$/i, ''); draw();
@@ -148,6 +150,7 @@ async function update(quiet) {
       const txt = await pdfText(u8, (n, N) => { if (n % 5 === 0 || n === N) { MSG = '⏳ ' + X('读取 ', 'Reading ') + n + '/' + N + ' · ' + f.name.slice(0, 16); draw(); } });
       const o = OFP.parse(txt); if (!o.ok) continue;
       const leg = summarize(o); leg.fid = f.id; leg.ft = f.t;
+      cloudUp(txt, o);   // 传一份到云端，iPad 就不用再下载解析
       LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); got++;
       ls('legs', JSON.stringify(LEGS));
     }
@@ -159,6 +162,30 @@ async function update(quiet) {
   busy = false; draw();
 }
 const last4 = d => String(d || '').replace(/\D/g, '').slice(-4).replace(/^0+/, '');
+// ---------- 云端 OFP（GitHub 私有仓库 flight-box/ofpdata）----------
+const b64of = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
+async function gunzip(u8) {
+  if (typeof DecompressionStream !== 'undefined') return new TextDecoder().decode(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+  if (window.AndroidPanel && AndroidPanel.gunzip) return AndroidPanel.gunzip(b64of(u8));
+  throw new Error('no gunzip');
+}
+async function ghRaw(path) { const g = GH(); if (!g.tok) return null; const r = await fetch('https://api.github.com/repos/' + g.repo + '/contents/' + path + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + g.tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' }); return r.ok ? r : null; }
+async function cloudSync(now) {
+  const r = await ghRaw('ofpdata/index.json'); if (!r) return 0; const idx = await r.json(); let got = 0;
+  for (const x of idx) {
+    const m = x.meta || {}; if (!m.std || m.std < now - 12 * HOUR || m.std > now + 40 * HOUR) continue;
+    const fid = 'cloud:' + x.k + ':' + (x.len || 0); if (LEGS.some(l => l.fid === fid)) continue;
+    MSG = '☁️ ' + X('云端下载 ', 'Cloud ') + (m.no || x.k); draw();
+    const f = await ghRaw('ofpdata/' + x.k + '.txt.gz'); if (!f) continue;
+    const txt = await gunzip(new Uint8Array(await f.arrayBuffer())), o = OFP.parse(txt); if (!o.ok) continue;
+    const leg = summarize(o); leg.fid = fid; LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); ls('legs', JSON.stringify(LEGS)); got++;
+  }
+  return got;
+}
+function cloudUp(text, o) {
+  try { fetch(API + '?k=' + encodeURIComponent(ls('key') || ''), { method: 'POST', body: JSON.stringify({ action: 'ofpsave', k: (o.flight.no + o.flight.date).replace(/[^\w.-]/g, ''), text,
+    meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '' } }) }).catch(() => {}); } catch (e) {}
+}
 
 /* =====================================================================
    2. 风险提醒：起飞前看起飞机场，航路上看各 FIR，下降前看目的地和备降场

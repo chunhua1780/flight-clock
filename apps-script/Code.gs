@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-16e';
+const BACKEND_VER = '2026-11-17a';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -82,6 +82,8 @@ function postJson_(text) {
   if (j.action === 'translate' && Array.isArray(j.texts)) return JSON.stringify(translate_(j));
   // 整份 OFP 交给 Gemini：按阶段列出关键影响，每条都要引用 OFP 原文（iPad 会核对原文）
   if (j.action === 'ofpbrief') return JSON.stringify(ofpBrief_(j));
+  // 云端：解析好的 OFP 原文存到你的 GitHub 私有仓库（flight-box/ofpdata），手机和 iPad 有网时自动下载
+  if (j.action === 'ofpsave') return JSON.stringify(ofpSave_(j));
   // 联网解读：用 Google Gemini（打开 Google 搜索）把 OFP 里的一段用白话讲清楚。Key 放在「项目设置 → 脚本属性」GEMINI_KEY
   if (j.action === 'explain') return JSON.stringify(explain_(j));
   // 学到的东西：所有设备共用（iPad、电脑），下载到设备上离线用
@@ -1067,12 +1069,15 @@ function translate_(j) {
 }
 function ofpBrief_(j) {
   const text = String(j.text || '').slice(0, 400000); if (text.length < 500) return { ok: false, error: 'no OFP text' };
-  const cache = CacheService.getScriptCache(), ck = 'ob3_' + hash_(text); const hit = cache.get(ck); if (hit) return { ok: true, items: JSON.parse(hit), cached: true };
+  const win = String(j.win || '').slice(0, 3000), cache = CacheService.getScriptCache(), ck = 'ob4_' + hash_(text + '|' + win); const hit = cache.get(ck);
+  if (hit) { const items0 = JSON.parse(hit); if (j.k) briefStore_(j.k, items0); return { ok: true, items: items0, cached: true }; }
   const prompt = 'You are an experienced Boeing 777 captain and dispatcher reviewing a complete Emirates LIDO OFP package (flight plan, weather, NOTAMs, company notes). '
     + 'List the KEY operational impacts for THIS flight that the crew must know: availability of runways, rapid exit taxiways, ILS/approaches and lighting at departure, destination and alternates during the relevant times; weather at departure time, ETA and alternate ETA (thunderstorms, low visibility, strong/gusty crosswind or tailwind, dust, wind shear); en-route airspace restrictions, conflict zones, GNSS interference, ATC contingencies; fuel, weight and MEL/dispatch notes. Ignore trivial items (single stands, minor taxiways far from use, obstacle lights) unless they matter. '
     + AVE_ + AVZ_
     + 'Return JSON: {"items":[{"ph":"dep|enr|arr|altn|gen","lv":"red|amber|info","icao":"ICAO or FIR code or empty","zh":"简体中文一句话","en":"one English sentence","src":"EXACT quote copied character-for-character from the OFP (max 160 characters) that this item is based on"}]}. '
-    + 'Maximum 18 items, most important first. Every item MUST have a src that appears verbatim in the OFP; if you cannot quote it, leave the item out.\n=== OFP ===\n' + text;
+    + 'Maximum 18 items, most important first. Every item MUST have a src that appears verbatim in the OFP; if you cannot quote it, leave the item out.\n'
+    + 'TIME RULE (very important): read EVERY NOTAM completely, including its validity period (from/to) and any schedule (e.g. DAILY 2200-0400, EV TUE THU SAT 1130-1430, MON-FRI). Report a NOTAM ONLY if it is in force during the relevant time window of THIS flight listed below (departure airport: around departure; destination: ETA ±1 h; each alternate: its ETA ±1 h; en-route FIRs/routes: while we are in that FIR ±1 h). If it is not in force during that window, leave it out. In each statement say when it applies (UTC).\n'
+    + (win ? '=== OUR TIME WINDOWS (UTC) ===\n' + win + '\n' : '') + '=== OFP ===\n' + text;
   const g = gemini_(prompt, true, 0); if (!g.ok) return g;
   let items = []; try { const d = JSON.parse(g.out); items = (d.items || d || []).filter(function (x) { return x && x.zh && x.src; }).slice(0, 18); } catch (e) { return { ok: false, error: 'bad JSON' }; }
   // DeepSeek 复核：每条给它原句前后约 700 字的 OFP 原文，判断结论对不对
@@ -1093,7 +1098,8 @@ function ofpBrief_(j) {
     }
   }
   try { cache.put(ck, JSON.stringify(items), 21600); } catch (e) {}
-  return { ok: true, items: items, model: g.model, ds: dsName_() };
+  if (j.k) briefStore_(j.k, items);
+  return { ok: true, items: items, model: g.model, ds: dsKey_() ? dsName_() : '' };
 }
 
 /* ======== 自动更新：从 GitHub Pages 取最新的 Code.gs，换掉这个文件，建新版本，更新网页部署 ========
@@ -1152,7 +1158,7 @@ function reviewer_() {
   for (let i = 0; i < L.length; i++) { const k = P.getProperty(L[i][0]) || (L[i][0] === 'DEEPSEEK_KEY' ? DEEPSEEK_KEY : ''); if (k) return { key: k, name: L[i][1], url: L[i][2], model: m || L[i][3] }; }
   return null;
 }
-function dsKey_() { return !!reviewer_(); }
+function dsKey_() { return !!reviewer_() && PropertiesService.getScriptProperties().getProperty('REVIEW') === '1'; }   // 第二个 AI 比较慢：脚本属性 REVIEW=1 才用
 function dsName_() { const r = reviewer_(); return r ? r.name : ''; }
 function deepseek_(system, user) {
   const R = reviewer_(); if (!R) return { ok: false, error: 'no reviewer key' };
@@ -1169,3 +1175,35 @@ function deepseek_(system, user) {
     return { ok: !!j, json: j, raw: t, name: R.name };
   } catch (e) { return { ok: false, error: String(e).slice(0, 200) }; }
 }
+
+/* ======== 云端 OFP（GitHub 私有仓库 flight-box/ofpdata，不公开）========
+   哪台设备先读出 OFP 就上传原文；另一台有网时直接下载原文（不用再下 PDF、再慢慢解析）。AI 解读结果也存一份。 */
+function cloudIdx_() {
+  const cur = gh_('get', 'ofpdata/index.json'); let idx = [], sha = null;
+  if (cur && cur.code === 200 && cur.j) { sha = cur.j.sha; try { idx = JSON.parse(Utilities.newBlob(Utilities.base64Decode(cur.j.content)).getDataAsString('UTF-8')); } catch (e) { idx = []; } }
+  return { idx: idx, sha: sha };
+}
+function cloudIdxSave_(c, upd) {
+  const now = Date.now(); let idx = c.idx.filter(function (x) { return now - (x.t || 0) < 30 * 864e5; });
+  const i = idx.findIndex(function (x) { return x.k === upd.k; }); if (i >= 0) idx[i] = Object.assign(idx[i], upd); else idx.push(upd);
+  const body = { message: 'index', content: Utilities.base64Encode(JSON.stringify(idx), Utilities.Charset.UTF_8) }; if (c.sha) body.sha = c.sha;
+  const r = gh_('put', 'ofpdata/index.json', body);
+  if (r && r.code === 409) { const c2 = cloudIdx_(); return cloudIdxSave_({ idx: c2.idx, sha: c2.sha }, upd); }   // 同时有人改：重读再写
+  return r;
+}
+function ghPut_(path, b64, msg) { const cur = gh_('get', path); const body = { message: msg, content: b64 }; if (cur && cur.code === 200 && cur.j && cur.j.sha) body.sha = cur.j.sha; return gh_('put', path, body); }
+function ofpSave_(j) {
+  const k = String(j.k || '').replace(/[^\w.-]/g, ''); if (!k || !j.text || String(j.text).length < 1000) return { ok: false, error: 'no data' };
+  if (!(PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN') || GITHUB_TOKEN_INLINE)) return { ok: false, error: 'no GITHUB_TOKEN' };
+  const gz = Utilities.gzip(Utilities.newBlob(String(j.text), 'text/plain', k + '.txt'));
+  const r = ghPut_('ofpdata/' + k + '.txt.gz', Utilities.base64Encode(gz.getBytes()), 'ofp ' + k);
+  if (!r || (r.code !== 200 && r.code !== 201)) return { ok: false, error: 'GitHub ' + (r && r.code) };
+  cloudIdxSave_(cloudIdx_(), { k: k, meta: j.meta || {}, t: Date.now(), len: String(j.text).length });
+  return { ok: true, k: k };
+}
+function briefStore_(k, items) {
+  try { k = String(k).replace(/[^\w.-]/g, ''); if (!k) return;
+    ghPut_('ofpdata/' + k + '.brief.json', Utilities.base64Encode(JSON.stringify({ t: Date.now(), items: items }), Utilities.Charset.UTF_8), 'brief ' + k);
+    cloudIdxSave_(cloudIdx_(), { k: k, brief: Date.now() }); } catch (e) {}
+}
+
