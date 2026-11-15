@@ -1,3 +1,10 @@
+/* ===== 自动更新 =====
+   这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
+const BACKEND_VER = '2026-11-15a';
+['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ'].forEach(function (k) {
+  Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
+});
+
 /**
  * Flight Clock — Google Apps Script 后端
  *
@@ -50,7 +57,7 @@ const MIN = 60e3, HOUR = 36e5;
 
 // ======== 快捷指令「发给时钟」：复制 OFP 文字后发到这里（POST） ========
 // 防止别人乱发：快捷指令网址末尾要带 ?k=这个口令（公开代码里留空 = 关闭这个功能）
-const OFP_POST_KEY = '';
+// OFP_POST_KEY：在 Secrets.gs 里
 
 function doPost(e) {
   const p = (e && e.parameter) || {};
@@ -87,6 +94,8 @@ function postJson_(text) {
   if (j.action === 'diagget') return JSON.stringify({ ok: true, log: JSON.parse(PropertiesService.getScriptProperties().getProperty('diag_log') || '[]') });
   if (j.action === 'ofpmail') return JSON.stringify(ofpMail_(j));
   if (j.action === 'live') return JSON.stringify(live_(j));
+  if (j.action === 'selfupdate') return JSON.stringify(selfUpdate_(true));
+  if (j.action === 'backendver') return JSON.stringify({ ok: true, v: BACKEND_VER });
   if (j.action === 'wac') return JSON.stringify(WAC_GZ ? { ok: true, d: Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(WAC_GZ), 'application/x-gzip')).getDataAsString('UTF-8') } : { ok: false, error: 'no data' });
   if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
   if (j.action === 'relay') return JSON.stringify(relay_(true));
@@ -357,6 +366,7 @@ function legsOf_(ev) {
 // ======== 定时器：自动跟踪正在进行的航班 ========
 function poll() {
   const now = Date.now();
+  try { autoUpdate_(); } catch (e) {}   // 每小时看一次 GitHub 上有没有新版本
   try { rwWatch_(); } catch (e) {}   // 飞行助手要的机场：看实际起降方向
   // 日历 10 分钟读一次就够（每分钟都读太浪费额度）
   const cache = CacheService.getScriptCache();
@@ -510,7 +520,7 @@ function test() {
 //   Unsplash：https://unsplash.com/developers → Your apps → New Application → Access Key
 // 填到：Apps Script 左侧 ⚙ 项目设置 → 脚本属性 → 添加脚本属性：PEXELS_KEY（或 UNSPLASH_KEY）= 你的 Key
 // 也可以直接把 Pexels Key 写在这里（这样就不用去「脚本属性」里设置了）
-const PEXELS_KEY_INLINE = '';
+// PEXELS_KEY_INLINE：在 Secrets.gs 里
 const PHASE_WORD = { dawn: 'sunrise', morning: 'morning', day: '', evening: 'golden hour', dusk: 'sunset', night: 'night' };
 const WX_WORD = { rain: 'rain', storm: 'storm', snow: 'snow', fog: 'fog', dust: 'sandstorm', overcast: 'cloudy' };
 
@@ -726,7 +736,7 @@ function testOfp() {
 }
 
 // ======== 联网解读（Gemini + Google 搜索） ========
-const GEMINI_KEY_INLINE = '';   // 也可以放在脚本属性 GEMINI_KEY
+// GEMINI_KEY_INLINE：在 Secrets.gs 里（也可以放在脚本属性 GEMINI_KEY）
 // 申请免费 Key：https://aistudio.google.com/apikey → 复制 → Apps Script「项目设置 → 脚本属性」添加 GEMINI_KEY
 function explain_(j) {
   const props = PropertiesService.getScriptProperties();
@@ -890,7 +900,7 @@ function ofpGet_(j) {
 
 // ======== 中国也能拿到 OFP：后台每 10 分钟把邮箱里（最近 6 天、排班上的）OFP 复制到你的 GitHub 私有仓库 ========
 // 设置：脚本属性 GITHUB_TOKEN = 只给 flight-box 仓库「Contents 读写」权限的 token；GITHUB_REPO = 你的用户名/flight-box
-const GITHUB_TOKEN_INLINE = '', GITHUB_REPO_INLINE = 'chunhua1780/flight-box';
+const GITHUB_REPO_INLINE = 'chunhua1780/flight-box';   // GITHUB_TOKEN_INLINE：在 Secrets.gs 里
 function gh_(method, path, body) {
   const pr = PropertiesService.getScriptProperties(), tok = pr.getProperty('GITHUB_TOKEN') || GITHUB_TOKEN_INLINE, repo = pr.getProperty('GITHUB_REPO') || GITHUB_REPO_INLINE;
   if (!tok) return null;
@@ -982,8 +992,6 @@ function rwWatch_() {
   [ks[n], ks[(n + 1) % ks.length]].filter(function (k, i, a) { return a.indexOf(k) === i; }).forEach(function (k) { try { rwSample_(k, W[k].p); } catch (e) {} });
 }
 
-/* 途经国家空域应急资料（公司资料，gzip+base64）。公开版本里是空的，只有你自己的那份 Code.gs 里有。 */
-const WAC_GZ = '';
 
 /* ======== 航空用语规则：翻译 / 解读 / 整份 OFP 都用（避免把滑行道说成跑道这类错误） ======== */
 const AVZ_ = '\n【必须遵守】TWY/TAXIWAY=滑行道；RET/RAPID EXIT (TWY)=快速脱离道（是滑行道，不是跑道）；RWY=跑道；APRON=机坪；STAND/STD=停机位；TWY 后面的 L9、B、K2 这类是滑行道名字，绝不能说成跑道。只有 RWY 后面的 02L、24R、12/30 才是跑道。'
@@ -1048,5 +1056,46 @@ function ofpBrief_(j) {
   let items = []; try { const d = JSON.parse(g.out); items = (d.items || d || []).filter(function (x) { return x && x.zh && x.src; }).slice(0, 18); } catch (e) { return { ok: false, error: 'bad JSON' }; }
   try { cache.put(ck, JSON.stringify(items), 21600); } catch (e) {}
   return { ok: true, items: items, model: g.model };
+}
+
+/* ======== 自动更新：从 GitHub Pages 取最新的 Code.gs，换掉这个文件，建新版本，更新网页部署 ========
+   需要：① 在 script.google.com/home/usersettings 打开「Google Apps Script API」；② appsscript.json 里有 script.projects 和 script.deployments 权限。 */
+const UPDATE_URL = 'https://chunhua1780.github.io/flight-cloch/apps-script/Code.gs';
+function autoUpdate_() {
+  const pr = PropertiesService.getScriptProperties(), last = +pr.getProperty('upd_check') || 0;
+  if (Date.now() - last < 3600e3) return; pr.setProperty('upd_check', String(Date.now()));
+  const r = selfUpdate_(false); pr.setProperty('upd_last', JSON.stringify({ t: Date.now(), r: r }).slice(0, 2000));
+}
+function selfUpdate_(force) {
+  const lock = LockService.getScriptLock(); if (!lock.tryLock(30000)) return { ok: false, error: 'busy' };
+  try {
+    const g = UrlFetchApp.fetch(UPDATE_URL + '?_=' + Date.now(), { muteHttpExceptions: true });
+    if (g.getResponseCode() !== 200) return { ok: false, error: 'GitHub ' + g.getResponseCode() };
+    const src = g.getContentText(), m = /const BACKEND_VER = '([^']+)'/.exec(src);
+    if (!m || !/function doPost\(/.test(src) || !/function doGet\(/.test(src) || !/function selfUpdate_\(/.test(src)) return { ok: false, error: 'downloaded code looks wrong' };
+    if (m[1] === BACKEND_VER && !force) return { ok: true, same: true, v: BACKEND_VER };
+    if (m[1] <= BACKEND_VER && !force) return { ok: true, same: true, v: BACKEND_VER };
+    const id = ScriptApp.getScriptId(), H = { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, base = 'https://script.googleapis.com/v1/projects/' + id;
+    const call = function (method, path, body) {
+      const r = UrlFetchApp.fetch(base + path, { method: method, contentType: 'application/json', headers: H, muteHttpExceptions: true, payload: body ? JSON.stringify(body) : undefined });
+      const c = r.getResponseCode(); if (c >= 300) throw new Error(method + ' ' + path + ' ' + c + ' ' + r.getContentText().slice(0, 200)); return JSON.parse(r.getContentText() || '{}');
+    };
+    const cur = call('get', '/content');
+    const code = cur.files.find(function (f) { return f.name === 'Code'; }); if (!code) return { ok: false, error: 'no Code file' };
+    if (code.source === src) return { ok: true, same: true, v: m[1] };
+    code.source = src;
+    call('put', '/content', { files: cur.files });
+    const ver = call('post', '/versions', { description: 'auto ' + m[1] });
+    const deps = (call('get', '/deployments').deployments || []).filter(function (d) { return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); });
+    deps.forEach(function (d) { call('put', '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: ver.versionNumber, manifestFileName: 'appsscript', description: 'auto ' + m[1] } }); });
+    return { ok: true, updated: true, from: BACKEND_VER, to: m[1], version: ver.versionNumber, deployments: deps.length };
+  } catch (e) { return { ok: false, error: String(e).slice(0, 300) }; }
+  finally { lock.releaseLock(); }
+}
+// 第一次设置时在编辑器里运行一次（授权 + 测试）
+function setupAutoUpdate() {
+  const r = selfUpdate_(false);
+  Logger.log(JSON.stringify(r));
+  return r;
 }
 
