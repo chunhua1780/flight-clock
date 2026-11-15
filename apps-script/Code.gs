@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-16b';
+const BACKEND_VER = '2026-11-16e';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -1078,13 +1078,19 @@ function ofpBrief_(j) {
   // DeepSeek 复核：每条给它原句前后约 700 字的 OFP 原文，判断结论对不对
   if (dsKey_() && items.length) {
     const U = text.toUpperCase().replace(/\s+/g, ' '), ctx = function (q) { const k = U.indexOf(String(q).toUpperCase().replace(/\s+/g, ' ')); return k < 0 ? '' : U.slice(Math.max(0, k - 350), k + 350); };
-    const rv = deepseek_('You are a senior Boeing 777 captain double-checking another AI\'s briefing items taken from an Emirates LIDO OFP. For each item you get its statement (zh/en), the quoted source, and the surrounding OFP text. '
-      + 'Decide if the statement is correct and not misleading: runway vs taxiway vs rapid exit taxiway, which airport, identifiers, times/days, flight phase, severity. ' + AVE_
-      + 'Return JSON {"r":[{"ok":true|false,"zh":"corrected Chinese sentence if not ok","en":"corrected English sentence if not ok","why":"short reason in Chinese if not ok"}]} with exactly one entry per item, in order.',
-      JSON.stringify(items.map(function (x) { return { ph: x.ph, icao: x.icao, zh: x.zh, en: x.en, src: x.src, context: ctx(x.src) }; })));
-    const r = rv.ok && rv.json && rv.json.r;
-    if (r && r.length === items.length) items.forEach(function (x, n) { const y = r[n] || {}; if (y.ok === false) { x.v = y.zh ? 'fix' : 'dis'; x.g = { zh: x.zh, en: x.en }; if (y.zh) { x.zh = y.zh; x.en = y.en || x.en; } x.why = y.why || ''; } else x.v = 'ok'; });
-    else items.forEach(function (x) { x.v = 'na'; });
+    // 每次 6 条（小模型一次看太多会漏）；只报错的那几条
+    let got = false;
+    for (let k0 = 0; k0 < items.length; k0 += 6) {
+      const part = items.slice(k0, k0 + 6);
+      const rv = deepseek_('You are a strict senior Boeing 777 captain auditing another AI\'s briefing items from an Emirates LIDO OFP. For EACH item check: does the SOURCE quote and its CONTEXT actually say what the STATEMENT says? '
+        + 'Flag the item if the statement adds anything not in the source, names the wrong airport, runway, taxiway, time, day or phase, calls a taxiway / rapid exit taxiway a runway, or exaggerates / understates the impact. ' + AVE_
+        + 'Return JSON {"bad":[{"i":item number,"zh":"corrected Chinese sentence","en":"corrected English sentence","why":"short reason in Chinese"}]} listing ONLY the wrong items ("bad":[] if all are correct).',
+        part.map(function (x, n) { return 'ITEM ' + n + '\nSTATEMENT: ' + x.zh + ' / ' + x.en + '\nSOURCE: ' + x.src + '\nCONTEXT: ' + ctx(x.src); }).join('\n\n'));
+      const bad = rv.ok && rv.json && (rv.json.bad || (rv.json.r && rv.json.r.filter(function (y) { return y && y.ok === false; })));
+      if (!Array.isArray(bad)) { part.forEach(function (x) { x.v = 'na'; }); continue; }
+      got = true; part.forEach(function (x) { x.v = 'ok'; });
+      bad.forEach(function (y) { const x = part[+y.i]; if (!x) return; x.g = { zh: x.zh, en: x.en }; x.why = y.why || ''; if (y.zh) { x.v = 'fix'; x.zh = y.zh; x.en = y.en || x.en; } else x.v = 'dis'; });
+    }
   }
   try { cache.put(ck, JSON.stringify(items), 21600); } catch (e) {}
   return { ok: true, items: items, model: g.model, ds: dsName_() };
@@ -1138,7 +1144,7 @@ function setupAutoUpdate() {
 function reviewer_() {
   const P = PropertiesService.getScriptProperties(), m = P.getProperty('REVIEW_MODEL');
   const L = [
-    ['ZHIPU_KEY', '智谱 GLM', 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'glm-4-flash'],
+    ['ZHIPU_KEY', '智谱 GLM', 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'glm-4.5-flash'],
     ['GROQ_KEY', 'Groq', 'https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile'],
     ['DEEPSEEK_KEY', 'DeepSeek', 'https://api.deepseek.com/chat/completions', 'deepseek-chat'],
     ['OPENROUTER_KEY', 'OpenRouter', 'https://openrouter.ai/api/v1/chat/completions', 'deepseek/deepseek-chat:free']
@@ -1150,13 +1156,16 @@ function dsKey_() { return !!reviewer_(); }
 function dsName_() { const r = reviewer_(); return r ? r.name : ''; }
 function deepseek_(system, user) {
   const R = reviewer_(); if (!R) return { ok: false, error: 'no reviewer key' };
-  const body = { model: R.model, temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system + ' Output JSON only.' }, { role: 'user', content: user }] };
+  const body = { model: R.model, temperature: 0, max_tokens: 4000, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system + ' Output JSON only.' }, { role: 'user', content: user }] };
   try {
     let r = UrlFetchApp.fetch(R.url, { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + R.key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
     if (r.getResponseCode() === 400) { delete body.response_format; r = UrlFetchApp.fetch(R.url, { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + R.key }, muteHttpExceptions: true, payload: JSON.stringify(body) }); }
     if (r.getResponseCode() !== 200) return { ok: false, error: R.name + ' ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 160) };
     const t = JSON.parse(r.getContentText()).choices[0].message.content; let j = null;
     try { j = JSON.parse(t); } catch (e) { const mm = String(t).match(/\{[\s\S]*\}/); if (mm) try { j = JSON.parse(mm[0]); } catch (x) {} }
+    // 有的模型会多包一层 [ {...} ]，或直接给数组：统一成 { r: [...] }
+    if (Array.isArray(j)) j = j.length && j[0] && ('i' in j[0]) ? { bad: j } : j.length === 1 && j[0] && typeof j[0] === 'object' && !('ok' in j[0]) ? j[0] : { r: j };
+    if (j && !Array.isArray(j) && j.bad && !Array.isArray(j.bad)) j.bad = [j.bad];
     return { ok: !!j, json: j, raw: t, name: R.name };
   } catch (e) { return { ok: false, error: String(e).slice(0, 200) }; }
 }
