@@ -33,7 +33,7 @@
       const r = await gh('ofpdata/index.json'); if (!r) return 0;
       const idx = await r.json(), now = Date.now(), have = new Set((await OFL.all()).map(e => (e.no + e.date).replace(/[^\w.-]/g, '')));
       for (const x of idx) {
-        const m = x.meta || {}; if (!m.std || m.std < now - 12 * 36e5 || m.std > now + 48 * 36e5) continue;
+        const m = x.meta || {}; if (!m.std || m.std < now - 3 * 864e5 || m.std > now + 48 * 36e5) continue;   // 3 天内的都下载（往返两段、演示）
         if (!have.has(x.k)) {
           const f = await gh('ofpdata/' + x.k + '.txt.gz'); if (!f) continue;
           const text = await gunzip(new Uint8Array(await f.arrayBuffer())); const o = OFP.parse(text); if (!o.ok) continue;
@@ -55,5 +55,5 @@
   window.CLOUD = { upload, sync };
   window.addEventListener('online', () => sync(true));
   setTimeout(() => sync(true), 2500);
-  setInterval(() => sync(true), 15 * 60e3);
+  setInterval(() => { if (navigator.onLine) sync(false); }, 5 * 60e3);   // 有网：每 5 分钟看一次云端，有新的就提示
 })();
