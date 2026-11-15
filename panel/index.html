@@ -185,7 +185,7 @@ function summarize(o) {
     return out;
   };
   const leg = { k: f.no + f.date, no: f.no, date: f.date, dep: f.dep, arr: f.arr, ai: f.depIata, bi: f.arrIata, reg: f.reg || '', ty: f.type || '',
-    std: t.std, tx: t.taxi || 0, tr: t.trip || 0, fl: (+(String(t.crzFl || '').replace(/\D/g, '')) || 350) * 100, n: N.map(w => [w.id, w.t]), fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] } };
+    cs: f.cs || '', std: t.std, tx: t.taxi || 0, tr: t.trip || 0, fl: (+(String(t.crzFl || '').replace(/\D/g, '')) || 350) * 100, n: N.map(w => [w.id, w.t]), fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] } };
   const withC = N.filter(w => X[w.id]), step = Math.max(1, Math.ceil(withC.length / 12));
   withC.forEach((w, i) => { if (i % step === 0 || i === withC.length - 1) leg.c.push([w.t, Math.round(X[w.id][0] * 10) / 10, Math.round(X[w.id][1] * 10) / 10]); });
   // 重量
@@ -258,12 +258,15 @@ function flights(now) {
   const out = [];
   ROSTER.filter(r => r.sta > now - 12 * HOUR && r.std < now + 4 * 864e5).forEach(r => {
     const o = LEGS.find(l => last4(l.no) === last4(r.digits) && (l.bi === r.dest || l.arr === r.dest) && Math.abs(l.std - r.std) < 12 * HOUR);
-    out.push(o || { k: 'R' + last4(r.digits) + '-' + r.std, no: 'EK' + last4(r.digits), ai: r.origin, bi: r.dest, std: r.std, tx: 15, tr: Math.max(30, Math.round((r.sta - r.std) / MIN) - 25), noOfp: true });
+    out.push(o || { k: 'R' + last4(r.digits) + '-' + r.std, no: 'EK' + last4(r.digits), cs: 'UAE' + last4(r.digits), ai: r.origin, bi: r.dest, std: r.std, tx: 15, tr: Math.max(30, Math.round((r.sta - r.std) / MIN) - 25), noOfp: true });
   });
   LEGS.forEach(l => { if (!out.some(x => x.k === l.k)) out.push(l); });
   return out.sort((a, b) => a.std - b.std);
 }
-const offOf = l => atdOf(l) || l.std + (l.tx || 0) * MIN;
+// 过点时间：「CHILA 0815」→ 按这个点重新对时间（比 ATD 新，优先用）
+const atoOf = l => { try { return JSON.parse(ls('ato.' + l.k) || 'null'); } catch (e) { return null; } };
+const offOf = l => { const a = atoOf(l), w = a && (l.n || []).find(x => x[0] === a.w); if (w) return a.t - w[1] * MIN; return atdOf(l) || l.std + (l.tx || 0) * MIN; };
+const csOf = l => ls('cs.' + l.k) || l.cs || l.no;
 function pick(now, F) {
   F = F || flights(now); const pin = ls('pin'), p = pin && F.find(l => l.k === pin);
   return p || F.find(l => offOf(l) + l.tr * MIN + 60 * MIN > now) || F[F.length - 1];
@@ -285,9 +288,10 @@ function draw() {
     setNight(MODE === 'night'); return; }
   $('main').style.display = 'flex'; $('empty').style.display = 'none';
   const std = L.std, off = offOf(L), on = off + L.tr * MIN, el = (now - off) / MIN;
-  const m = /^([A-Z]+)(\d+)$/.exec(L.no) || [0, '', L.no];
-  const fl = '<small>' + m[1] + '</small>' + m[2]; if ($('fl').innerHTML !== fl) $('fl').innerHTML = fl;
-  $('rt').innerHTML = esc(L.ai) + ' → ' + esc(L.bi) + ' <span>' + (L.date ? esc(L.date) : dmZ(std)) + (L.reg ? ' · ' + esc(L.reg) : '') + '</span>';
+  // 大字：ATC 呼号（例如 UAE2AK，可能和航班号不一样）；点一下可以改
+  const cs = csOf(L), m = /^([A-Z]{3})([A-Z0-9]+)$/.exec(cs) || [0, '', cs];
+  const fl = '<small>' + m[1] + '</small>' + esc(m[2]) + (ls('cs.' + L.k) ? '<small style="font-size:.2em"> ✎</small>' : ''); if ($('fl').innerHTML !== fl) $('fl').innerHTML = fl;
+  $('rt').innerHTML = esc(L.ai) + ' → ' + esc(L.bi) + ' <span>' + esc(L.no) + ' · ' + (L.date ? esc(L.date) : dmZ(std)) + (L.reg ? ' · ' + esc(L.reg) : '') + '</span>';
   const ph = now < off ? 0 : now < on ? 1 : 2;
   $('ph').className = 'ph p' + ph;
   $('ph').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划', 'Planned') + ' ' + dmZ(off) : X('起飞前 ' + dur((off - now) / MIN), 'T/O in ' + dur((off - now) / MIN))) : ph === 1 ? '✈ ' + X('已飞 ' + dur(el) + '，剩 ' + dur(L.tr - el), 'Flown ' + dur(el) + ', to go ' + dur(L.tr - el)) : X('已落地', 'Landed');
@@ -299,7 +303,8 @@ function draw() {
   if (L.noOfp) row += tile('OFP', '—', X('还没收到', 'not received'), '', 'w2');
   else {
     const N = L.n || [], nx = ph === 1 ? N.find(w => w[1] > el) : ph === 0 ? N[1] : null;
-    row += tile(X('下一点', 'Next WPT'), nx ? esc(nx[0]) : '—', nx ? hmZ(off + nx[1] * MIN) + 'Z' + (ph === 1 ? ' · ' + dur(nx[1] - el) : '') : '');
+    const ato = atoOf(L);
+    row += tile(X('下一点 ✎', 'Next WPT ✎'), nx ? esc(nx[0]) : '—', (nx ? hmZ(off + nx[1] * MIN) + 'Z' + (ph === 1 ? ' · ' + dur(nx[1] - el) : '') : '') + (ato ? '<br>' + X('按过点 ', 'Per ATO ') + esc(ato.w) + ' ' + hmZ(ato.t) + 'Z' : ''), 'c-wp');
     const FI = L.fi || [], fx = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el)), cur = ph === 1 ? FI.filter(f => f[3] <= el).slice(-1)[0] : null;
     row += tile(X('下一移交', 'Next FIR'), fx ? esc(fx[2]) : '—', fx ? hmZ(off + fx[3] * MIN) + 'Z → ' + esc(fx[0]) + (ph === 1 ? ' · ' + dur(fx[3] - el) : '') : (cur ? X('现在 ', 'Now ') + esc(cur[0]) : ''));
   }
@@ -321,9 +326,25 @@ function draw() {
 
 /* ---------- 操作 ---------- */
 $('tabs').onclick = e => { const t = e.target.closest('.tab'); if (!t) return; ls('pin', ls('pin') === t.dataset.k ? '' : t.dataset.k); draw(); };
+// 点大字呼号：改呼号（留空 = 用 OFP 上的）
+$('fl').onclick = () => { const L = pick(Date.now()); if (!L) return;
+  const v = prompt(X('ATC 呼号（例如 UAE2AK；留空 = 用 OFP 上的 ', 'ATC callsign (e.g. UAE2AK; empty = OFP ') + (L.cs || L.no) + '）', ls('cs.' + L.k) || ''); if (v === null) return;
+  ls('cs.' + L.k, v.trim().toUpperCase().replace(/\s+/g, '')); draw(); };
+// 点「下一点」：填刚过的航路点和实际时间，例如「CHILA 0815」
+$('row').addEventListener('click', e => {
+  if (!e.target.closest('#c-wp')) return; const L = pick(Date.now()); if (!L || !L.n) return;
+  const off = offOf(L), el = (Date.now() - off) / MIN, last = L.n.filter(w => w[1] <= el).slice(-1)[0] || L.n[1] || L.n[0];
+  const v = prompt(X('过点时间：航路点 + UTC 时间（例如 ', 'Time over waypoint: name + UTC (e.g. ') + (last ? last[0] : 'CHILA') + ' ' + hmZ(Date.now()) + X('）；留空 = 取消过点修正', '); empty = clear'), last ? last[0] + ' ' + hmZ(Date.now()) : ''); if (v === null) return;
+  const mm = /^\s*([A-Z0-9]{2,8})\s+(\d{4})\s*$/i.exec(v);
+  if (!mm) { ls('ato.' + L.k, ''); draw(); return; }
+  const w = L.n.find(x => x[0] === mm[1].toUpperCase()); if (!w) { alert(X('这条航路上没有 ', 'No waypoint ') + mm[1]); return; }
+  const plan = offOf(L) + w[1] * MIN, d0 = Date.UTC(new Date(plan).getUTCFullYear(), new Date(plan).getUTCMonth(), new Date(plan).getUTCDate()) + (+mm[2].slice(0, 2) * 60 + +mm[2].slice(2)) * MIN;
+  const t = [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - plan) - Math.abs(b - plan))[0];
+  ls('ato.' + L.k, JSON.stringify({ w: w[0], t })); draw(); });
 $('row').onclick = e => {
   if (!e.target.closest('#c-atd')) return; const L = pick(Date.now()); if (!L) return;
   const v = prompt(L.no + ' 实际起飞 ATD（UTC，4 位，例如 0815；留空 = 按计划）\nActual T/O time (UTC, e.g. 0815; empty = plan)', atdOf(L) ? hmZ(atdOf(L)) : ''); if (v === null) return;
+  ls('ato.' + L.k, '');   // 重新填 ATD：之前的过点修正作废
   if (!/^\d{4}$/.test(v.trim())) ls('atd.' + L.k, '');
   else { const s = L.std, d0 = Date.UTC(new Date(s).getUTCFullYear(), new Date(s).getUTCMonth(), new Date(s).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
     ls('atd.' + L.k, String([d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - s) - Math.abs(b - s))[0])); }

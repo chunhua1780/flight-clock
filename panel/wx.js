@@ -234,6 +234,8 @@
     let m;
     if ((m = /^跑道 (\S+) 关闭$/.exec(zh))) return 'RWY ' + m[1] + ' closed';
     if ((m = /^跑道 (\S+) 不可用$/.exec(zh))) return 'RWY ' + m[1] + ' not available';
+    if ((m = /^快速脱离道 (\S+) 关闭$/.exec(zh))) return 'Rapid exit TWY ' + m[1] + ' closed';
+    if ((m = /^滑行道 (\S+) 关闭$/.exec(zh))) return 'TWY ' + m[1] + ' closed';
     if ((m = /^ILS ?(\S*) 不可用$/.exec(zh))) return ('ILS ' + m[1]).trim() + ' U/S';
     if ((m = /^消防等级降为 (\d+) 级$/.exec(zh))) return 'RFF reduced to CAT ' + m[1];
     if ((m = /^(\S+) 不可用$/.exec(zh))) return m[1] + ' U/S';
@@ -254,6 +256,10 @@
     [/\b(CURFEW|AD\s+HR|OPR\s+HR|HOURS\s+OF\s+OPERATION)\b/, 'amber', () => '有开放时间/宵禁限制'],
     [/\b(GPS|GNSS)\b[^.]{0,60}?\b(INTERFERENCE|JAMMING|SPOOFING|U\/S|UNRELIABLE)/, 'amber', () => 'GPS 可能受干扰'],
     [/\bDIVERSION\b[^.]{0,60}?\b(NOT|SHALL NOT|EXCEPT IN AN EMERGENCY)/, 'red', () => '公司规定：除紧急情况外不能用作备降'],
+    // 滑行道 / 快速脱离道（RET）关闭：不是跑道关闭
+    [/\b(?:RAPID\s+EXIT(?:\s+TWY|\s+TAXIWAY)?|RET)\s+([A-Z]{1,2}\d{0,2})\b[^.]{0,80}?\b(?:CLSD|NOT AVBL|U\/S)/, 'amber', m => '快速脱离道 ' + m[1] + ' 关闭'],
+    [/\b(?:RWY\s*\d{2}[LRC]?(?:\/\d{2}[LRC]?)?\s+)RET\s+([A-Z]{1,2}\d{0,2})\b[^.]{0,60}?\bCLSD/, 'amber', m => '快速脱离道 ' + m[1] + ' 关闭'],
+    [/\b(?:TWY|TAXIWAY)\s+([A-Z]{1,2}\d{0,2})\b[^.]{0,80}?\b(?:CLSD|NOT AVBL)/, 'info', m => '滑行道 ' + m[1] + ' 关闭'],
     [/\bBIRD/, 'info', () => '鸟情活动'],
   ];
   function notams(list, t) {
@@ -268,6 +274,8 @@
         // 「ON RWY 19L NOT AVBL」「TO RWY…」这种说的是滑行/转弯，不是跑道本身
         if (re.source.indexOf('\\bRWY') === 0 && /\b(ON|TO|FM|FROM|VIA|ONTO|INTO|CROSSING)\s*$/.test(tx.slice(Math.max(0, m.index - 8), m.index))) continue;
         if (re.source.indexOf('\\bRWY') === 0 && /TAKE\s?OFF|TKOF/.test(tx.slice(Math.max(0, m.index - 16), m.index))) continue;
+        // 主语是滑行道 / 快速脱离道 / 机坪 / 停机位（例如「TWY L9 BTN TWY L AND RWY 06R/24L CLSD」）：关的不是跑道
+        if (re.source.indexOf('\\bRWY') === 0 && /\b(TWY|TAXIWAY|TAXILANE|RET|RAPID\s+EXIT|APRON|STAND|HOLDING\s+(?:POINT|POSITION)|HLDG\s+PSN)\b/.test(tx.slice(0, m.index))) continue;
         const zh = fn(m);
         const key = zh;
         if (seen[key]) { seen[key].ids.push(n.id); return; }
@@ -290,6 +298,7 @@
       let m; while ((m = re.exec(n.text))) {
         if (/\b(ON|TO|FM|FROM|VIA|ONTO|INTO)\s*$/.test(n.text.slice(Math.max(0, m.index - 8), m.index))) continue;
         if (/TAKE\s?OFF|TKOF|DEP(ARTURE)?S?\s*$/.test(n.text.slice(Math.max(0, m.index - 16), m.index))) continue;   // 只限起飞的不影响落地
+        if (/\b(TWY|TAXIWAY|TAXILANE|RET|RAPID\s+EXIT|APRON|STAND)\b/.test(n.text.slice(0, m.index))) continue;   // 主语是滑行道 / 脱离道：跑道本身没关
         out.push(m[1]); if (m[2]) out.push(m[2]);
       }
     });

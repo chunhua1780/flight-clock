@@ -72,10 +72,9 @@ function doPost(e) {
 function postJson_(text) {
   let j; try { j = JSON.parse(text); } catch (x) { return '❌ 数据格式不对'; }
   // 翻译（飞行助手把 NOTAM 英文发来，翻成中文存在 iPad 上，飞行中离线也能看）
-  if (j.action === 'translate' && Array.isArray(j.texts)) {
-    const out = j.texts.slice(0, 80).map(function (t) { try { return LanguageApp.translate(String(t).slice(0, 4500), 'en', j.to || 'zh-CN'); } catch (e) { return null; } });
-    return JSON.stringify({ ok: true, out: out });
-  }
+  if (j.action === 'translate' && Array.isArray(j.texts)) return JSON.stringify(translate_(j));
+  // 整份 OFP 交给 Gemini：按阶段列出关键影响，每条都要引用 OFP 原文（iPad 会核对原文）
+  if (j.action === 'ofpbrief') return JSON.stringify(ofpBrief_(j));
   // 联网解读：用 Google Gemini（打开 Google 搜索）把 OFP 里的一段用白话讲清楚。Key 放在「项目设置 → 脚本属性」GEMINI_KEY
   if (j.action === 'explain') return JSON.stringify(explain_(j));
   // 学到的东西：所有设备共用（iPad、电脑），下载到设备上离线用
@@ -739,17 +738,17 @@ function explain_(j) {
   const hit = cache.get(ck); if (hit) return finish_(hit, j, lang, true);
   const prompt = (lang === 'zh'
     ? '你是一位经验丰富的波音 777 机长兼签派员。下面是阿联酋航空 LIDO 格式 OFP（运行飞行计划）里的一段，所在部分：' + (j.section || '未知') + '。\n'
-      + '请先联网搜索确认不认识的缩写、航路点、机场、空域和规定，然后用简体中文「说人话」把这一整段讲清楚：它在说什么、对机组意味着什么、要注意什么。'
+      + '请先联网搜索确认不认识的缩写、航路点、机场、空域和规定，然后用简体中文「说人话」把这一整段讲清楚：它在说什么、对机组意味着什么、要注意什么。' + AVZ_
       + '数字要读对（例如 236/063 是风向 236° 风速 63 节，-37 是气温零下 37°C，321 这类是高度层）。不要逐字翻译，不要中英混杂，专有名词第一次出现时可以括号注英文。'
       + (j.word ? '机长点的是「' + j.word + '」，先用一句话解释它，再讲整段。' : '') + '只输出解读本身，简洁，分短段。\n\n' + LEARN_ZH_
     : 'You are an experienced Boeing 777 captain and dispatcher. Below is part of an Emirates LIDO-format OFP (section: ' + (j.section || 'unknown') + ').\n'
-      + 'Search the web to confirm any abbreviation, waypoint, airport, airspace or rule you are unsure of, then explain the whole passage in plain English: what it says, what it means for the crew, and what to watch out for. '
+      + 'Search the web to confirm any abbreviation, waypoint, airport, airspace or rule you are unsure of, then explain the whole passage in plain English: what it says, what it means for the crew, and what to watch out for. ' + AVE_
       + 'Read numbers correctly (e.g. 236/063 = wind 236° at 63 kt, -37 = minus 37 °C, 321 = flight level). Do not translate word by word. '
       + (j.word ? 'The captain tapped "' + j.word + '": explain that in one sentence first, then the whole passage. ' : '') + 'Output only the explanation, concise, short paragraphs.\n\n' + LEARN_EN_)
     + '---\n' + text + '\n---';
   const models = [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
   const call = function (model, search) {
-    const body = { contents: [{ role: 'user', parts: [{ text: prompt + (search ? '' : '\n(No web search available: rely on your aviation knowledge.)') }] }], generationConfig: { temperature: 0.2 } };
+    const body = { contents: [{ role: 'user', parts: [{ text: prompt + (search ? '' : '\n(No web search available: rely on your aviation knowledge.)') }] }], generationConfig: { temperature: 0.1 } };
     if (search) body.tools = [{ google_search: {} }];
     return UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', {
       method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
@@ -785,7 +784,7 @@ function finish_(raw, j, lang, cached) {
 }
 function kbSave_(learn, k, lang, out) {
   const props = PropertiesService.getScriptProperties(), now = Date.now(), put = {};
-  learn.forEach(function (x) { put['kb_' + x.t] = JSON.stringify({ zh: x.zh, en: x.en, t: now }); });
+  learn.forEach(function (x) { if (!kbLocal_(x.t)) put['kb_' + x.t] = JSON.stringify({ zh: x.zh, en: x.en, t: now }); });
   if (k && /^[\w-]{1,40}$/.test(k)) put['ka_' + k] = JSON.stringify({ o: out.slice(0, 8000), t: now });
   props.setProperties(put, false);
   // 后台空间有限（约 500 KB）：超过 400 KB 时删掉最老的整段解读
@@ -795,8 +794,9 @@ function kbSave_(learn, k, lang, out) {
   for (let i = 0; size > 400000 && i < ka.length; i++) { props.deleteProperty(ka[i][0]); size -= ka[i][0].length + ka[i][2]; }
 }
 function kbGet_() {
-  const all = PropertiesService.getScriptProperties().getProperties(), terms = {}, ai = {};
+  const props = PropertiesService.getScriptProperties(), all = props.getProperties(), terms = {}, ai = {};
   Object.keys(all).forEach(function (key) {
+    if (key.indexOf('kb_') === 0 && kbLocal_(key.slice(3))) { try { props.deleteProperty(key); } catch (e) {} return; }   // 清掉以前学错的机场代号（L9、06R 这种）
     try { if (key.indexOf('kb_') === 0) terms[key.slice(3)] = JSON.parse(all[key]); else if (key.indexOf('ka_') === 0) ai[key.slice(3)] = JSON.parse(all[key]); } catch (e) {}
   });
   return { ok: true, terms: terms, ai: ai };
@@ -984,3 +984,69 @@ function rwWatch_() {
 
 /* 途经国家空域应急资料（公司资料，gzip+base64）。公开版本里是空的，只有你自己的那份 Code.gs 里有。 */
 const WAC_GZ = '';
+
+/* ======== 航空用语规则：翻译 / 解读 / 整份 OFP 都用（避免把滑行道说成跑道这类错误） ======== */
+const AVZ_ = '\n【必须遵守】TWY/TAXIWAY=滑行道；RET/RAPID EXIT (TWY)=快速脱离道（是滑行道，不是跑道）；RWY=跑道；APRON=机坪；STAND/STD=停机位；TWY 后面的 L9、B、K2 这类是滑行道名字，绝不能说成跑道。只有 RWY 后面的 02L、24R、12/30 才是跑道。'
+  + '所有代号（滑行道名、跑道号、航路点、频率、时间、高度、坐标）一个字符都不能改、不能漏、不能自己补；原文没说的不要推测；看不懂就说看不懂。\n';
+const AVE_ = '\nRULES: TWY/TAXIWAY = taxiway; RET / RAPID EXIT (TWY) = rapid exit taxiway (a taxiway, never a runway); RWY = runway; APRON = apron; STAND = parking stand. Identifiers after TWY (L9, B, K2) are taxiway names and must never be called runways; only designators after RWY (02L, 24R, 12/30) are runways. '
+  + 'Copy every identifier (taxiway, runway, waypoint, frequency, time, level, coordinate) exactly; never invent or infer anything the text does not say; if unclear, say so.\n';
+function kbLocal_(t) { return /^[A-Z]{1,2}\d{1,2}[LRC]?$/.test(t) || /^\d{1,2}[LRC]?(\/\d{1,2}[LRC]?)?$/.test(t); }   // 机场里的滑行道 / 跑道代号：不当成通用词条
+
+function gemini_(prompt, json, temp) {
+  const props = PropertiesService.getScriptProperties(), key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE;
+  if (!key) return { ok: false, error: 'no GEMINI_KEY' };
+  const models = [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
+  let last = '';
+  for (let m = 0; m < models.length; m++) {
+    const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: temp == null ? 0 : temp } };
+    if (json) body.generationConfig.responseMimeType = 'application/json';
+    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent', { method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
+    const code = r.getResponseCode();
+    if (code !== 200) { last = models[m] + ' ' + code; continue; }
+    const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0];
+    const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
+    if (out) return { ok: true, out: out, model: models[m] };
+    last = models[m] + ' empty';
+  }
+  return { ok: false, error: last };
+}
+// 原文里的代号（跑道、滑行道、频率、时间…）翻译后必须都还在；滑行道不能变成跑道
+function trOk_(src, zh) {
+  if (!zh) return false;
+  const ids = (String(src).match(/\b(?:\d{2}[LRC]?\/\d{2}[LRC]?|\d{2}[LRC]|[A-Z]{1,2}\d{1,3}|\d{3}\.\d{1,3}|\d{4,})\b/g) || []);
+  if (ids.some(function (x) { return zh.indexOf(x) < 0; })) return false;
+  const tw = String(src).match(/\b(?:TAXIWAY|TWY|RET)\s+([A-Z]{1,2}\d{0,2})\b/gi) || [];
+  return !tw.some(function (x) { const id = x.split(/\s+/).pop(); return new RegExp('(跑道\\s*' + id + '(?![A-Z0-9])|(?<![A-Z0-9/])' + id + '\\s*号?跑道)').test(zh); });
+}
+function translate_(j) {
+  const texts = j.texts.slice(0, 80).map(function (t) { return String(t).slice(0, 4500); }), to = j.to || 'zh-CN';
+  const cache = CacheService.getScriptCache(), out = texts.map(function (t) { return cache.get('tr2_' + hash_(t)); });
+  const need = []; out.forEach(function (o, i) { if (o == null) need.push(i); });
+  for (let k = 0; k < need.length; k += 25) {
+    const part = need.slice(k, k + 25);
+    const g = gemini_('你是民航翻译。把下面每一条航行通告（NOTAM，缩写已展开成英文）准确翻成简体中文，供机长阅读。' + AVZ_
+      + '只翻译，不解释、不增减内容、不改格式。输出 JSON 字符串数组，顺序和条数与输入完全一样。\n输入：\n' + JSON.stringify(part.map(function (i) { return texts[i]; })), true, 0);
+    let arr = null; if (g.ok) { try { arr = JSON.parse(g.out); } catch (e) {} }
+    part.forEach(function (i, n) {
+      let zh = arr && arr.length === part.length ? String(arr[n] || '') : '';
+      if (!trOk_(texts[i], zh)) { try { const gg = gemini_('把这条航行通告准确翻成简体中文，只输出译文。' + AVZ_ + '\n' + texts[i], false, 0); zh = gg.ok ? gg.out : ''; } catch (e) { zh = ''; } }
+      if (!trOk_(texts[i], zh)) { try { zh = LanguageApp.translate(texts[i], 'en', to); } catch (e) { zh = null; } }
+      out[i] = zh; if (zh) try { cache.put('tr2_' + hash_(texts[i]), zh, 21600); } catch (e) {}
+    });
+  }
+  return { ok: true, out: out, v: 2 };
+}
+function ofpBrief_(j) {
+  const text = String(j.text || '').slice(0, 400000); if (text.length < 500) return { ok: false, error: 'no OFP text' };
+  const cache = CacheService.getScriptCache(), ck = 'ob2_' + hash_(text); const hit = cache.get(ck); if (hit) return { ok: true, items: JSON.parse(hit), cached: true };
+  const prompt = 'You are an experienced Boeing 777 captain and dispatcher reviewing a complete Emirates LIDO OFP package (flight plan, weather, NOTAMs, company notes). '
+    + 'List the KEY operational impacts for THIS flight that the crew must know: availability of runways, rapid exit taxiways, ILS/approaches and lighting at departure, destination and alternates during the relevant times; weather at departure time, ETA and alternate ETA (thunderstorms, low visibility, strong/gusty crosswind or tailwind, dust, wind shear); en-route airspace restrictions, conflict zones, GNSS interference, ATC contingencies; fuel, weight and MEL/dispatch notes. Ignore trivial items (single stands, minor taxiways far from use, obstacle lights) unless they matter. '
+    + AVE_ + AVZ_
+    + 'Return JSON: {"items":[{"ph":"dep|enr|arr|altn|gen","lv":"red|amber|info","icao":"ICAO or FIR code or empty","zh":"简体中文一句话","en":"one English sentence","src":"EXACT quote copied character-for-character from the OFP (max 160 characters) that this item is based on"}]}. '
+    + 'Maximum 18 items, most important first. Every item MUST have a src that appears verbatim in the OFP; if you cannot quote it, leave the item out.\n=== OFP ===\n' + text;
+  const g = gemini_(prompt, true, 0); if (!g.ok) return g;
+  let items = []; try { const d = JSON.parse(g.out); items = (d.items || d || []).filter(function (x) { return x && x.zh && x.src; }).slice(0, 18); } catch (e) { return { ok: false, error: 'bad JSON' }; }
+  try { cache.put(ck, JSON.stringify(items), 21600); } catch (e) {}
+  return { ok: true, items: items, model: g.model };
+}
+

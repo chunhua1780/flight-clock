@@ -541,6 +541,7 @@ div.en,.wl .en{display:block;margin-left:0}
 <script src="wx.js"></script>
 <script src="live.js"></script>
 <script src="wac.js"></script>
+<script src="aibrief.js"></script>
 <script src="ekparse.js"></script>
 <script src="brief.js"></script>
 <script src="notamx.js"></script>
@@ -1180,7 +1181,7 @@ function renderList(force) {
   updateMap(p, arr.filter(x => x.d <= R2 && usable(x)));
   if (S.tab === 'now') {
     const n2 = arr.filter(x => usable(x) && x.d <= R2).length;
-    title = (window.LIVE ? LIVE.impact(true) : '') + summary(cur, n2);
+    title = (window.LIVE ? LIVE.impact(true) : '') + (window.AIB ? AIB.html(true) : '') + summary(cur, n2);
     arr = cur.length ? cur : arr.filter(usable).sort((a, b) => a.d - b.d).slice(0, 5);
   }
   else if (S.tab === 'route') {
@@ -1192,7 +1193,7 @@ function renderList(force) {
   else if (S.tab === 'plan') {
     const keep = ['dest', 'destAltn', 'fuelEnroute'];
     arr = arr.filter(x => (x.c.roles || []).some(r => keep.includes(r))).sort((a, b) => keep.indexOf((a.c.roles || [])[0]) - keep.indexOf((b.c.roles || [])[0]));
-    title = th('目的地和备降场（按计划时间）', 'Destination and alternates (planned times)') + '</div>' + (window.LIVE ? LIVE.impact(false) : '') + '<div>';
+    title = th('目的地和备降场（按计划时间）', 'Destination and alternates (planned times)') + '</div>' + (window.LIVE ? LIVE.impact(false) : '') + (window.AIB ? AIB.html(false) : '') + '<div>';
   } else { arr = arr.filter(x => x.c.ofp).sort((a, b) => a.d - b.d); title = th('OFP 里有天气的机场 ' + arr.length + ' 个', arr.length + ' airports with OFP weather'); }
   const curSet = new Set(cur.map(x => x.c.icao));
   const html = arr.map(x => {
@@ -1386,7 +1387,7 @@ function useText(txt) {
   const prevK = lsGet('ofpk'), newK = (typeof OFL !== 'undefined') ? OFL.keyOf(r) : null;
   if (!useText.auto) lsSet('ofppin', String(Date.now()));   // 手动载入的：12 小时内不自动换到别的班
   if (newK) { OFL.snap(prevK, S.atd, S.fix); lsSet('ofpk', newK); OFL.save(txt, null, null, r).then(e => { if (e && newK !== prevK) { setATD(e.atd || null); if (e.fix) { S.fix = e.fix; lsSet('fix', JSON.stringify(e.fix)); fixBar(); tick(); } } }); }
-  setTimeout(() => { try { LIVE.fetch(true); } catch (e) {} }, 800);   // 有网：马上查实时天气 / ATIS
+  setTimeout(() => { try { LIVE.fetch(true); } catch (e) {} try { AIB.fetch(false); } catch (e) {} }, 800);   // 有网：马上查实时天气 / ATIS
   S.fix = null; lsSet('fix', ''); S.ofp = r; lsSet('ofp', JSON.stringify(r)); lsSet('ofptext1', txt.slice(0, 6000)); lsSet('ofptext', txt);   // 原文也存着：以后解析规则改进了可以自动重新读
   if (S.atd && Math.abs(S.atd - (r.times.std || 0)) > 18 * 3600e3) setATD(null);
   atdDays();
@@ -1637,7 +1638,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v71';
+const APPV = 'v72';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -2039,7 +2040,7 @@ $('b-print').onclick = () => window.print();
 /* ---------------- 开始 ---------------- */
 Promise.all([apReady, ekReady]).then(() => {
   S.started = 1;
-  setTimeout(() => { try { LIVE.fetch(false); } catch (e) {} }, 3000);
+  setTimeout(() => { try { LIVE.fetch(false); } catch (e) {} try { AIB.fetch(false); } catch (e) {} }, 3000);
   if (S.ofp) {
     $('t-fl').textContent = S.ofp.flight.no + ' · ' + S.ofp.flight.date;
     delete $('t-rt').dataset.i; $('t-rt').textContent = S.ofp.flight.dep + ' → ' + S.ofp.flight.arr + ' · ' + S.ofp.flight.reg + ' · STD ' + hmZ(S.ofp.times.std) + ' · TRIP ' + dur(S.ofp.times.trip);

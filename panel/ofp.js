@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const PV = 6;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
+  const PV = 7;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
   const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
   const hhmm = s => s ? (+s.slice(0, 2)) * 60 + (+s.slice(2, 4)) : null;      // "0752" → 472 分钟
   const ll = s => {                                                          // "N2151.5" / "E11232.8" → 度
@@ -37,6 +37,8 @@
     if (yh) year = yh[3].length === 2 ? 2000 + (+yh[3]) : +yh[3];
     const dateUTC = Date.UTC(year, MON[h[3]], +h[2]);
     out.flight = { no: 'EK' + h[1], digits: h[1], date: h[2] + h[3], dateUTC, dep: h[4], depIata: h[5], arr: h[6], arrIata: h[7], type: h[8] || '', reg: h[9] || '' };
+    // ATC 呼号：ATC 飞行计划「(FPL-UAE2AK-IS」，或抬头第二行「UAE9873」（呼号可能和航班号不一样）
+    { const c1 = /\(FPL-([A-Z]{3}[A-Z0-9]{1,5})-/.exec(T), c2 = /^\s*((?:UAE)[A-Z0-9]{1,5})\b/m.exec(T); out.flight.cs = (c1 && c1[1]) || (c2 && c2[1]) || ''; }
 
     // ---------- 2. 时间 / 油量 ----------
     const T1 = T.replace(/[ \t]{2,}/g, ' ');                                   // PDF 提取的文字词之间可能有两个空格
