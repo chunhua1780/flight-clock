@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-17c';
+const BACKEND_VER = '2026-11-18a';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -342,6 +342,18 @@ function dist_(a, b) {
 
 // ======== 把日程拆成航班段（和网页的算法一致） ========
 const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+function titleNos_(U) {
+  const out = []; let m; const re = /(?:^|[^A-Z0-9])(?:[A-Z]{2}\s?)?(\d{3,5})(?=[^0-9]|$)/g;
+  while ((m = re.exec(U))) { let d = m[1].replace(/^0+/, ''); if (d.length === 5 && d[0] === '8') d = d.slice(1); if (/^20\d\d$/.test(m[1])) continue; out.push(d); }
+  // 「510/11」这种简写：补全成 511
+  const sh = U.match(/(\d{3,4})\s*\/\s*(\d{1,2})(?!\d)/); if (sh && out.length === 1) out.push(sh[1].slice(0, sh[1].length - sh[2].length) + sh[2]);
+  return out;
+}
+function nextNo_(ev, legs) {
+  const nums = titleNos_(String(ev.title || '').toUpperCase()); if (nums[legs.length]) return nums[legs.length];
+  return legs.length ? String(+legs[legs.length - 1].digits + 1) : (nums[0] || null);
+}
+function gcNm_(a, b) { const r = Math.PI / 180, x = Math.sin((b.lat - a.lat) * r / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin((b.lon - a.lon) * r / 2) ** 2; return 3440 * 2 * Math.asin(Math.sqrt(x)); }
 function legsOf_(ev) {
   const legs = [];
   let no = null, pend = null;
@@ -356,18 +368,29 @@ function legsOf_(ev) {
     if (!ap) return;
     const t = localToUtc_(+m[4], MON[m[3]], +m[2], +m[5], +m[6], ap.tz);
     if (!pend) { pend = { code: m[1], t: t }; return; }
-    if (no) legs.push({ digits: no, origin: pend.code, dest: m[1], std: pend.t, sta: t });
+    // 这一段没写航班号（来回航班常见）：用标题里的下一个号，否则 去程号 + 1
+    const d0 = no || nextNo_(ev, legs);
+    if (d0) legs.push({ digits: d0, origin: pend.code, dest: m[1], std: pend.t, sta: t });
     pend = null; no = null;
   });
   if (!legs.length) {
     // 备注里没有分段：标题当单段航班，开始=起飞，结束=到达
     const U = String(ev.title || '').toUpperCase();
-    const r = U.match(/([A-Z]{3})\s*(?:-|–|—|\/|>|→)\s*([A-Z]{3})(?![A-Z])/);
-    const f = U.match(/(?:^|[^A-Z0-9])(?:[A-Z]{2}\s?)?(\d{1,5})(?=[^0-9]|$)/);
-    if (r && f) {
-      let d = f[1].replace(/^0+/, '');
-      if (d.length === 5 && d[0] === '8') d = d.slice(1);
-      legs.push({ digits: d, origin: r[1], dest: r[2], std: new Date(ev.start).getTime(), sta: new Date(ev.end).getTime() });
+    // 机场一串：「DXB-DEL-DXB」= 两段（来回 turnaround）；航班号：「510/511」「EK510 EK511」
+    const chain = (U.match(/\b[A-Z]{3}(?:\s*(?:-|–|—|\/|>|→)\s*[A-Z]{3})+(?![A-Z])/) || [''])[0].split(/\s*(?:-|–|—|\/|>|→)\s*/).filter(Boolean);
+    const nums = titleNos_(U);
+    if (chain.length >= 2 && nums.length) {
+      const t0 = new Date(ev.start).getTime(), t1 = new Date(ev.end).getTime(), n = chain.length - 1;
+      if (n === 1) legs.push({ digits: nums[0], origin: chain[0], dest: chain[1], std: t0, sta: t1 });
+      else {
+        // 只知道整个任务的开始和结束：每段的时间按距离估算（巡航约 470 节 + 30 分钟），去程从开始算、回程倒推到结束
+        const blk = []; for (let i = 0; i < n; i++) { const a = airport_(chain[i]), b = airport_(chain[i + 1]); blk.push(a && b ? Math.round((gcNm_(a, b) / 470 * 60 + 30) * 60e3) : 3 * 3600e3); }
+        let t = t0; for (let i = 0; i < n; i++) {
+          const last = i === n - 1, std = last ? Math.max(t, t1 - blk[i]) : t, sta = last ? t1 : std + blk[i];
+          legs.push({ digits: nums[i] || String(+nums[0] + i), origin: chain[i], dest: chain[i + 1], std: std, sta: sta, est: true });
+          t = sta + 60 * 60e3;   // 中间至少地面 1 小时
+        }
+      }
     }
   }
   const cs = String(ev.description || '').toUpperCase().match(/(?:^|[^A-Z])(?:CS|CALLSIGN)[\s:=]*([A-Z]{3}[0-9][0-9A-Z]{0,3})(?![0-9A-Z])/);

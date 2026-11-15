@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const PV = 7;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
+  const PV = 8;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
   const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
   const hhmm = s => s ? (+s.slice(0, 2)) * 60 + (+s.slice(2, 4)) : null;      // "0752" → 472 分钟
   const ll = s => {                                                          // "N2151.5" / "E11232.8" → 度
@@ -24,6 +24,10 @@
       .map(l => l.replace(/\s+$/, ''));
   }
 
+  function normType(t) { t = String(t || '').toUpperCase().replace(/^B(?=7)/, '');
+    if (/^(77W|777W|777-300ER|7773ER|777-3ER)$/.test(t)) return '777-300ER'; if (/^(77L|777-200LR|7772LR)$/.test(t)) return '777-200LR';
+    if (/^(77F|777F|777-F|777FREIGHTER)$/.test(t)) return '777F'; if (/^(777-300ERSF|77WSF)$/.test(t)) return '777-300ERSF'; return t; }
+  function normReg(r) { r = String(r || '').toUpperCase().replace(/\s+/g, ''); const m = /^(?:A6)?-?([A-Z]{3})$/.exec(r); return m ? 'A6-' + m[1] : r; }
   function parse(text) {
     const L = clean(text);
     const T = L.join('\n');
@@ -36,7 +40,10 @@
     const yh = /\/(\d{2})([A-Z][a-z]{2})(\d{2})\//.exec(text) || /(\d{2})([A-Z][a-z]{2})(20\d{2})/.exec(text);
     if (yh) year = yh[3].length === 2 ? 2000 + (+yh[3]) : +yh[3];
     const dateUTC = Date.UTC(year, MON[h[3]], +h[2]);
-    out.flight = { no: 'EK' + h[1], digits: h[1], date: h[2] + h[3], dateUTC, dep: h[4], depIata: h[5], arr: h[6], arrIata: h[7], type: h[8] || '', reg: h[9] || '' };
+    // 机型、注册号统一写法：777-300ER / 777-200LR / 777F；A6-EPF（阿联酋的飞机都是 A6- 开头，抬头里只写 EPF 的也补上）
+    const hl = (T.slice(h.index).split('\n')[0] || '').toUpperCase();
+    let reg = h[9] || ''; if (!reg) { const r2 = /\bA6-?([A-Z]{3})\b/.exec(hl) || /\s(?:B?77[\w-]*|B?777[\w-]*)\s+([A-Z]{3})\b/.exec(hl); if (r2) reg = 'A6-' + r2[1]; }
+    out.flight = { no: 'EK' + h[1], digits: h[1], date: h[2] + h[3], dateUTC, dep: h[4], depIata: h[5], arr: h[6], arrIata: h[7], type: normType(h[8] || ''), reg: normReg(reg) };
     // ATC 呼号：ATC 飞行计划「(FPL-UAE2AK-IS」，或抬头第二行「UAE9873」（呼号可能和航班号不一样）
     { const c1 = /\(FPL-([A-Z]{3}[A-Z0-9]{1,5})-/.exec(T), c2 = /^\s*((?:UAE)[A-Z0-9]{1,5})\b/m.exec(T); out.flight.cs = (c1 && c1[1]) || (c2 && c2[1]) || ''; }
 
@@ -214,6 +221,6 @@
     return out;
   }
 
-  root.OFP = { parse, clean, hhmm, ll, PV };
+  root.OFP = { parse, clean, hhmm, ll, PV, normType, normReg };
   if (typeof module !== 'undefined') module.exports = root.OFP;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -252,7 +252,7 @@ body:not(.lite) .ics-box{display:none}
   <!-- 驻外 -->
   <section class="view" id="v-lay">
     <div class="layhead">
-      <span class="pill"><span class="dot"></span>LAYOVER</span>
+      <span class="pill"><span class="dot"></span><span id="l-pill">LAYOVER</span></span>
       <span class="lt" id="l-head"></span>
     </div>
     <div class="dual">
@@ -741,7 +741,9 @@ function compute(now) {
   const next = up[0];
   let loc = prev ? prev.dest : (next ? next.origin : homeCodes()[0]);
   if (!prev && next && isHome(next.origin)) loc = next.origin;
-  return { mode: isHome(loc) ? 'home' : 'layover', loc, prev, next, upcoming: up.slice(1, 4) };
+  // 来回（turnaround）：从家出发、10 小时内又飞回家（中间只在外站停一会儿）
+  const turn = !isHome(loc) && prev && next && isHome(prev.origin) && isHome(next.dest) && (endOf(next) - prev.std) < 14 * HOUR && (next.std - (stOf(prev).on || prev.sta)) < 6 * HOUR;
+  return { mode: isHome(loc) ? 'home' : 'layover', turn, loc, prev, next, upcoming: up.slice(1, 4) };
 }
 
 /* =====================================================================
@@ -822,7 +824,7 @@ function nextCard(f, upcoming) {
   if (!f) return '<div class="nc"><div class="empty">No flights scheduled yet</div></div>';
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
   const pickup = f.std - CFG.pickup * MIN; // 接车 = 起飞前 2 小时 15 分（设置里可改）
-  const toPick = pickup - Date.now();
+  const toPick = NOCAR ? -1 : pickup - Date.now();   // 来回航班：人在机场，没有接车
   let more = '';
   if (upcoming && upcoming.length) {
     more = '<div class="nc-more"><span class="lbl" style="font-size:11px">Then</span>' + upcoming.map(u =>
@@ -837,7 +839,7 @@ function nextCard(f, upcoming) {
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
     '</div>' +
     '<div class="kvs">' +
-      '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hmDual(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + dualNote(pickup, oTz) + '</span></div>' +
+      (NOCAR ? '<div class="kv"></div>' : '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hmDual(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + dualNote(pickup, oTz) + '</span></div>') +
       '<div class="kv"><span class="lbl">Departure</span><span class="v num">' + hmDual(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + dualNote(f.std, oTz) + '</span></div>' +
       '<div class="kv"><span class="lbl">Arrival</span><span class="v num">' + hmDual(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + (dualNote(f.sta, dTz) || ' local') + (f.staEst ? ' · approx.' : '') + '</span></div>' +
     '</div>' + more + '</div>';
@@ -957,6 +959,7 @@ function renderCal() {
     '<div class="cal-list" style="--n:' + nDays + '">' + rows + '</div>';
 }
 
+let NOCAR = false;
 function renderLayover(st) {
   const now = Date.now();
   const here = st.loc;
@@ -969,8 +972,12 @@ function renderLayover(st) {
       'In ' + esc(apCity(here)) + ' for <span class="num" data-el="' + arr + '">' + durTxt(now - arr) + '</span>';
   }
   if (st.next) h += (h ? ' · layover ' + durTxt(st.next.std - (stOf(st.prev).on || st.prev.sta)) : 'Flying home in <span class="num" data-cd="' + st.next.std + '">' + cdTxt(st.next.std - now) + '</span>');
+  // 来回航班：顶上写 TURNAROUND，再写回程几点起飞、几点到迪拜
+  $('l-pill').textContent = st.turn ? 'TURNAROUND' : 'LAYOVER';
+  if (st.turn && st.next) { const n = st.next, home = HOME_TZ;
+    h = (stOf(st.prev).on ? '<span style="color:var(--green)">Landed ' + hm(stOf(st.prev).on, apTz(here)) + '</span> · ' : '') + 'Turnaround · <b>' + esc(n.digits ? CFG.airline + n.digits : 'Return') + '</b> departs ' + hm(n.std, apTz(here)) + ' local (' + HN + ' ' + hm(n.std, home) + ') in <span class="num" data-cd="' + n.std + '">' + cdTxt(n.std - now) + '</span> · arrives ' + HN + ' ' + hm(n.sta, home); }
   $('l-head').innerHTML = h;
-  $('l-next').innerHTML = nextCard(st.next, st.upcoming);
+  NOCAR = !!st.turn; $('l-next').innerHTML = nextCard(st.next, st.upcoming); NOCAR = false;
 }
 
 /* ---------- flight ---------- */
@@ -1555,7 +1562,8 @@ function demoFlights() {
   const now = Date.now();
   const mk = (o, d, n, s, h) => ({ title: n + '-' + o + '-' + d, start: new Date(s).toISOString(), end: new Date(s + h * HOUR).toISOString() });
   let raw;
-  if (TRIP) raw = [mk('LHR', 'SFO', '287', Date.UTC(2026, 10, 13, 8, 0), 10.9), mk('SFO', 'LHR', '286', Date.UTC(2026, 10, 14, 19, 0), 10.9)];
+  if (DEMO === 'turn') raw = [mk('DXB', 'DEL', '510', now - 4.3 * HOUR, 3.1), mk('DEL', 'DXB', '511', now + 1.2 * HOUR, 3.4)];
+  else if (TRIP) raw = [mk('LHR', 'SFO', '287', Date.UTC(2026, 10, 13, 8, 0), 10.9), mk('SFO', 'LHR', '286', Date.UTC(2026, 10, 14, 19, 0), 10.9)];
   else if (DEMO === 'flight') raw = [mk('DWC', 'CAN', '89876', now - 3.2 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 30 * HOUR, 8.6)];
   else if (DEMO === 'layover') raw = [mk('DWC', 'CAN', '89876', now - 20 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 9.4 * HOUR, 8.6), mk('DWC', 'HKG', '89820', now + 4 * 864e5, 7.2)];
   else raw = [mk('DWC', 'CAN', '89876', now + 26.3 * HOUR, 7.6), mk('CAN', 'DWC', '89877', now + 60 * HOUR, 8.6), mk('DWC', 'LHR', '89801', now + 6 * 864e5, 7.9)];

@@ -9,6 +9,8 @@
   const ld = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || '') || d; } catch (e) { return d; } };
   const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   let LB = ld(KEY, []), SET = Object.assign({ fmt: 'caac', role: 'CAPT', name: '', lic: '', night: 'auto', bf: {} }, ld(SKEY, {}));
+  // 以前记下的：机型、注册号改成统一写法（777-300ER、A6-EPF）
+  try { let ch = 0; LB.forEach(e => { const t = OFP.normType(e.type || ''), r = OFP.normReg(e.reg || ''); if (t !== (e.type || '') || r !== (e.reg || '')) { e.type = t; e.reg = r; ch++; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(LB)); } catch (e) {}
   if (!SET.bf) SET.bf = {};
   const save = () => { sv(KEY, LB); cloudSoon(); }, saveSet = () => { sv(SKEY, SET); cloudSoon(); };
   // ---------- 云端（你 Google Drive 里的表格，经自己的 Apps Script）：改了就自动同步，新设备打开就下载 ----------
@@ -113,7 +115,7 @@
     const dp = (S.pts && S.pts[0] && S.pts[0].pos) || (typeof apPos === 'function' ? apPos(f.dep) : null) || ap(f.dep);
     const aq = (S.pts && S.pts.length && S.pts[S.pts.length - 1].pos) || (typeof apPos === 'function' ? apPos(f.arr) : null) || ap(f.arr);
     if (!e) {
-      e = { k, flt: f.no, cs: 'UAE' + f.digits, date: std, dep: f.dep, arr: f.arr, depI: f.depIata, arrI: f.arrIata, type: f.type || '', reg: (f.reg || '').replace(/-/g, ''), role: SET.role, pf: false, pic: '', rmk: '', src: {} };
+      e = { k, flt: f.no, cs: 'UAE' + f.digits, date: std, dep: f.dep, arr: f.arr, depI: f.depIata, arrI: f.arrIata, type: OFP.normType(f.type || ''), reg: OFP.normReg(f.reg || ''), role: SET.role, pf: false, pic: '', rmk: '', src: {} };
       LB.push(e); LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date));
     }
     e.dp = dp; e.ap = aq; e.std = std; e.taxiP = TXO(o.times.taxi);
