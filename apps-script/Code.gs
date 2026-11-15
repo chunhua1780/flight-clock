@@ -1,7 +1,7 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-15d';
-['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ'].forEach(function (k) {
+const BACKEND_VER = '2026-11-16a';
+['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
 
@@ -775,6 +775,12 @@ function explain_(j) {
     const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0];
     const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
     if (!out) { last = models[m] + ' empty'; continue; }
+    // DeepSeek 复核这段解读（对照原文）：一致就标一下，有错就把它指出的问题附在后面
+    if (dsKey_()) { try {
+      const parts0 = out.split(/\n?\s*===LEARN===\s*/), rv = deepseek_('You are a senior Boeing 777 captain. Check another AI\'s explanation of an OFP / NOTAM passage against the original text. ' + AVE_ + 'Return JSON {"ok":true|false,"why":"if not ok: the specific errors, in ' + (lang === 'zh' ? 'Simplified Chinese' : 'English') + ', max 3 short sentences"}.',
+        JSON.stringify({ original: text, explanation: parts0[0] }));
+      if (rv.ok && rv.json) out = parts0[0] + (rv.json.ok === false ? '\n\n⚠️ ' + (lang === 'zh' ? 'DeepSeek 复核指出：' : 'DeepSeek review: ') + (rv.json.why || '') : '\n\n✓✓ ' + (lang === 'zh' ? 'DeepSeek 复核：一致' : 'DeepSeek review: agrees')) + (parts0[1] ? '\n===LEARN===\n' + parts0[1] : '');
+    } catch (e) {} }
     try { cache.put(ck, out, 21600); } catch (e) {}
     const res = finish_(out, j, lang, false); res.model = models[m]; res.searched = searched; return res;
   }
@@ -1030,7 +1036,7 @@ function trOk_(src, zh) {
 }
 function translate_(j) {
   const texts = j.texts.slice(0, 80).map(function (t) { return String(t).slice(0, 4500); }), to = j.to || 'zh-CN';
-  const cache = CacheService.getScriptCache(), out = texts.map(function (t) { return cache.get('tr2_' + hash_(t)); });
+  const cache = CacheService.getScriptCache(), out = texts.map(function (t) { return cache.get('tr3_' + hash_(t)); });
   const need = []; out.forEach(function (o, i) { if (o == null) need.push(i); });
   for (let k = 0; k < need.length; k += 25) {
     const part = need.slice(k, k + 25);
@@ -1041,14 +1047,27 @@ function translate_(j) {
       let zh = arr && arr.length === part.length ? String(arr[n] || '') : '';
       if (!trOk_(texts[i], zh)) { try { const gg = gemini_('把这条航行通告准确翻成简体中文，只输出译文。' + AVZ_ + '\n' + texts[i], false, 0); zh = gg.ok ? gg.out : ''; } catch (e) { zh = ''; } }
       if (!trOk_(texts[i], zh)) { try { zh = LanguageApp.translate(texts[i], 'en', to); } catch (e) { zh = null; } }
-      out[i] = zh; if (zh) try { cache.put('tr2_' + hash_(texts[i]), zh, 21600); } catch (e) {}
+      out[i] = zh;
     });
+    // DeepSeek 复核：逐条对照英文原文检查译文；改正的也要通过代号检查才采用
+    if (dsKey_()) {
+      const rv = deepseek_('You are a senior airline captain checking Chinese translations of NOTAMs. For each pair, check the Chinese against the English source: runway vs taxiway vs rapid exit taxiway, identifiers, times, frequencies, levels, closures/limitations, nothing added or missing. ' + AVE_
+        + 'Return JSON {"r":[{"ok":true|false,"zh":"corrected Chinese translation if not ok, else empty","why":"short reason in Chinese if not ok"}]} with exactly one entry per pair, in order.',
+        JSON.stringify(part.map(function (i) { return { en: texts[i], zh: out[i] || '' }; })));
+      const r = rv.ok && rv.json && rv.json.r;
+      if (r && r.length === part.length) part.forEach(function (i, n) {
+        const x = r[n] || {}; if (x.ok !== false) return;
+        if (x.zh && trOk_(texts[i], x.zh)) out[i] = '【复核修正】' + x.zh + (x.why ? '（' + x.why + '）' : '');
+        else out[i] = '⚠️【两个 AI 理解不一致，请看英文原文】' + (out[i] || '') + (x.why ? '（DeepSeek：' + x.why + '）' : '');
+      });
+    }
+    part.forEach(function (i) { if (out[i]) try { cache.put('tr3_' + hash_(texts[i]), out[i], 21600); } catch (e) {} });
   }
-  return { ok: true, out: out, v: 2 };
+  return { ok: true, out: out, v: 3, ds: !!dsKey_() };
 }
 function ofpBrief_(j) {
   const text = String(j.text || '').slice(0, 400000); if (text.length < 500) return { ok: false, error: 'no OFP text' };
-  const cache = CacheService.getScriptCache(), ck = 'ob2_' + hash_(text); const hit = cache.get(ck); if (hit) return { ok: true, items: JSON.parse(hit), cached: true };
+  const cache = CacheService.getScriptCache(), ck = 'ob3_' + hash_(text); const hit = cache.get(ck); if (hit) return { ok: true, items: JSON.parse(hit), cached: true };
   const prompt = 'You are an experienced Boeing 777 captain and dispatcher reviewing a complete Emirates LIDO OFP package (flight plan, weather, NOTAMs, company notes). '
     + 'List the KEY operational impacts for THIS flight that the crew must know: availability of runways, rapid exit taxiways, ILS/approaches and lighting at departure, destination and alternates during the relevant times; weather at departure time, ETA and alternate ETA (thunderstorms, low visibility, strong/gusty crosswind or tailwind, dust, wind shear); en-route airspace restrictions, conflict zones, GNSS interference, ATC contingencies; fuel, weight and MEL/dispatch notes. Ignore trivial items (single stands, minor taxiways far from use, obstacle lights) unless they matter. '
     + AVE_ + AVZ_
@@ -1056,8 +1075,19 @@ function ofpBrief_(j) {
     + 'Maximum 18 items, most important first. Every item MUST have a src that appears verbatim in the OFP; if you cannot quote it, leave the item out.\n=== OFP ===\n' + text;
   const g = gemini_(prompt, true, 0); if (!g.ok) return g;
   let items = []; try { const d = JSON.parse(g.out); items = (d.items || d || []).filter(function (x) { return x && x.zh && x.src; }).slice(0, 18); } catch (e) { return { ok: false, error: 'bad JSON' }; }
+  // DeepSeek 复核：每条给它原句前后约 700 字的 OFP 原文，判断结论对不对
+  if (dsKey_() && items.length) {
+    const U = text.toUpperCase().replace(/\s+/g, ' '), ctx = function (q) { const k = U.indexOf(String(q).toUpperCase().replace(/\s+/g, ' ')); return k < 0 ? '' : U.slice(Math.max(0, k - 350), k + 350); };
+    const rv = deepseek_('You are a senior Boeing 777 captain double-checking another AI\'s briefing items taken from an Emirates LIDO OFP. For each item you get its statement (zh/en), the quoted source, and the surrounding OFP text. '
+      + 'Decide if the statement is correct and not misleading: runway vs taxiway vs rapid exit taxiway, which airport, identifiers, times/days, flight phase, severity. ' + AVE_
+      + 'Return JSON {"r":[{"ok":true|false,"zh":"corrected Chinese sentence if not ok","en":"corrected English sentence if not ok","why":"short reason in Chinese if not ok"}]} with exactly one entry per item, in order.',
+      JSON.stringify(items.map(function (x) { return { ph: x.ph, icao: x.icao, zh: x.zh, en: x.en, src: x.src, context: ctx(x.src) }; })));
+    const r = rv.ok && rv.json && rv.json.r;
+    if (r && r.length === items.length) items.forEach(function (x, n) { const y = r[n] || {}; if (y.ok === false) { x.v = y.zh ? 'fix' : 'dis'; x.g = { zh: x.zh, en: x.en }; if (y.zh) { x.zh = y.zh; x.en = y.en || x.en; } x.why = y.why || ''; } else x.v = 'ok'; });
+    else items.forEach(function (x) { x.v = 'na'; });
+  }
   try { cache.put(ck, JSON.stringify(items), 21600); } catch (e) {}
-  return { ok: true, items: items, model: g.model };
+  return { ok: true, items: items, model: g.model, ds: !!dsKey_() };
 }
 
 /* ======== 自动更新：从 GitHub Pages 取最新的 Code.gs，换掉这个文件，建新版本，更新网页部署 ========
@@ -1100,5 +1130,19 @@ function setupAutoUpdate() {
   const r = selfUpdate_(false);
   Logger.log(JSON.stringify(r));
   return r;
+}
+
+/* ======== DeepSeek（第二个 AI，用来复核 Gemini）。Key 放在 Secrets.gs：DEEPSEEK_KEY: 'sk-…'；没有 Key 就只用 Gemini ======== */
+function dsKey_() { return PropertiesService.getScriptProperties().getProperty('DEEPSEEK_KEY') || DEEPSEEK_KEY || ''; }
+function deepseek_(system, user) {
+  const key = dsKey_(); if (!key) return { ok: false, error: 'no DEEPSEEK_KEY' };
+  const model = PropertiesService.getScriptProperties().getProperty('DEEPSEEK_MODEL') || 'deepseek-chat';
+  try {
+    const r = UrlFetchApp.fetch('https://api.deepseek.com/chat/completions', { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + key }, muteHttpExceptions: true,
+      payload: JSON.stringify({ model: model, temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
+    if (r.getResponseCode() !== 200) return { ok: false, error: 'DeepSeek ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 160) };
+    const t = JSON.parse(r.getContentText()).choices[0].message.content; let j = null; try { j = JSON.parse(t); } catch (e) {}
+    return { ok: !!j, json: j, raw: t };
+  } catch (e) { return { ok: false, error: String(e).slice(0, 200) }; }
 }
 

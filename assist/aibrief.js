@@ -18,7 +18,7 @@
   let busy = false, msg = '';
   async function fetchB(force) {
     if (!S.ofp || busy || !navigator.onLine || !lsGet('key')) return;
-    load(); if (B && !force) return;
+    load(); if (B && !force && B.ver === 3) return;   // 旧版（没有 DeepSeek 复核）的结果：有网时重读一次
     const text = lsGet('ofptext') || ''; if (text.length < 1000) return;
     busy = true; msg = '⏳ ' + th('AI 正在读整份 OFP…（约半分钟）', 'AI is reading the whole OFP… (~30 s)'); redraw();
     try {
@@ -28,7 +28,7 @@
         // 核对原文：引用的那句在 OFP 里找得到才算
         const N = ' ' + norm(text) + ' ';
         const items = j.items.map(x => Object.assign({}, x, { ok: norm(x.src).length >= 8 && N.indexOf(' ' + norm(x.src) + ' ') >= 0 || N.indexOf(norm(x.src)) >= 0 }));
-        B = { t: Date.now(), items: items.filter(x => x.ok), dropped: items.filter(x => !x.ok).length, model: j.model };
+        B = { ver: 3, t: Date.now(), items: items.filter(x => x.ok), dropped: items.filter(x => !x.ok).length, model: j.model, ds: !!j.ds };
         lsSet('aib.' + keyOf(), JSON.stringify(B)); msg = '';
       } else msg = /unknown|action/i.test(j.error || '') || !j.error ? th('后台要更新才能用 AI 解读', 'Update the backend to use the AI briefing') : '⚠️ ' + j.error;
     } catch (e) { msg = th('没连上', 'Could not connect'); }
@@ -44,10 +44,18 @@
     ['dep', 'enr', 'arr', 'altn', 'gen'].forEach(p => {
       const g = L.filter(x => (x.ph || 'gen') === p); if (!g.length) return;
       h += '<div style="margin-top:6px;font-weight:700">' + th(PH[p][0], PH[p][1]) + '</div>' + g.map(x => '<div class="' + (x.lv === 'red' ? 't-red' : x.lv === 'amber' ? 't-amber' : '') + '" style="margin-top:3px">● ' + (x.icao ? '<b>' + esc(x.icao) + '</b> ' : '') + thb(esc(x.zh), esc(x.en || '')) +
-        '<div class="small" style="color:var(--dim);font-family:ui-monospace,Menlo,monospace">“' + esc(x.src) + '”</div></div>').join('');
+        badge(x) + '<div class="small" style="color:var(--dim);font-family:ui-monospace,Menlo,monospace">“' + esc(x.src) + '”</div></div>').join('');
     });
-    h += '<div class="small" style="color:var(--dim);margin-top:6px">' + th('每条都已核对 OFP 原文（引号里是原句）', 'Each item checked against the OFP (quoted text)') + (B.dropped ? ' · ' + th('有 ' + B.dropped + ' 条找不到原文，已去掉', B.dropped + ' unverifiable item(s) removed') : '') + ' · ' + th('AI 解读仅供参考', 'AI aid only') + '</div></div>';
+    const nOk = L.filter(x => x.v === 'ok').length, nFix = L.filter(x => x.v === 'fix' || x.v === 'dis').length;
+    h += '<div class="small" style="color:var(--dim);margin-top:6px">' + (B.ds ? th('Gemini 解读 · DeepSeek 复核：' + nOk + ' 条一致，' + nFix + ' 条有修正 / 分歧', 'Gemini briefing · DeepSeek review: ' + nOk + ' agree, ' + nFix + ' corrected / disputed') + ' · ' : th('只有 Gemini（后台没有 DeepSeek Key）', 'Gemini only (no DeepSeek key)') + ' · ') + th('每条都已核对 OFP 原文（引号里是原句）', 'Each item checked against the OFP (quoted text)') + (B.dropped ? ' · ' + th('有 ' + B.dropped + ' 条找不到原文，已去掉', B.dropped + ' unverifiable item(s) removed') : '') + ' · ' + th('AI 解读仅供参考', 'AI aid only') + '</div></div>';
     return h;
+  }
+  // 复核结果的小标记
+  function badge(x) {
+    if (x.v === 'ok') return '<div class="small" style="color:var(--green)">✓✓ ' + th('Gemini 和 DeepSeek 一致', 'Gemini and DeepSeek agree') + '</div>';
+    if (x.v === 'fix') return '<div class="small t-amber">⚠ ' + th('DeepSeek 复核修正', 'Corrected by DeepSeek review') + (x.why ? '：' + esc(x.why) : '') + (x.g ? '<br><s style="opacity:.6">' + esc(x.g.zh) + '</s>' : '') + '</div>';
+    if (x.v === 'dis') return '<div class="small t-red">⚠ ' + th('两个 AI 不一致，请看原文', 'The two AIs disagree — read the original') + (x.why ? '：' + esc(x.why) : '') + '</div>';
+    return '';
   }
   window.AIB = { fetch: fetchB, html };
   window.addEventListener('online', () => fetchB(false));
