@@ -202,7 +202,7 @@ async function cloudSync(now) {
 }
 function cloudUp(text, o) {
   try { fetch(API + '?k=' + encodeURIComponent(ls('key') || ''), { method: 'POST', body: JSON.stringify({ action: 'ofpsave', k: (o.flight.no + o.flight.date).replace(/[^\w.-]/g, ''), text,
-    meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '' } }) }).catch(() => {}); } catch (e) {}
+    meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' } }) }).catch(() => {}); } catch (e) {}
 }
 
 /* =====================================================================

@@ -21,7 +21,7 @@
     const k = keyOf(o); if (lsGet('cloud.' + k) === String(text.length)) return;
     try {
       const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'ofpsave', k, text,
-        meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '' } }) });
+        meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' } }) });
       const j = JSON.parse(await r.text()); if (j.ok) lsSet('cloud.' + k, String(text.length));
     } catch (e) {}
   }

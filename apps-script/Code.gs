@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-18a';
+const BACKEND_VER = '2026-11-18b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -492,7 +492,22 @@ function track_(cs, leg) {
   if (!cs) return { ok: false, error: 'missing cs' };
 
   let ac = null, source = null;
-  for (let i = 0; i < ADSB_SOURCES.length && !ac; i++) {
+  // 先按注册号（A6-EPF，不会变）和 OFP 上真正的 ATC 呼号（例如 UAE2MJ）找；再按「UAE + 航班号」
+  const om = leg ? ofpMeta_(leg) : null;
+  if (om && om.reg) { try { const r = UrlFetchApp.fetch('https://api.adsb.lol/v2/reg/' + om.reg, { muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) { const a = (JSON.parse(r.getContentText()).ac || []).filter(function (x) { return x.lat != null && x.lon != null; })[0]; if (a) { ac = a; source = 'adsb.lol/reg'; } } } catch (e) {} }
+  const css = [om && om.cs, cs].filter(function (x, i, A) { return x && A.indexOf(x) === i; });
+  for (let c = 0; c < css.length && !ac; c++) for (let i = 0; i < ADSB_SOURCES.length && !ac; i++) {
+    try {
+      const r = UrlFetchApp.fetch(ADSB_SOURCES[i] + css[c], { muteHttpExceptions: true });
+      if (r.getResponseCode() !== 200) continue;
+      const j = JSON.parse(r.getContentText());
+      const arr = (j.ac || j.aircraft || []).filter(function (a) { return a.lat != null && a.lon != null; });
+      if (arr.length) { arr.sort(function (a, b) { return (a.seen_pos || 0) - (b.seen_pos || 0); }); ac = arr[0]; source = ADSB_SOURCES[i].split('/')[2]; }
+    } catch (err) { /* 换下一个源 */ }
+  }
+  if (ac && ac.r && ac.hex) { try { PropertiesService.getScriptProperties().setProperty('hex_' + ac.r, ac.hex); } catch (e) {} }   // 记住 注册号 → 识别码
+  for (let i = 0; false; i++) {
     try {
       const r = UrlFetchApp.fetch(ADSB_SOURCES[i] + cs, { muteHttpExceptions: true });
       if (r.getResponseCode() !== 200) continue;
@@ -863,8 +878,35 @@ function logTimes_(p) {
     if (k.indexOf(pre) !== 0) return; const std = +k.slice(pre.length); if (!std) return;
     const dd = Math.abs(std - t); if (dd < bd) { bd = dd; best = { std: std, st: JSON.parse(all[k]) }; }
   });
+  const ps = best ? publicStatus_(best.st) : null;
+  // 实时没追到（或缺起飞 / 落地）：飞完以后用 OpenSky 的历史航班补（按飞机识别码查；OpenSky 通常第二天才有）
+  if ((!ps || !ps.off || !ps.on) && p.reg && Date.now() > t + 2 * HOUR) { const os = osTimes_(String(p.reg), o, d, t); if (os) return { ok: true, found: true, std: best ? best.std : t, status: Object.assign({}, ps || {}, os), src: 'opensky' }; }
   if (!best) return { ok: true, found: false };
-  return { ok: true, found: true, std: best.std, status: publicStatus_(best.st) };
+  return { ok: true, found: true, std: best.std, status: ps };
+}
+function hexOf_(reg) {
+  reg = String(reg || '').toUpperCase(); if (!/^[A-Z0-9]{1,2}-?[A-Z0-9]{2,5}$/.test(reg)) return null;
+  const pr = PropertiesService.getScriptProperties(), h = pr.getProperty('hex_' + reg); if (h) return h;
+  try { const r = UrlFetchApp.fetch('https://hexdb.io/reg-hex?reg=' + encodeURIComponent(reg), { muteHttpExceptions: true }); const x = r.getContentText().trim(); if (r.getResponseCode() === 200 && /^[0-9A-F]{6}$/i.test(x)) { pr.setProperty('hex_' + reg, x.toLowerCase()); return x.toLowerCase(); } } catch (e) {}
+  try { const r = UrlFetchApp.fetch('https://api.adsb.lol/v2/reg/' + reg, { muteHttpExceptions: true }); const a = (JSON.parse(r.getContentText()).ac || [])[0]; if (a && a.hex) { pr.setProperty('hex_' + reg, a.hex); return a.hex; } } catch (e) {}
+  return null;
+}
+function osTimes_(reg, o, d, t) {
+  const hex = hexOf_(reg); if (!hex) return null;
+  const ck = 'os_' + hex + '_' + Math.round(t / 36e5), c = CacheService.getScriptCache(), hit = c.get(ck); if (hit) return JSON.parse(hit) || null;
+  let res = null;
+  try {
+    const r = UrlFetchApp.fetch('https://opensky-network.org/api/flights/aircraft?icao24=' + hex + '&begin=' + Math.floor((t - 6 * HOUR) / 1000) + '&end=' + Math.floor((t + 20 * HOUR) / 1000), { muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) {
+      const icao = function (x) { const a = airport_(x); return x.length === 4 ? x : null; };
+      const F = JSON.parse(r.getContentText()) || [];
+      // 起飞机场对得上、时间最接近的那一班
+      const best = F.filter(function (f) { return f.firstSeen; }).sort(function (a, b) { return Math.abs(a.firstSeen * 1000 - t) - Math.abs(b.firstSeen * 1000 - t); })[0];
+      if (best && Math.abs(best.firstSeen * 1000 - t) < 6 * HOUR) res = { off: best.firstSeen * 1000, on: best.lastSeen * 1000, cs: String(best.callsign || '').trim(), est: true, src: 'opensky' };
+    }
+  } catch (e) {}
+  c.put(ck, JSON.stringify(res), res ? 21600 : 3600);   // 没查到：1 小时后再试（OpenSky 第二天才有数据）
+  return res;
 }
 
 // ======== 飞行记录本云端：存在你自己 Google Drive 的表格「Flight Logbook (Flight Assist)」里 ========
@@ -1247,4 +1289,22 @@ function trStore_(k, ids, out, again) {
   const body = { message: 'tr ' + k, content: Utilities.base64Encode(JSON.stringify(m), Utilities.Charset.UTF_8) }; if (sha) body.sha = sha;
   const r = gh_('put', path, body); if (r && r.code === 409 && !again) return trStore_(k, ids, out, 1);   // 同时有人在写：重读再写一次
   cloudIdxSave_(cloudIdx_(), { k: k, tr: Object.keys(m).length });
+}
+
+// 这一段航班在云端的 OFP：注册号、ATC 呼号（老的索引里没有，就读原文找出来）
+function ofpMeta_(leg) {
+  try {
+    const c = CacheService.getScriptCache(), ck = 'om_' + leg.digits + '_' + leg.std, hit = c.get(ck); if (hit) return JSON.parse(hit);
+    let idx = null; const ic = c.get('cloudidx'); if (ic) idx = JSON.parse(ic); else { idx = cloudIdx_().idx; try { c.put('cloudidx', JSON.stringify(idx), 600); } catch (e) {} }
+    const l4 = function (x) { return String(x || '').replace(/\D/g, '').slice(-4).replace(/^0+/, ''); };
+    const x = (idx || []).find(function (e) { const m = e.meta || {}; return l4(m.no) === l4(leg.digits) && m.std && Math.abs(m.std - leg.std) < 12 * HOUR; });
+    let r = null;
+    if (x) { const m = x.meta || {}; r = { reg: m.reg || '', cs: m.cs || '' };
+      if (!r.reg || !r.cs) { const g = gh_('get', 'ofpdata/' + x.k + '.txt.gz'); if (g && g.code === 200 && g.j && g.j.content) {
+        const tx = Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(g.j.content), 'application/x-gzip')).getDataAsString('UTF-8').slice(0, 20000).toUpperCase();
+        const c1 = /\(FPL-([A-Z]{3}[A-Z0-9]{1,5})-/.exec(tx); if (c1 && !r.cs) r.cs = c1[1];
+        const rg = /\bA6-?([A-Z]{3})\b/.exec(tx) || /\bB?77[\w-]*-([A-Z]{3})\b/.exec(tx); if (rg && !r.reg) r.reg = 'A6-' + rg[1]; } } }
+    try { c.put(ck, JSON.stringify(r), 3600); } catch (e) {}
+    return r;
+  } catch (e) { return null; }
 }

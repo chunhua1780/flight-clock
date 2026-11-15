@@ -10,7 +10,7 @@
   const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   let LB = ld(KEY, []), SET = Object.assign({ fmt: 'caac', role: 'CAPT', name: '', lic: '', night: 'auto', bf: {} }, ld(SKEY, {}));
   // 以前记下的：机型、注册号改成统一写法（777-300ER、A6-EPF）
-  try { let ch = 0; LB.forEach(e => { const t = OFP.normType(e.type || ''), r = OFP.normReg(e.reg || ''); if (t !== (e.type || '') || r !== (e.reg || '')) { e.type = t; e.reg = r; ch++; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(LB)); } catch (e) {}
+  try { let ch = 0; LB.forEach(e => { const t = OFP.normType(e.type || ''), r = OFP.normReg(e.reg || OFP.splitTR(e.type || '')[1]); if (t !== (e.type || '') || r !== (e.reg || '')) { e.type = t; e.reg = r; ch++; } }); if (ch) localStorage.setItem(KEY, JSON.stringify(LB)); } catch (e) {}
   if (!SET.bf) SET.bf = {};
   const save = () => { sv(KEY, LB); cloudSoon(); }, saveSet = () => { sv(SKEY, SET); cloudSoon(); };
   // ---------- 云端（你 Google Drive 里的表格，经自己的 Apps Script）：改了就自动同步，新设备打开就下载 ----------
@@ -135,7 +135,7 @@
     if (!e || busy || !navigator.onLine) { if (!quiet && !navigator.onLine) toast('📵 ' + T('当前无网络', 'No network')); return false; }
     busy = true;
     try {
-      const u = clockUrl() + '?action=logtimes&o=' + encodeURIComponent(e.depI) + '&d=' + encodeURIComponent(e.arrI) + '&t=' + (e.std || e.date) + '&_=' + Date.now();
+      const u = clockUrl() + '?action=logtimes&o=' + encodeURIComponent(e.depI) + '&d=' + encodeURIComponent(e.arrI) + '&t=' + (e.std || e.date) + '&reg=' + encodeURIComponent(e.reg || '') + '&_=' + Date.now();
       const j = await (await fetch(u, { cache: 'no-store' })).json();
       if (!j.ok) { if (!quiet) toast(/bad|action/.test(j.error || '') ? T('时钟后台是旧版：请更新 Code.gs 并重新部署', 'Backend is old — update Code.gs') : '⚠️ ' + (j.error || 'error')); return false; }
       if (!j.found || !j.status || !(j.status.off || j.status.on)) { if (!quiet) toast(T('时钟还没有这一班的 ADS-B 起降时间', 'No ADS-B times for this flight yet'), 4000); return false; }
