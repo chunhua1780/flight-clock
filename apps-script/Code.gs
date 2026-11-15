@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-15b';
+const BACKEND_VER = '2026-11-15c';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -1062,7 +1062,7 @@ function ofpBrief_(j) {
 
 /* ======== 自动更新：从 GitHub Pages 取最新的 Code.gs，换掉这个文件，建新版本，更新网页部署 ========
    需要：① 在 script.google.com/home/usersettings 打开「Google Apps Script API」；② appsscript.json 里有 script.projects 和 script.deployments 权限。 */
-const UPDATE_URL = 'https://chunhua1780.github.io/flight-cloch/apps-script/Code.gs';
+const UPDATE_URL = 'https://chunhua1780.github.io/flight-cloch/apps-script/Code.txt';   // .txt：网站会标明 UTF-8，中文不会变乱码
 function autoUpdate_() {
   const pr = PropertiesService.getScriptProperties(), last = +pr.getProperty('upd_check') || 0;
   if (Date.now() - last < 3600e3) return; pr.setProperty('upd_check', String(Date.now()));
@@ -1073,7 +1073,8 @@ function selfUpdate_(force) {
   try {
     const g = UrlFetchApp.fetch(UPDATE_URL + '?_=' + Date.now(), { muteHttpExceptions: true });
     if (g.getResponseCode() !== 200) return { ok: false, error: 'GitHub ' + g.getResponseCode() };
-    const src = g.getContentText(), m = /const BACKEND_VER = '([^']+)'/.exec(src);
+    const src = g.getContentText('UTF-8'), m = /const BACKEND_VER = '([^']+)'/.exec(src);
+    if (/[\u00c0-\u00ff]{3,}|\ufffd/.test(src) || !/自动更新/.test(src)) return { ok: false, error: 'downloaded code has broken characters' };   // 中文乱码的不要
     if (!m || !/function doPost\(/.test(src) || !/function doGet\(/.test(src) || !/function selfUpdate_\(/.test(src)) return { ok: false, error: 'downloaded code looks wrong' };
     if (m[1] === BACKEND_VER && !force) return { ok: true, same: true, v: BACKEND_VER };
     if (m[1] <= BACKEND_VER && !force) return { ok: true, same: true, v: BACKEND_VER };
