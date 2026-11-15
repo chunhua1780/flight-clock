@@ -12,42 +12,44 @@
 *{box-sizing:border-box}
 input,textarea{-webkit-user-select:text!important;user-select:text!important}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,"Roboto","Noto Sans SC",sans-serif;-webkit-user-select:none;user-select:none;overflow:hidden}
-#app{height:100vh;display:flex;flex-direction:column;padding:6px 8px}
-#top{display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--line);padding-bottom:4px}
-#sel{display:flex;align-items:baseline;gap:4px;cursor:pointer;min-width:0}
-.fl{font-weight:900;font-size:44px;line-height:1;letter-spacing:-.02em;white-space:nowrap}
-.fl small{font-size:.5em;font-weight:800;margin-right:2px}
-.dd{font-size:22px;font-weight:900}
-#tinfo{flex:1;min-width:0;text-align:right;line-height:1.2}
-.rt{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rt span{font-weight:500;color:var(--dim);font-size:12px}
-.ph{font-size:13px;font-weight:800}
-#legs{display:none;border:2px solid var(--line);border-radius:10px;margin:4px 0;max-height:45vh;overflow:auto}#legs.open{display:block}
-.lg{padding:8px 10px;border-bottom:1px solid var(--line);font-size:15px;font-weight:700}.lg:last-child{border-bottom:0}.lg.on{background:#000;color:#fff}.lg small{font-weight:500;font-size:12px}
-.row{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
-.c{padding:3px 4px;border-right:1px solid var(--line);min-width:0}.c:last-child{border-right:0}
-.l{font-size:10px;font-weight:700;color:var(--dim);white-space:nowrap;overflow:hidden}
-.v{font-size:18px;font-weight:800;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-.s{font-size:10.5px;color:var(--dim);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#app{height:100vh;display:flex;flex-direction:column}
+#top{height:25vh;display:flex;flex-direction:column;gap:2px;padding:4px 8px 3px;border-bottom:1px solid #ccc}
+#sel{flex:1;display:flex;align-items:center;justify-content:center;cursor:pointer;min-height:0;overflow:hidden}
+.fl{font-weight:900;line-height:.9;letter-spacing:-.03em;white-space:nowrap}
+.fl small{font-size:.42em;font-weight:800;margin-right:.04em}
+.fl .dd{font-size:.3em;color:var(--red)}
+#tinfo{flex:none;display:flex;flex-direction:column;gap:1px}
+.rt{font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt span{font-weight:600;color:var(--dim);font-size:12px}
+.ph{font-size:15px;font-weight:800;color:var(--red)}
+#legs{display:none;margin:0 8px 4px;border:2px solid var(--line);border-radius:10px;max-height:45vh;overflow:auto;background:#fff;position:relative;z-index:5}#legs.open{display:block}
+.lg{padding:8px 10px;border-bottom:1px solid #999;font-size:15px;font-weight:700}.lg:last-child{border-bottom:0}.lg.on{background:#000;color:#fff}.lg small{font-weight:500;font-size:12px}
+.row{display:grid;grid-template-columns:auto 1fr auto 1fr;column-gap:6px;row-gap:0;align-items:baseline}
+.c{display:contents}
+.l{font-size:12px;font-weight:800;color:var(--dim)}
+.v{font-size:18px;overflow:hidden;text-overflow:ellipsis;font-weight:900;line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums}
+.v .s{font-size:12px;font-weight:600;color:var(--dim)}
 .edit{text-decoration:underline dotted}
-#main{flex:1;min-height:0;display:flex;gap:6px;padding-top:4px}
-#mapw{flex:1.7;position:relative;border:1px solid var(--line);min-width:0}
+#main{flex:1;min-height:0;display:flex;position:relative}
+#mapw{flex:1;position:relative;min-width:0}
 #map{width:100%;height:100%;display:block}
-.zb{position:absolute;left:6px;width:34px;height:34px;border:2px solid #000;background:#fff;border-radius:8px;font-size:22px;font-weight:900;text-align:center;line-height:28px}
-#wpl{flex:1;min-width:0;overflow-y:auto;border:1px solid var(--line);font-size:13px}
-.wp{display:flex;justify-content:space-between;padding:3px 5px;border-bottom:1px solid #ccc;font-weight:700}.wp.past{color:#888;font-weight:500}.wp.nx{background:#000;color:#fff}
-.wp .t{font-variant-numeric:tabular-nums;font-weight:600}
-.fir{padding:3px 5px;border-top:2px solid #000;border-bottom:2px solid #000;font-size:11.5px;font-weight:800;background:#eee}.fir.risk{color:var(--red);border-color:var(--red)}
-.nowl{border-top:3px solid var(--red);margin:0}
-#rk{max-height:26vh;overflow-y:auto;padding-top:4px}
-#rk h3{margin:0 0 3px;font-size:13px}
+.zb{position:absolute;right:8px;width:36px;height:36px;border-radius:18px;background:rgba(255,255,255,.85);border:1.5px solid #333;font-size:22px;font-weight:900;text-align:center;line-height:32px}
+#warn{position:absolute;left:0;top:38%;display:none;background:var(--red);color:#fff;font-weight:900;font-size:18px;padding:10px 10px 10px 6px;border-radius:0 14px 14px 0}
+#wpop{position:absolute;left:8px;right:8px;bottom:50px;display:none;background:#fff;border:3px solid var(--red);border-radius:12px;padding:6px 8px;max-height:55%;overflow:auto;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+#wpop h3{margin:0 0 4px;font-size:14px;color:var(--red)}
+.fab{position:absolute;left:8px;bottom:8px;width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.9);border:1.5px solid #333;font-size:20px;font-weight:900;text-align:center;line-height:36px}
+#st{position:absolute;left:54px;right:56px;bottom:12px;font-size:11.5px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 3px #fff,0 0 3px #fff}
+#wpl{width:23%;min-width:78px;max-width:150px;overflow-y:auto;font-size:13px;border-left:1px solid #bbb}
+.wp{padding:3px 5px 2px;line-height:1.15;font-weight:800}.wp .t{display:block;font-size:11.5px;font-weight:600;color:#444;font-variant-numeric:tabular-nums}
+.wp.past{color:#aaa;font-weight:500}.wp.past .t{color:#aaa}.wp.nx{background:#000;color:#fff}.wp.nx .t{color:#fff}
+.fir{padding:3px 5px;font-size:11px;font-weight:900;color:var(--red);border-top:2px solid var(--red);border-bottom:2px solid var(--red);background:#fff2f2}
+.nowl{border-top:3px solid var(--red)}
 .it{border-left:5px solid #000;padding:3px 7px;margin-bottom:4px;font-size:14px;font-weight:700;line-height:1.3}
 .it.red{border-color:var(--red);color:var(--red)}
 .it small{display:block;font-weight:500;font-size:12px;color:var(--dim)}
 .it .go{float:right;font-size:12px;border:1px solid currentColor;border-radius:7px;padding:0 5px;margin-left:5px}
 .ok{color:var(--dim);font-size:14px;padding:4px 0}
-#menu{display:none;flex-direction:column;gap:6px;padding:6px 0 2px;border-top:1px solid var(--line)}#menu.open{display:flex}#menu .btn{text-align:center;padding:9px}
-.foot{display:flex;gap:8px;justify-content:space-between;align-items:center;padding-top:4px;font-size:12px;color:var(--dim)}
+#menu{display:none;flex-direction:column;gap:6px;padding:6px 8px;border-top:1px solid var(--line);background:#fff}#menu.open{display:flex}#menu .btn{text-align:center;padding:9px}
 .btn{display:inline-block;margin:2px;cursor:pointer;border:2px solid var(--line);border-radius:10px;padding:6px 10px;font-weight:700;color:var(--fg);background:var(--bg);font-size:14px}
 #set,#sheet{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:var(--bg);z-index:9;padding:14px;font-size:15px;line-height:1.55;overflow:auto}
 #set input{width:100%;font-size:17px;padding:8px;border:2px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);margin:4px 0 12px}
@@ -55,18 +57,17 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .nt .id{font-weight:900}.nt .tm{font-size:12px;color:var(--dim)}.nt .zh{font-size:15px;font-weight:700;margin-top:4px}.nt .en{font-size:12.5px;color:var(--dim);margin-top:4px;font-family:ui-monospace,Menlo,monospace}
 .mb{display:inline-block;margin-top:6px;border:2px solid var(--red);color:var(--red);border-radius:8px;padding:2px 9px;font-weight:800;font-size:13px}.mb.on{background:var(--red);color:#fff}
 #empty{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;font-size:16px;line-height:1.5}
-@media (orientation:landscape){.fl{font-size:34px}#main{flex:1}#mapw{flex:1.6}#wpl{flex:.8}#rkw{display:flex}.land-rk #rk{max-height:none}}
+@media (orientation:landscape){#top{height:30vh;flex-direction:row;align-items:center}#sel{flex:1.3}#tinfo{flex:1}#wpl{width:17%}}
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="top"><div id="sel"><span class="fl" id="fl"></span><span class="dd">▾</span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="ph" id="ph"></div></div></div>
+  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div></div></div>
   <div id="legs"></div>
-  <div class="row" id="row"></div>
-  <div id="main"><div id="mapw"><canvas id="map"></canvas><span class="zb" id="zin" style="top:6px">+</span><span class="zb" id="zout" style="top:46px">−</span><span class="zb" id="zfoc" style="top:86px;display:none">◎</span></div><div id="wpl"></div></div>
-  <div id="rk"></div>
+  <div id="main"><div id="mapw"><canvas id="map"></canvas><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span>
+    <span id="warn"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="wpl"></div></div>
+  <div id="rk" style="display:none"></div>
   <div id="empty"></div>
-  <div class="foot"><span id="st" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span><span class="btn" id="b-menu">☰</span></div>
   <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新（读日历和邮箱）|Update (calendar & mail)"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光（白天完全关灯）|Allow backlight control (fully off in daylight)"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="sheet"></div>
@@ -335,7 +336,7 @@ function focusArea(A) { const pts = A.poly || [A.c || A.pt]; let la0 = 90, la1 =
 function drawMap(L, el, ph) {
   const cv = $('map'), W = cv.clientWidth, H = cv.clientHeight; if (!W || !H) return;
   const dpr = window.devicePixelRatio || 1; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#e6f1fb'; g.fillRect(0, 0, W, H);   // 海：浅蓝
   const N = (L.n || []).filter(w => w.length >= 4); if (!N.length) { g.fillStyle = '#000'; g.font = '14px sans-serif'; g.fillText(X('没有航路坐标', 'No route coordinates'), 10, 24); return; }
   const P = wpos(L, ph === 0 ? -1 : ph === 2 ? 1e9 : el).p, c0 = FOCUS ? FOCUS.c : [P[0], P[1]], k = Math.cos(c0[0] * Math.PI / 180), s = W / ZOOM;   // 像素 / 海里；看通告区域时中心在区域上
   $('zfoc').style.display = FOCUS ? '' : 'none';
@@ -343,9 +344,9 @@ function drawMap(L, el, ph) {
   const vis = (bb) => { const sc = (LAND && LAND.s) || 20, la0 = bb[1] / sc, la1 = bb[3] / sc, lo0 = bb[0] / sc, lo1 = bb[2] / sc, hw = ZOOM / 60 / Math.max(.2, k) * .8, hh = ZOOM / 60 * H / W;
     return !(la1 < c0[0] - hh || la0 > c0[0] + hh) && (lo1 - lo0 > 300 || !(dlon(lo1, c0[1]) < -hw || dlon(lo0, c0[1]) > hw)); };
   // 陆地
-  if (LAND) { const sc = LAND.s || 20; g.fillStyle = '#e4e4e4'; g.strokeStyle = '#777'; g.lineWidth = .7;
+  if (LAND) { const sc = LAND.s || 20; g.fillStyle = '#f3ecd9'; g.strokeStyle = '#a8946a'; g.lineWidth = .8;   // 陆地：沙色
     LAND.land.forEach((r, i) => { if (!vis(LAND.bb[i])) return; g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.closePath(); g.fill(); g.stroke(); });
-    g.strokeStyle = '#999'; g.setLineDash([3, 3]); g.lineWidth = .6;
+    g.strokeStyle = '#c2ad80'; g.setLineDash([3, 3]); g.lineWidth = .7;
     LAND.border.forEach((r, i) => { if (!vis(LAND.bbb[i])) return; g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.stroke(); }); g.setLineDash([]); }
   // 通告区域（红色）
   Object.keys(AREAS).forEach(id => { const A = AREAS[id]; g.strokeStyle = '#d00000'; g.fillStyle = 'rgba(208,0,0,.13)'; g.lineWidth = 2.5; g.setLineDash([7, 4]); g.beginPath();
@@ -364,22 +365,35 @@ function drawMap(L, el, ph) {
   N.forEach((w, i) => { const q = xy(w[2], w[3]); if (q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) return;
     const fw = FIRWP.has(w[0]); g.fillStyle = fw ? '#d00000' : '#000';
     if (fw) { g.beginPath(); g.moveTo(q[0], q[1] - 6); g.lineTo(q[0] + 6, q[1]); g.lineTo(q[0], q[1] + 6); g.lineTo(q[0] - 6, q[1]); g.closePath(); g.fill(); } else g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5);
-    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = '#fff'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); g.fillStyle = fw ? '#d00000' : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
+    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); g.fillStyle = fw ? '#d00000' : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
   // 飞机
   const ac = xy(P[0], P[1]); let hdg = 0;
   if (cur && cur.a && cur.b) { const a = xy(cur.a[2], cur.a[3]), b = xy(cur.b[2], cur.b[3]); hdg = Math.atan2(b[0] - a[0], -(b[1] - a[1])); }
-  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = '#000'; g.strokeStyle = '#fff'; g.lineWidth = 2;
+  // 有警告的管制区：在移交点画红色「!」
+  const rf = new Set(((L.R && L.R.enr) || []).map(r => r[2].loc)); (L.fi || []).forEach(f => { if (!rf.has(FIRALIAS[f[1]] || f[1])) return; const w = N.find(x => x[0] === f[2]); if (!w) return; const q = xy(w[2], w[3]);
+    g.fillStyle = '#d00000'; g.beginPath(); g.arc(q[0], q[1] - 18, 9, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 14px sans-serif'; g.fillText('!', q[0] - 2.5, q[1] - 13); });
+  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = '#d00000'; g.strokeStyle = '#000'; g.lineWidth = 1.5;   // 飞机：红色
   g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.stroke(); g.fill(); g.restore();
   // 比例尺 + 北
-  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; g.fillStyle = '#000'; g.fillRect(W - px - 10, H - 12, px, 3); g.font = '11px sans-serif'; g.fillText(nm + ' NM', W - px - 10, H - 16); g.fillText('N ↑', W - 30, 16);
+  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = '11px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
 }
 
 /* =====================================================================
    6. 画整个画面（一分钟一次；墨水屏：没变的部分不重画）
    ===================================================================== */
 const item = x => '<div class="it ' + (x.lv === 'red' ? 'red' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-id="' + esc(x.id) + '"' : '') + '>' + (x.id ? '<span class="go">' + X('全文', 'Full') + (WX.area(ntText(x.loc, x.id)) ? ' 🗺' : '') + '</span>' : '') + (x.lv === 'red' ? '⛔ ' : '⚠︎ ') + esc(LANG === 'en' ? x.en : x.zh) + (LANG === 'both' ? '<small>' + esc(x.en) + '</small>' : '') + '</div>';
-const tile = (l, v, s, id) => '<div class="c"' + (id ? ' id="' + id + '"' : '') + '><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + (s || '') + '</div></div>';
+const tile = (l, v, s, id) => '<div class="c"' + (id ? ' id="' + id + '"' : '') + '><div class="l">' + l + '</div><div class="v">' + v + (s ? ' <span class="s">' + s + '</span>' : '') + '</div></div>';
 let CUR = null, wplTouch = 0;
+let WARN = { list: [] }, WSIG = '', wTimer = null;
+function showWarn(ms) {
+  const W = WARN; if (!W.list.length) return;
+  let h = '<h3>' + W.title + ' · ' + W.list.length + '</h3>' + W.list.map(item).join('');
+  if (W.L && W.L.w && (W.ph === 0 || W.ph === 2)) h += '<div class="ok" style="font-size:12px">' + (W.ph === 0 ? 'TOW ' + T(W.L.w.tow) + '/' + T(W.L.w.towL) + ' · ' : '') + 'LDW ' + T(W.L.w.ldw) + '/' + T(W.L.w.lwL) + ' · ' + X('落地油 ', 'LDG fuel ') + T(W.L.w.lf) + ' t</div>';
+  if ($('wpop').innerHTML !== h) $('wpop').innerHTML = h;
+  $('wpop').style.display = 'block'; clearTimeout(wTimer); if (ms) wTimer = setTimeout(() => { $('wpop').style.display = 'none'; }, ms);
+}
+// 呼号字体：占满左上角那一块
+function fitFl() { const box = $('sel'), el = $('fl'); if (!box.clientWidth) return; el.style.fontSize = '100px'; const r = Math.min(box.clientWidth / el.scrollWidth, box.clientHeight * .92 / el.offsetHeight); el.style.fontSize = Math.max(28, Math.floor(100 * r)) + 'px'; }
 function ntText(loc, id) { const L = CUR; if (!L || !L.nt) return ''; const A = (L.nt[loc] || []).find(n => n[0] === id) || Object.values(L.nt).reduce((r, a) => r || a.find(n => n[0] === id), null); return A ? A[1] : ''; }
 function draw() {
   const now = Date.now(), F = flights(now);
@@ -391,26 +405,26 @@ function draw() {
   const lg = F.map(l => '<div class="lg' + (L && l.k === L.k ? ' on' : '') + '" data-k="' + esc(l.k) + '">' + esc(csOf(l)) + ' · ' + esc(l.ai) + '→' + esc(l.bi) + (l.noOfp ? '' : ' 📄') + ' <small>' + esc(l.no) + ' · ' + dmZ(l.std) + (ls('pin') === l.k ? ' · 📌' : '') + '</small></div>').join('')
     + '<div class="lg" data-k="">🔁 ' + X('自动（按时间选当前航段）', 'Auto (current leg by time)') + (ls('pin') ? '' : ' ✓') + '</div>' + (L ? '<div class="lg" data-k="#cs">✎ ' + X('改呼号', 'Change callsign') + '</div>' : '');
   if ($('legs').innerHTML !== lg) $('legs').innerHTML = lg;
-  if (!L) { ['main', 'row', 'rk', 'top'].forEach(i => $(i).style.display = 'none'); $('empty').style.display = 'flex';
+  if (!L) { ['main', 'row', 'top'].forEach(i => $(i).style.display = 'none'); $('empty').style.display = 'flex';
     const eh = !ls('key') && !GH().tok ? '<div>' + X('填口令（和飞行助手里的一样）', 'Password (same as Flight Assist)') + '</div><input id="e-key" type="password" autocomplete="off" style="font-size:18px;padding:8px;width:80%;border:2px solid var(--line);border-radius:8px"><span class="btn" id="e-ok">✓ ' + X('保存并读取', 'Save') + '</span>' : X('还没有航班。有网时点 ☰ → 🔄 更新。', 'No flights yet — when online tap ☰ → Update.');
     if ($('empty').dataset.h !== eh) { $('empty').dataset.h = eh; $('empty').innerHTML = eh; }
     const ek = $('e-ok'); if (ek) ek.onclick = () => { const v = $('e-key').value.trim(); if (!v) return; ls('key', v); MSG = ''; draw(); update(false); };
     setNight(MODE === 'night'); return; }
-  ['row', 'rk', 'top'].forEach(i => $(i).style.display = ''); $('main').style.display = 'flex'; $('empty').style.display = 'none';
+  ['row', 'top'].forEach(i => $(i).style.display = ''); $('main').style.display = 'flex'; $('empty').style.display = 'none';
   const std = L.std, off = offOf(L), on = off + L.tr * MIN, el = (now - off) / MIN, ph = now < off ? 0 : now < on ? 1 : 2;
   const cs = csOf(L), m = /^([A-Z]{3})([A-Z0-9]+)$/.exec(cs) || [0, '', cs];
-  const fl = '<small>' + m[1] + '</small>' + esc(m[2]) + (ls('cs.' + L.k) ? '<small> ✎</small>' : ''); if ($('fl').innerHTML !== fl) $('fl').innerHTML = fl;
-  $('rt').innerHTML = esc(L.ai) + ' → ' + esc(L.bi) + ' <span>' + esc(L.no) + (L.reg ? ' · ' + esc(L.reg) : '') + '</span>';
-  $('ph').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : X('起飞前 ', 'T/O in ') + dur((off - now) / MIN)) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
+  const fl = '<small>' + m[1] + '</small>' + esc(m[2]) + '<span class="dd">' + (ls('cs.' + L.k) ? '✎' : '▾') + '</span>'; if ($('fl').innerHTML !== fl) { $('fl').innerHTML = fl; } fitFl();
+  $('rt').innerHTML = esc(L.ai) + ' → ' + esc(L.bi) + ' <span>' + esc(L.no) + (L.reg ? ' · ' + esc(L.reg) : '') + '</span> <b id="phx" style="color:var(--red);font-size:14px"></b>';
+  $('ph').style.display = 'none'; $('phx').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : X('起飞前 ', 'T/O in ') + dur((off - now) / MIN)) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
   const P = wpos(L, ph === 0 ? -1 : ph === 2 ? 1e9 : el);
   setNight(MODE === 'night' || (MODE === 'auto' && P && isDark(now, [0, P.p[0], P.p[1]], altAt(L, ph, el))));
   // 一行四格
   const N = L.n || [], nx = ph === 1 ? N.find(w => w[1] > el) : ph === 0 ? N[1] : null, ato = atoOf(L);
   const FI = L.fi || [], fx = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el));
-  let row = tile(atdOf(L) ? 'ATD ✎' : 'STD ✎', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : X('点填 ATD', 'tap: ATD'), 'c-atd')
-    + tile('ETA ' + esc(L.bi), hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : 'Trip ' + dur(L.tr))
-    + tile(X('下一点 ✎', 'Next ✎'), nx ? esc(nx[0]) : '—', nx ? hmZ(off + nx[1] * MIN) + (ph === 1 ? ' · ' + dur(nx[1] - el) : '') + (ato ? ' · ATO' : '') : '', 'c-wp')
-    + tile(X('移交', 'FIR'), fx ? esc(fx[1]) : '—', fx ? esc(fx[2]) + ' ' + hmZ(off + fx[3] * MIN) : '', 'c-fir');
+  let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
+    + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
+    + (L.noOfp ? '' : tile('NXT', nx ? esc(nx[0]) : '—', nx ? hmZ(off + nx[1] * MIN) + (ato ? ' ATO' : '') : '', 'c-wp')
+    + tile('FIR', fx ? esc(fx[1]) : '—', fx ? hmZ(off + fx[3] * MIN) : '', 'c-fir'));
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 地图
   if (!L.noOfp) drawMap(L, el, ph); else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); }
@@ -420,24 +434,25 @@ function draw() {
     let h = '', nowDone = false;
     N.forEach((w, i) => {
       if (ph === 1 && !nowDone && w[1] > el) { h += '<div class="nowl" id="wpnow"></div>'; nowDone = true; }
-      const f = FIW[w[0]]; if (f) { const code = FIRALIAS[f[1]] || f[1], cnt = (L.nt[code] || L.nt[f[1]] || []).length; h += '<div class="fir' + (riskFir.has(code) ? ' risk' : '') + '" data-fir="' + esc(code) + '">' + (riskFir.has(code) ? '⚠ ' : '') + esc(f[1]) + ' ' + esc(f[0]) + (cnt ? ' · 📄' + cnt : '') + '</div>'; }
-      h += '<div class="wp' + (ph === 1 && w[1] <= el || ph === 2 ? ' past' : '') + (nx && w === nx ? ' nx' : '') + '"><span>' + esc(w[0]) + '</span><span class="t">' + hmZ(off + w[1] * MIN) + '</span></div>';
+      const f = FIW[w[0]]; if (f) { const code = FIRALIAS[f[1]] || f[1], cnt = (L.nt[code] || L.nt[f[1]] || []).length; h += '<div class="fir" data-fir="' + esc(code) + '">' + (riskFir.has(code) ? '⚠ ' : '') + esc(f[1]) + (cnt ? ' · ' + cnt : '') + '</div>'; }
+      h += '<div class="wp' + (ph === 1 && w[1] <= el || ph === 2 ? ' past' : '') + (nx && w === nx ? ' nx' : '') + '" data-w="' + esc(w[0]) + '">' + esc(w[0]) + '<span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span></div>';
     });
     if ($('wpl').innerHTML !== h) { $('wpl').innerHTML = h; }
     if (Date.now() - wplTouch > 30000) { const a = $('wpl').querySelector('.wp.nx') || $('wpl').querySelector('#wpnow'); if (a) $('wpl').scrollTop = Math.max(0, a.offsetTop - $('wpl').offsetTop - 40); }
   } else $('wpl').innerHTML = '';
-  // 下面：这个阶段的提醒
-  let h2;
-  if (L.noOfp) h2 = '<div class="ok">' + X('收到这个航班的 OFP 后，会加上航路点、地图和风险提醒。', 'Waypoints, map and risks appear when the OFP arrives.') + '</div>';
-  else {
-    let list, title;
+  // 警告：地图左边的红色三角（点开看）；有新的就自动弹出 20 秒再收起
+  let list = [], title = '';
+  if (!L.noOfp) {
     if (ph === 0 || el < 20) { title = '🛫 ' + X('起飞', 'Departure') + ' ' + L.ai; list = L.R.dep; }
     else if (ph === 1 && el < L.tr - 60) { title = '✈️ ' + X('航路', 'En route'); list = L.R.enr.filter(r => el >= r[0] - 20 && el <= r[1]).map(r => r[2]); }
     else { title = '🛬 ' + X('落地', 'Arrival') + ' ' + L.bi; list = L.R.arr; }
-    h2 = '<h3>' + title + '</h3>' + (list.length ? list.map(item).join('') : '<div class="ok">✓ ' + X('没有特别提醒', 'Nothing special') + '</div>');
-    if (L.w && (ph === 0 || el >= L.tr - 60)) h2 += '<div class="s">' + (ph === 0 ? 'TOW ' + T(L.w.tow) + '/' + T(L.w.towL) + ' · ' : '') + 'LDW ' + T(L.w.ldw) + '/' + T(L.w.lwL) + ' · ' + X('落地油 ', 'LDG fuel ') + T(L.w.lf) + ' t</div>';
   }
-  if ($('rk').innerHTML !== h2) $('rk').innerHTML = h2;
+  WARN = { title, list, L, ph };
+  $('warn').style.display = list.length ? 'block' : 'none'; $('warn').textContent = '⚠ ' + list.length;
+  const sig = L.k + '|' + list.map(x => x.id || x.zh).join(',');
+  if (list.length && sig !== WSIG) { WSIG = sig; showWarn(20000); } else if (!list.length) { WSIG = sig; $('wpop').style.display = 'none'; }
+  else if ($('wpop').style.display === 'block') showWarn(0);
+  let h2 = '';
 }
 
 /* =====================================================================
@@ -461,8 +476,14 @@ $('sel').onclick = () => $('legs').classList.toggle('open');
 $('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $('legs').classList.remove('open');
   if (t.dataset.k === '#cs') { const L = CUR; const v = prompt(X('ATC 呼号（例如 UAE2AK；留空 = 用 OFP 上的 ', 'ATC callsign (e.g. UAE2AK; empty = OFP ') + (L.cs || L.no) + '）', ls('cs.' + L.k) || ''); if (v !== null) ls('cs.' + L.k, v.trim().toUpperCase().replace(/\s+/g, '')); }
   else ls('pin', t.dataset.k); draw(); };
-$('rk').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
-$('wpl').onclick = e => { const t = e.target.closest('.fir[data-fir]'); if (t) openNotams(t.dataset.fir); };
+$('warn').onclick = () => { if ($('wpop').style.display === 'block') $('wpop').style.display = 'none'; else showWarn(0); };
+$('wpop').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); else $('wpop').style.display = 'none'; };
+$('wpl').onclick = e => { const t = e.target.closest('.fir[data-fir]'); if (t) { openNotams(t.dataset.fir); return; }
+  const w = e.target.closest('.wp[data-w]'); if (!w || !CUR || !CUR.n) return;   // 点航路点：填过这个点的实际时间
+  const v = prompt(X('过 ', 'Time over ') + w.dataset.w + X(' 的实际时间（UTC，4 位，例如 0815；留空 = 取消过点修正）', ' (UTC, e.g. 0815; empty = clear)'), hmZ(Date.now())); if (v === null) return;
+  if (!/^\d{4}$/.test(v.trim())) { ls('ato.' + CUR.k, ''); draw(); return; }
+  const wp = CUR.n.find(x => x[0] === w.dataset.w), plan = offOf(CUR) + wp[1] * MIN, d0 = Date.UTC(new Date(plan).getUTCFullYear(), new Date(plan).getUTCMonth(), new Date(plan).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
+  ls('ato.' + CUR.k, JSON.stringify({ w: wp[0], t: [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - plan) - Math.abs(b - plan))[0] })); draw(); };
 $('wpl').addEventListener('scroll', () => { wplTouch = Date.now(); }, { passive: true });
 $('zfoc').onclick = () => { FOCUS = null; ZOOM = +(ls('zoom') || 700); draw(); };   // 回到飞机
 $('zin').onclick = () => { ZOOM = Math.max(150, ZOOM / 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
@@ -496,7 +517,7 @@ $('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 
 function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('blp') || 20; $('s-info').textContent = navigator.userAgent + (window.AndroidPanel && AndroidPanel.webVer ? ' · web ' + AndroidPanel.webVer() : ''); $('set').style.display = 'block'; }
 $('b-set').addEventListener('click', openSet); $('s-x').onclick = () => { $('set').style.display = 'none'; };
 $('s-ok').onclick = () => { ls('key', $('s-key').value.trim()); ls('blp', String(Math.max(5, Math.min(30, +$('s-bl').value || 20)))); lastBL = null; $('set').style.display = 'none'; draw(); update(false); };
-window.addEventListener('resize', () => draw());
+window.addEventListener('resize', () => { $('fl').dataset.f = ''; draw(); });
 
 /* ---------- 屏幕常亮（网页版用；App 自己会常亮） ---------- */
 let wl = null;
