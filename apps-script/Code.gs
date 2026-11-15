@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-16a';
+const BACKEND_VER = '2026-11-16b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -779,7 +779,7 @@ function explain_(j) {
     if (dsKey_()) { try {
       const parts0 = out.split(/\n?\s*===LEARN===\s*/), rv = deepseek_('You are a senior Boeing 777 captain. Check another AI\'s explanation of an OFP / NOTAM passage against the original text. ' + AVE_ + 'Return JSON {"ok":true|false,"why":"if not ok: the specific errors, in ' + (lang === 'zh' ? 'Simplified Chinese' : 'English') + ', max 3 short sentences"}.',
         JSON.stringify({ original: text, explanation: parts0[0] }));
-      if (rv.ok && rv.json) out = parts0[0] + (rv.json.ok === false ? '\n\n⚠️ ' + (lang === 'zh' ? 'DeepSeek 复核指出：' : 'DeepSeek review: ') + (rv.json.why || '') : '\n\n✓✓ ' + (lang === 'zh' ? 'DeepSeek 复核：一致' : 'DeepSeek review: agrees')) + (parts0[1] ? '\n===LEARN===\n' + parts0[1] : '');
+      if (rv.ok && rv.json) out = parts0[0] + (rv.json.ok === false ? '\n\n⚠️ ' + (lang === 'zh' ? dsName_() + ' 复核指出：' : dsName_() + ' review: ') + (rv.json.why || '') : '\n\n✓✓ ' + (lang === 'zh' ? dsName_() + ' 复核：一致' : dsName_() + ' review: agrees')) + (parts0[1] ? '\n===LEARN===\n' + parts0[1] : '');
     } catch (e) {} }
     try { cache.put(ck, out, 21600); } catch (e) {}
     const res = finish_(out, j, lang, false); res.model = models[m]; res.searched = searched; return res;
@@ -1058,12 +1058,12 @@ function translate_(j) {
       if (r && r.length === part.length) part.forEach(function (i, n) {
         const x = r[n] || {}; if (x.ok !== false) return;
         if (x.zh && trOk_(texts[i], x.zh)) out[i] = '【复核修正】' + x.zh + (x.why ? '（' + x.why + '）' : '');
-        else out[i] = '⚠️【两个 AI 理解不一致，请看英文原文】' + (out[i] || '') + (x.why ? '（DeepSeek：' + x.why + '）' : '');
+        else out[i] = '⚠️【两个 AI 理解不一致，请看英文原文】' + (out[i] || '') + (x.why ? '（' + dsName_() + '：' + x.why + '）' : '');
       });
     }
     part.forEach(function (i) { if (out[i]) try { cache.put('tr3_' + hash_(texts[i]), out[i], 21600); } catch (e) {} });
   }
-  return { ok: true, out: out, v: 3, ds: !!dsKey_() };
+  return { ok: true, out: out, v: 3, ds: dsName_() };
 }
 function ofpBrief_(j) {
   const text = String(j.text || '').slice(0, 400000); if (text.length < 500) return { ok: false, error: 'no OFP text' };
@@ -1087,7 +1087,7 @@ function ofpBrief_(j) {
     else items.forEach(function (x) { x.v = 'na'; });
   }
   try { cache.put(ck, JSON.stringify(items), 21600); } catch (e) {}
-  return { ok: true, items: items, model: g.model, ds: !!dsKey_() };
+  return { ok: true, items: items, model: g.model, ds: dsName_() };
 }
 
 /* ======== 自动更新：从 GitHub Pages 取最新的 Code.gs，换掉这个文件，建新版本，更新网页部署 ========
@@ -1132,17 +1132,31 @@ function setupAutoUpdate() {
   return r;
 }
 
-/* ======== DeepSeek（第二个 AI，用来复核 Gemini）。Key 放在 Secrets.gs：DEEPSEEK_KEY: 'sk-…'；没有 Key 就只用 Gemini ======== */
-function dsKey_() { return PropertiesService.getScriptProperties().getProperty('DEEPSEEK_KEY') || DEEPSEEK_KEY || ''; }
+/* ======== 第二个 AI（复核 Gemini）。在「项目设置 → 脚本属性」里填其中一个 Key 就行，按这个顺序选：
+   ZHIPU_KEY（智谱 GLM，免费）· GROQ_KEY（Groq，免费档）· DEEPSEEK_KEY（DeepSeek，收费）· OPENROUTER_KEY（OpenRouter，免费模型）
+   想换模型：脚本属性 REVIEW_MODEL。都没填：只用 Gemini。 ======== */
+function reviewer_() {
+  const P = PropertiesService.getScriptProperties(), m = P.getProperty('REVIEW_MODEL');
+  const L = [
+    ['ZHIPU_KEY', '智谱 GLM', 'https://open.bigmodel.cn/api/paas/v4/chat/completions', 'glm-4-flash'],
+    ['GROQ_KEY', 'Groq', 'https://api.groq.com/openai/v1/chat/completions', 'llama-3.3-70b-versatile'],
+    ['DEEPSEEK_KEY', 'DeepSeek', 'https://api.deepseek.com/chat/completions', 'deepseek-chat'],
+    ['OPENROUTER_KEY', 'OpenRouter', 'https://openrouter.ai/api/v1/chat/completions', 'deepseek/deepseek-chat:free']
+  ];
+  for (let i = 0; i < L.length; i++) { const k = P.getProperty(L[i][0]) || (L[i][0] === 'DEEPSEEK_KEY' ? DEEPSEEK_KEY : ''); if (k) return { key: k, name: L[i][1], url: L[i][2], model: m || L[i][3] }; }
+  return null;
+}
+function dsKey_() { return !!reviewer_(); }
+function dsName_() { const r = reviewer_(); return r ? r.name : ''; }
 function deepseek_(system, user) {
-  const key = dsKey_(); if (!key) return { ok: false, error: 'no DEEPSEEK_KEY' };
-  const model = PropertiesService.getScriptProperties().getProperty('DEEPSEEK_MODEL') || 'deepseek-chat';
+  const R = reviewer_(); if (!R) return { ok: false, error: 'no reviewer key' };
+  const body = { model: R.model, temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system + ' Output JSON only.' }, { role: 'user', content: user }] };
   try {
-    const r = UrlFetchApp.fetch('https://api.deepseek.com/chat/completions', { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + key }, muteHttpExceptions: true,
-      payload: JSON.stringify({ model: model, temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
-    if (r.getResponseCode() !== 200) return { ok: false, error: 'DeepSeek ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 160) };
-    const t = JSON.parse(r.getContentText()).choices[0].message.content; let j = null; try { j = JSON.parse(t); } catch (e) {}
-    return { ok: !!j, json: j, raw: t };
+    let r = UrlFetchApp.fetch(R.url, { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + R.key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
+    if (r.getResponseCode() === 400) { delete body.response_format; r = UrlFetchApp.fetch(R.url, { method: 'post', contentType: 'application/json', headers: { Authorization: 'Bearer ' + R.key }, muteHttpExceptions: true, payload: JSON.stringify(body) }); }
+    if (r.getResponseCode() !== 200) return { ok: false, error: R.name + ' ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 160) };
+    const t = JSON.parse(r.getContentText()).choices[0].message.content; let j = null;
+    try { j = JSON.parse(t); } catch (e) { const mm = String(t).match(/\{[\s\S]*\}/); if (mm) try { j = JSON.parse(mm[0]); } catch (x) {} }
+    return { ok: !!j, json: j, raw: t, name: R.name };
   } catch (e) { return { ok: false, error: String(e).slice(0, 200) }; }
 }
-
