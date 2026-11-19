@@ -120,7 +120,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .wp.nx .m .t{color:#0a6a2c;font-size:13px}.wp.past .m,.wp.past .m .t{color:#aaa}
 #fhdr .fc,#fhdr .fn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 警告：竖屏在右边栏的下半部分弹出 */
-#alc{position:fixed;left:4px;right:calc(27% + 4px);width:auto;top:auto;bottom:4px;max-height:42vh;border-radius:12px;z-index:6;display:none}
+#alc{position:fixed;left:4px;right:calc(27% + 4px);width:auto;top:auto;bottom:54px;max-height:40vh;border-radius:12px;z-index:6;display:none}
 .wp .m .tg{display:none}
 #alx{max-height:calc(42vh - 36px);height:auto;overflow-y:auto;font-size:12px}#alx .it{font-size:12.5px}
 #warn{position:fixed;left:auto;right:calc(27% + 8px);bottom:56px;top:auto;z-index:6;border-radius:14px;padding:6px 10px;font-size:15px}
@@ -131,6 +131,11 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 #side{width:20%;min-width:150px;max-width:230px}.wp{padding:4px 6px}.bx{min-width:70px;font-size:16px}.wp.nx .bx{font-size:23px}.hf{font-size:11.5px}
 #alc{top:8px;right:8px;left:auto;width:41%;height:calc(30vh - 4px);max-height:none;bottom:auto;border-radius:12px}#alx{max-height:calc(30vh - 44px)}.wp .m .tg{display:inline}
 #warn{top:12px;right:12px;bottom:auto}.wp .m{font-size:10.5px}#wpl{flex:1}#sinfo{display:none}}
+/* ☰ 菜单 / 设置：小卡片，不占整个屏幕 */
+#menu{position:fixed;left:8px;right:auto;bottom:56px;top:auto;width:min(330px,calc(100vw - 16px));max-height:70vh;overflow-y:auto;display:none;grid-template-columns:1fr 1fr;gap:5px;padding:7px;border:2px solid #000;border-radius:14px;background:#fff;box-shadow:0 6px 22px rgba(0,0,0,.25);z-index:8}
+#menu.open{display:grid}#menu .btn{margin:0;padding:6px 6px;font-size:12.5px;line-height:1.25;text-align:left;border-width:1.5px;border-radius:9px;white-space:normal}
+#set{top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(380px,calc(100vw - 24px));max-height:86vh;padding:12px 14px;font-size:13.5px;line-height:1.45;border:2px solid #000;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,.25)}
+#set input{font-size:15px;padding:6px 8px;margin:3px 0 9px}#set p{font-size:12px;margin:8px 0 0}#set .btn{padding:5px 14px}
 </style>
 </head>
 <body>
@@ -142,16 +147,15 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新（读日历和邮箱）|Update (calendar & mail)"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光（白天完全关灯）|Allow backlight control (fully off in daylight)"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划（云端 / 邮箱 / 手机文件）|Choose OFP (cloud / mail / file)"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域提醒数据库（Flight Intelligence）|Flight Intelligence database"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许使用 GPS（飞行中离线定位）|Allow GPS (offline position in flight)"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示（快放整个航班）|Demo (fast-forward the flight)"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查新版本|Check for app update"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="sheet"></div>
 <div id="set">
   <b>⚙︎ <span data-i="设置|Settings"></span></b><br>
-  <span data-i="口令（和飞行助手里填的一样）|Password (same as Flight Assist)"></span><br><input id="s-key" type="password" autocomplete="off">
-  <span data-i="夜里背光亮度 5–30%（白天自动关，天黑慢慢亮起一点）|Night backlight 5–30% (off in daylight, fades up a little after dark)"></span><br><input id="s-bl" type="number" min="5" max="30">
+  <span data-i="口令|Password"></span><br><input id="s-key" type="password" autocomplete="off">
+  <span data-i="夜间背光 5–30%|Night backlight 5–30%"></span><br><input id="s-bl" type="number" min="5" max="30">
   <span class="btn" id="s-ok">✓ <span data-i="保存|Save"></span></span> <span class="btn" id="s-x">✕</span>
-  <p style="color:var(--dim)">有网时自动读日历、云端和邮箱里接下来 40 小时的 OFP，每 30 分钟查一次。读完存在手机上，飞行中没网照常显示。<br>
-  When online, OFPs for the next 40 h are read from the cloud / mailbox automatically. Everything is stored on the phone for offline use.</p>
+  <p style="color:var(--dim)" data-i="有网时自动读日历、云端和邮箱的 OFP，存在手机上离线用。|OFPs are fetched automatically when online and kept for offline use."></p>
   <p id="s-info" style="color:var(--dim);font-size:12px"></p>
 </div>
 <script src="vendor/pdf.min.js"></script>
@@ -172,6 +176,13 @@ const dur = m => { m = Math.max(0, Math.round(m)); return Math.floor(m / 60) + '
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
 let LEGS = []; try { LEGS = JSON.parse(ls('legs') || '[]'); } catch (e) {}
+// 机场坐标（离线）：OFP 里起飞 / 落地 / 备降机场本身没有坐标 —— 补上，航线从机场画起
+let APT = null;
+function fixLeg(L) { if (!APT || !L || !L.n) return false; let ch = false;
+  L.n.forEach((w, i) => { if (w.length >= 4) return; const id = /^[A-Z]{4}$/.test(w[0]) ? w[0] : i === 0 ? L.dep : i === L.n.length - 1 ? L.arr : null; const p = id && APT[id];
+    if (p && (i === 0 || i === L.n.length - 1 || /^[A-Z]{4}$/.test(w[0]))) { w[2] = p[0]; w[3] = p[1]; ch = true; } });
+  return ch; }
+fetch('apt.json').then(r => r.json()).then(j => { APT = j; let ch = false; LEGS.forEach(l => { if (fixLeg(l)) ch = true; }); if (ch) ls('legs', JSON.stringify(LEGS)); try { draw(); } catch (e) {} }).catch(() => {});
 let ROSTER = []; try { ROSTER = JSON.parse(ls('roster') || '[]'); } catch (e) {}   // Google 日历上的航班（不管有没有 OFP）
 try { if (!ls('key') && window.AndroidPanel && AndroidPanel.presetKey) { const k = AndroidPanel.presetKey(); if (k) ls('key', k); } } catch (e) {}   // 个人版 App：口令已经装好
 try { if (!ls('key') && localStorage.getItem('fa.key')) ls('key', localStorage.getItem('fa.key')); } catch (e) {}   // iPad / 电脑：和飞行助手用同一个口令
@@ -223,7 +234,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190626';
+const PAGEV = '202611190803';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -246,7 +257,7 @@ async function update(quiet) {
       const u8 = await getFile(f.id);
       const txt = await pdfText(u8, (n, N) => { if (n % 5 === 0 || n === N) { MSG = '⏳ ' + X('读取 ', 'Reading ') + n + '/' + N + ' · ' + f.name.slice(0, 16); draw(); } });
       const o = OFP.parse(txt); if (!o.ok) { BAD.push(f.name + ': ' + (o.warnings || []).join('; ')); continue; }
-      const leg = summarize(o); leg.fid = f.id; leg.ft = f.t;
+      const leg = summarize(o); fixLeg(leg); leg.fid = f.id; leg.ft = f.t;
       cloudUp(txt, o);   // 传一份到云端，iPad 就不用再下载解析
       if (!LEGS.some(l => l.k === leg.k)) NEWL.push(leg); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); got++;
       ls('legs', JSON.stringify(LEGS));
@@ -277,7 +288,7 @@ async function cloudSync(now) {
     MSG = '☁️ ' + X('云端下载 ', 'Cloud ') + (m.no || x.k); draw();
     const f = await ghRaw('ofpdata/' + x.k + '.txt.gz'); if (!f) continue;
     const txt = await gunzip(new Uint8Array(await f.arrayBuffer())), o = OFP.parse(txt); if (!o.ok) continue;
-    const leg = summarize(o); leg.fid = fid; const isNew = !LEGS.some(l => l.k === leg.k); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); ls('legs', JSON.stringify(LEGS)); got++; if (isNew) NEWL.push(leg);
+    const leg = summarize(o); fixLeg(leg); leg.fid = fid; const isNew = !LEGS.some(l => l.k === leg.k); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); ls('legs', JSON.stringify(LEGS)); got++; if (isNew) NEWL.push(leg);
   }
   // 云端已经翻好的通告译文（AI 整段翻译）
   for (const x of idx) { if (!x.tr || +(ls('trn.' + x.k) || 0) >= x.tr) continue; const lg = LEGS.find(l => l.k.replace(/[^\w.-]/g, '') === x.k); if (!lg) continue;
@@ -358,7 +369,7 @@ function posAt(c, el) { if (!c || !c.length) return null; if (el <= c[0][0]) ret
   for (let i = 1; i < c.length; i++) if (el <= c[i][0]) { const a = c[i - 1], b = c[i], k = (el - a[0]) / Math.max(1, b[0] - a[0]); return [el, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
   return c[c.length - 1]; }
 let MODE = ls('mode') || 'auto', lastBL = null;
-const MODES = { auto: ['背光：自动', 'Backlight: auto', '💡 '], day: ['背光：关', 'Backlight: off', '○ '], night: ['背光：开', 'Backlight: on', '● '] };
+const MODES = { auto: ['背光：自动', 'Light: auto', '💡 '], day: ['背光：关', 'Light: off', '○ '], night: ['背光：开', 'Light: on', '● '] };
 // 背光：屏幕永远白底黑字。白天关；天黑了慢慢亮起一点点（默认 20%，最多 30%）
 const BLMAX = 0.3, blPct = () => Math.max(5, Math.min(30, +(ls('blp') || 20))) / 100;
 let blCur = 0, blIv = null;
@@ -492,7 +503,7 @@ let WARN = { list: [] }, WSIG = '', wTimer = null;
 // ---------- 📂 选择飞行计划：云端 / 邮箱 / 手机里的文件（自动推送不来时，自己拿） ----------
 async function useOfpText(txt, src, id) {
   const o = OFP.parse(txt); if (!o.ok) throw new Error(X('这个文件里没认出 OFP（', 'No OFP found in this file (') + (o.warnings || []).join('; ') + ')');
-  const leg = summarize(o); leg.fid = id || ('local:' + leg.k + ':' + txt.length); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]).sort((a, b) => a.std - b.std); ls('legs', JSON.stringify(LEGS));
+  const leg = summarize(o); fixLeg(leg); leg.fid = id || ('local:' + leg.k + ':' + txt.length); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]).sort((a, b) => a.std - b.std); ls('legs', JSON.stringify(LEGS));
   ls('pin', leg.k); if (src !== 'cloud') cloudUp(txt, o); return leg;
 }
 async function pickOfp(days) {
@@ -571,7 +582,7 @@ function ntText(loc, id) { const L = CUR; if (!L || !L.nt) return ''; const A = 
 function draw() {
   const now = NOW(), F = flights(now);
   permBtn();
-  $('b-mode').textContent = MODES[MODE][2] + X(MODES[MODE][0], MODES[MODE][1]); $('b-lang').textContent = '🌐 ' + ({ zh: '中文', en: 'English', both: '中文 + English' })[LANG];
+  $('b-mode').textContent = MODES[MODE][2] + XS(MODES[MODE][0], MODES[MODE][1]); $('b-lang').textContent = '🌐 ' + ({ zh: '中文', en: 'English', both: '中 + EN' })[LANG];
   const u = +(ls('upd') || 0); $('st').textContent = MSG || ((u ? X('更新于 ', 'Updated ') + dmZ(u) + ' · ' : '') + hmZ(now) + 'Z · ' + VER());
   const L = pick(now, F); CUR = L;
   // 航段下拉
@@ -736,9 +747,9 @@ $('b-lang').onclick = () => { LANG = LANG === 'both' ? 'zh' : LANG === 'zh' ? 'e
 $('b-up').onclick = () => update(false);
 const permOk = () => { try { return !window.AndroidPanel || !AndroidPanel.canWrite || AndroidPanel.canWrite(); } catch (e) { return true; } };
 $('b-perm').onclick = () => { try { AndroidPanel.askWrite(); } catch (e) {} };
-function permBtn() { $('b-perm').style.display = permOk() ? 'none' : ''; $('b-gps').style.display = gpsPerm() ? 'none' : ''; $('b-snd').textContent = (ls('snd') === 'off' ? '🔕 ' : '🔔 ') + X(ls('snd') === 'off' ? '提醒声音：关' : '提醒声音：开', ls('snd') === 'off' ? 'Alert sound: off' : 'Alert sound: on'); }
+function permBtn() { $('b-perm').style.display = permOk() ? 'none' : ''; $('b-gps').style.display = gpsPerm() ? 'none' : ''; $('b-snd').textContent = (ls('snd') === 'off' ? '🔕 ' : '🔔 ') + XS(ls('snd') === 'off' ? '声音：关' : '声音：开', ls('snd') === 'off' ? 'Sound: off' : 'Sound: on'); }
 $('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 'night' : 'auto'; ls('mode', MODE); draw(); };
-function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('blp') || 20; $('s-info').textContent = navigator.userAgent + (window.AndroidPanel && AndroidPanel.webVer ? ' · web ' + AndroidPanel.webVer() : ''); $('set').style.display = 'block'; }
+function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('blp') || 20; $('s-info').textContent = VER(); $('set').style.display = 'block'; }
 $('b-set').addEventListener('click', openSet); $('s-x').onclick = () => { $('set').style.display = 'none'; };
 $('s-ok').onclick = () => { ls('key', $('s-key').value.trim()); ls('blp', String(Math.max(5, Math.min(30, +$('s-bl').value || 20)))); lastBL = null; $('set').style.display = 'none'; draw(); update(false); };
 window.addEventListener('resize', () => { $('fl').dataset.f = ''; draw(); });
