@@ -21,7 +21,8 @@
     const k = keyOf(o); if (lsGet('cloud.' + k) === String(text.length)) return;
     try {
       const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'ofpsave', k, text,
-        meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' } }) });
+        meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' },
+        nt: [].concat.apply([], Object.keys(o.notams || {}).map(c => o.notams[c].map(n => [n.id, typeof NX === 'object' && NX.en ? NX.en(n.text) : n.text]))).filter((n, i, A) => A.findIndex(m => m[0] === n[0]) === i) }) });   // 通告清单：后台马上开始翻译
       const j = JSON.parse(await r.text()); if (j.ok) lsSet('cloud.' + k, String(text.length));
     } catch (e) {}
   }

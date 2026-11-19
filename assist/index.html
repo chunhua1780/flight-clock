@@ -438,6 +438,7 @@ div.en,.wl .en{display:block;margin-left:0}
   #brief .one .ch,#brief .one .bt th,#brief .one .hl,#brief .one tr.rw td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .cat{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+.nsum{font-weight:800;margin-bottom:3px}
 </style>
 </head>
 <body>
@@ -1655,7 +1656,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v84';
+const APPV = 'v85';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 function planPayload() {
@@ -1774,7 +1775,7 @@ function nmapBtn(n) { return WX.area(n.text) ? ' <span class="nmapb' + (NMAP.L[n
 function notamHtml(n) {
   if (NMODE === 'raw') return '<div class="raw">' + esc(n.text) + nmapBtn(n) + '</div>';
   const z = NX.zh(n.text, n.id, TR), e = NX.en(n.text);
-  const zh = z.full ? esc(z.s) : '<span style="color:var(--amber);font-size:11.5px">（还没翻成中文，有网时会自动翻译。先看英文白话：）</span><br>' + esc(e);
+  const sm = TR['s:' + n.id], zh = (sm ? '<div class="nsum">💡 ' + esc(sm) + '</div>' : '') + (z.full ? esc(z.s) : '<span style="color:var(--amber);font-size:11.5px">（还没翻成中文，有网时会自动翻译。先看英文白话：）</span><br>' + esc(e));   // 💡 一句话要点
   if (LANG === 'en') return '<div class="ndec">' + esc(e) + nmapBtn(n) + '</div>';
   if (LANG === 'zh') return '<div class="ndec">' + zh + nmapBtn(n) + '</div>';
   return '<div class="ndec">' + zh + '<div class="en2">' + esc(e) + '</div>' + nmapBtn(n) + '</div>';
@@ -1787,12 +1788,12 @@ async function translateNotams(quiet) {
   if (!all.length) return;
   trBusy = true; let done = 0;
   try {
-    for (let i = 0; i < all.length; i += 40) {
-      const part = all.slice(i, i + 40);
+    for (let i = 0; i < all.length; i += 120) {   // 后台现在并行翻译：一次发 120 条
+      const part = all.slice(i, i + 120);
       const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'translate', texts: part.map(n => NX.en(n.text)), to: 'zh-CN', ids: part.map(n => n.id), k: (S.ofp.flight.no + S.ofp.flight.date).replace(/[^\w.-]/g, '') }) });
       const j = JSON.parse(await r.text());
       if (!j.ok) break;
-      j.out.forEach((t, k) => { if (t) TR[part[k].id] = t; });
+      j.out.forEach((t, k) => { if (t) TR[part[k].id] = t; if (t && j.sum) TR['s:' + part[k].id] = j.sum[k] || ''; });
       done += part.length; lsSet('tr', JSON.stringify(TR));
       if (!quiet) toast('🈯 ' + tt('正在翻译通告', 'Translating NOTAMs') + ' ' + Math.min(done, all.length) + '/' + all.length, 4000);
     }

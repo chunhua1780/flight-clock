@@ -267,7 +267,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190816';
+const PAGEV = '202611190841';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -331,7 +331,8 @@ async function cloudSync(now) {
 }
 function cloudUp(text, o) {
   try { fetch(API + '?k=' + encodeURIComponent(ls('key') || ''), { method: 'POST', body: JSON.stringify({ action: 'ofpsave', k: (o.flight.no + o.flight.date).replace(/[^\w.-]/g, ''), text,
-    meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' } }) }).catch(() => {}); } catch (e) {}
+    meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' },
+    nt: [].concat.apply([], Object.keys(o.notams || {}).map(c => o.notams[c].map(n => [n.id, n.text]))).filter((n, i, A) => A.findIndex(m => m[0] === n[0]) === i) }) }).catch(() => {}); } catch (e) {}   // 通告清单：后台马上开始翻译
 }
 
 /* =====================================================================
@@ -717,9 +718,9 @@ function draw() {
 function openNotams(loc, onlyId) {
   const L = CUR; if (!L || !L.nt) return;
   const list = (L.nt[loc] || []).concat(fiNotams(loc, NOW()).map(x => [x.nid + ' 📤', x.text, x.from ? Date.parse(x.from) : null, x.to ? Date.parse(x.to) : null])).filter(n => !onlyId || n[0] === onlyId);   // 📤 = 电脑上传的
-  const card = n => { const zh = trName(L, n[0]), A = WX.area(n[1]);
+  const card = n => { const zh = trName(L, n[0]), sm = trName(L, 's:' + n[0]), A = WX.area(n[1]);
     return '<div class="nt"><span class="id">' + esc(n[0]) + '</span> <span class="tm">' + (n[2] ? dmZ(n[2]) : '') + ' – ' + (n[3] ? dmZ(n[3]) : 'UFN') + '</span>'
-      + (LANG !== 'en' ? '<div class="zh">' + (zh ? esc(zh) : '<span style="color:var(--dim);font-weight:500">' + X('（还没翻译：有网时在 iPad 上打开这份 OFP，AI 翻好会存到云端）', '(not translated yet)') + '</span>') + '</div>' : '')
+      + (sm && LANG !== 'en' ? '<div class="zh" style="font-size:16px;font-weight:900">💡 ' + esc(sm) + '</div>' : '') + (LANG !== 'en' ? '<div class="zh" style="font-weight:600">' + (zh ? esc(zh) : '<span style="color:var(--dim);font-weight:500">' + X('（还没翻译：有网时在 iPad 上打开这份 OFP，AI 翻好会存到云端）', '(not translated yet)') + '</span>') + '</div>' : '')
       + '<div class="en">' + esc(n[1]) + '</div>' + (A ? '<span class="mb' + (AREAS[n[0]] ? ' on' : '') + '" data-a="' + esc(n[0]) + '">🗺 ' + (AREAS[n[0]] ? X('从地图上去掉', 'Hide on map') : X('在地图上显示区域', 'Show area on map')) + '</span>' : '') + '</div>'; };
   $('sheet').innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">📄 ' + esc(loc) + ' · ' + list.length + ' ' + X('条通告', 'NOTAMs') + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>' + (list.map(card).join('') || '<div class="ok">' + X('没有通告', 'No NOTAMs') + '</div>');
   $('sheet').style.display = 'block'; $('sheet').scrollTop = 0;

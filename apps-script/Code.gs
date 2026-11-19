@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-19d';
+const BACKEND_VER = '2026-11-20a';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -412,6 +412,7 @@ function poll() {
   const now = Date.now();
   try { autoUpdate_(); } catch (e) {}   // 每小时看一次 GitHub 上有没有新版本
   try { rwWatch_(); } catch (e) {}   // 飞行助手要的机场：看实际起降方向
+  try { trWork_(); } catch (e) {}   // 新 OFP 的通告：后台翻译 + 一句话要点
   // 日历 10 分钟读一次就够（每分钟都读太浪费额度）
   const cache = CacheService.getScriptCache();
   let list = null;
@@ -1118,37 +1119,68 @@ function trOk_(src, zh) {
   const tw = String(src).match(/\b(?:TAXIWAY|TWY|RET)\s+([A-Z]{1,2}\d{0,2})\b/gi) || [];
   return !tw.some(function (x) { const id = x.split(/\s+/).pop(); return new RegExp('(跑道\\s*' + id + '(?![A-Z0-9])|(?<![A-Z0-9/])' + id + '\\s*号?跑道)').test(zh); });
 }
-function translate_(j) {
-  const texts = j.texts.slice(0, 80).map(function (t) { return String(t).slice(0, 4500); }), to = j.to || 'zh-CN';
-  const cache = CacheService.getScriptCache(), out = texts.map(function (t) { return cache.get('tr3_' + hash_(t)); });
-  const need = []; out.forEach(function (o, i) { if (o == null) need.push(i); });
-  for (let k = 0; k < need.length; k += 25) {
-    const part = need.slice(k, k + 25);
-    const g = gemini_('你是民航翻译。把下面每一条航行通告（NOTAM，缩写已展开成英文）准确翻成简体中文，供机长阅读。' + AVZ_
-      + '只翻译，不解释、不增减内容、不改格式。输出 JSON 字符串数组，顺序和条数与输入完全一样。\n输入：\n' + JSON.stringify(part.map(function (i) { return texts[i]; })), true, 0);
-    let arr = null; if (g.ok) { try { arr = JSON.parse(g.out); } catch (e) {} }
-    part.forEach(function (i, n) {
-      let zh = arr && arr.length === part.length ? String(arr[n] || '') : '';
+// ===== 通告翻译：完整译文 + 一句话中文要点。所有批次同时发给 Gemini（fetchAll），不再一批一批排队 =====
+function geminiAll_(prompts, json) {
+  const props = PropertiesService.getScriptProperties(), key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE, model = props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash';
+  if (!key || !prompts.length) return prompts.map(function () { return { ok: false }; });
+  const reqs = prompts.map(function (p) { const body = { contents: [{ role: 'user', parts: [{ text: p }] }], generationConfig: { temperature: 0 } }; if (json) body.generationConfig.responseMimeType = 'application/json';
+    return { url: 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) }; });
+  let rs = []; try { rs = UrlFetchApp.fetchAll(reqs); } catch (e) { rs = []; }
+  return prompts.map(function (p, i) { const r = rs[i];
+    if (r && r.getResponseCode() === 200) { try { const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0], out = c && c.content && c.content.parts ? c.content.parts.map(function (q) { return q.text || ''; }).join('').trim() : ''; if (out) return { ok: true, out: out }; } catch (e) {} }
+    return gemini_(p, json, 0);   // 这一批失败（太忙、超额）：单独再试，会自动换备用模型
+  });
+}
+// 一句话要点：原文没有跑道时不能说成跑道；说到的跑道号必须是原文里的
+function sumOk_(src, s) {
+  if (!s || s.length > 80) return false; const S = String(src).toUpperCase();
+  if (/跑道/.test(s) && !/\bRWY|RUNWAY/.test(S)) return false;
+  if (/跑道/.test(s) && (s.match(/\b\d{2}[LRC]?\b/g) || []).some(function (x) { return S.indexOf(x) < 0; })) return false;
+  return true;
+}
+function translate2_(texts) {
+  const cache = CacheService.getScriptCache(), res = texts.map(function (t) { try { return JSON.parse(cache.get('tr4_' + hash_(t)) || 'null'); } catch (e) { return null; } });
+  const need = []; res.forEach(function (o, i) { if (!o) need.push(i); });
+  const chunks = []; for (let k = 0; k < need.length; k += 20) chunks.push(need.slice(k, k + 20));
+  const P = '你是民航翻译，给 B777 机长看。下面每一条是航行通告（NOTAM）原文。每条输出两样：\n1. "zh"：准确、完整的简体中文译文（只翻译，不解释、不增减内容；代号、时间、频率、高度照原文写）。\n2. "s"：一句话中文要点，不超过 35 个字，写清楚「什么东西、在哪、什么时候、对飞行有什么影响」，例如「24L 跑道 0600–1200Z 关闭」「ILS RWY 12 下滑道不可用」。' + AVZ_
+    + '\n输出 JSON 数组，每条一个对象 {"zh":"…","s":"…"}，顺序和条数与输入完全一样。\n输入：\n';
+  const outs = geminiAll_(chunks.map(function (c) { return P + JSON.stringify(c.map(function (i) { return texts[i]; })); }), true);
+  chunks.forEach(function (c, ci) {
+    let arr = null; if (outs[ci] && outs[ci].ok) { try { arr = JSON.parse(outs[ci].out); } catch (e) {} }
+    c.forEach(function (i, n) {
+      const o = arr && arr.length === c.length && arr[n] ? arr[n] : {}; let zh = String(o.zh || ''), sm = String(o.s || '');
       if (!trOk_(texts[i], zh)) { try { const gg = gemini_('把这条航行通告准确翻成简体中文，只输出译文。' + AVZ_ + '\n' + texts[i], false, 0); zh = gg.ok ? gg.out : ''; } catch (e) { zh = ''; } }
-      if (!trOk_(texts[i], zh)) { try { zh = LanguageApp.translate(texts[i], 'en', to); } catch (e) { zh = null; } }
-      out[i] = zh;
+      if (!trOk_(texts[i], zh)) { try { zh = LanguageApp.translate(texts[i], 'en', 'zh-CN'); } catch (e) { zh = ''; } }
+      if (!sumOk_(texts[i], sm)) sm = '';
+      res[i] = { zh: zh, s: sm }; if (zh) try { cache.put('tr4_' + hash_(texts[i]), JSON.stringify(res[i]), 21600); } catch (e) {}
     });
-    // DeepSeek 复核：逐条对照英文原文检查译文；改正的也要通过代号检查才采用
-    if (dsKey_()) {
-      const rv = deepseek_('You are a senior airline captain checking Chinese translations of NOTAMs. For each pair, check the Chinese against the English source: runway vs taxiway vs rapid exit taxiway, identifiers, times, frequencies, levels, closures/limitations, nothing added or missing. ' + AVE_
-        + 'Return JSON {"r":[{"ok":true|false,"zh":"corrected Chinese translation if not ok, else empty","why":"short reason in Chinese if not ok"}]} with exactly one entry per pair, in order.',
-        JSON.stringify(part.map(function (i) { return { en: texts[i], zh: out[i] || '' }; })));
-      const r = rv.ok && rv.json && rv.json.r;
-      if (r && r.length === part.length) part.forEach(function (i, n) {
-        const x = r[n] || {}; if (x.ok !== false) return;
-        if (x.zh && trOk_(texts[i], x.zh)) out[i] = '【复核修正】' + x.zh + (x.why ? '（' + x.why + '）' : '');
-        else out[i] = '⚠️【两个 AI 理解不一致，请看英文原文】' + (out[i] || '') + (x.why ? '（' + dsName_() + '：' + x.why + '）' : '');
-      });
-    }
-    part.forEach(function (i) { if (out[i]) try { cache.put('tr3_' + hash_(texts[i]), out[i], 21600); } catch (e) {} });
-  }
-  if (j.k && Array.isArray(j.ids) && j.ids.length === texts.length) { try { trStore_(j.k, j.ids, out); } catch (e) {} }   // 存到云端：手机、另一台 iPad 直接用
-  return { ok: true, out: out, v: 3, ds: dsName_() };
+  });
+  return res.map(function (r) { return r || { zh: '', s: '' }; });
+}
+function translate_(j) {
+  const texts = j.texts.slice(0, 120).map(function (t) { return String(t).slice(0, 4500); });
+  const res = translate2_(texts), out = res.map(function (r) { return r.zh; }), sum = res.map(function (r) { return r.s; });
+  if (j.k && Array.isArray(j.ids) && j.ids.length === texts.length) { try { trStore_(j.k, j.ids, out, 0, sum); } catch (e) {} }   // 存到云端：手机、电脑、另一台 iPad 直接用
+  return { ok: true, out: out, sum: sum, v: 4 };
+}
+// 收到新 OFP 的通告清单：排队，由每分钟的定时任务在后台翻译（不用等 iPad 打开）
+function trQueue_(k, nt) {
+  if (!k || !Array.isArray(nt) || !nt.length) return;
+  ghPut_('ofpdata/' + k + '.nq.json', Utilities.base64Encode(JSON.stringify(nt.slice(0, 600).map(function (n) { return [String(n[0]), String(n[1]).slice(0, 4500)]; })), Utilities.Charset.UTF_8), 'nq ' + k);
+  const pr = PropertiesService.getScriptProperties(); let q = []; try { q = JSON.parse(pr.getProperty('trq') || '[]'); } catch (e) {}
+  if (q.indexOf(k) < 0) q.push(k); pr.setProperty('trq', JSON.stringify(q.slice(-10)));
+}
+function trWork_() {
+  const pr = PropertiesService.getScriptProperties(); let q = []; try { q = JSON.parse(pr.getProperty('trq') || '[]'); } catch (e) {}
+  if (!q.length || Date.now() - (+pr.getProperty('trq_busy') || 0) < 4 * 60e3) return; pr.setProperty('trq_busy', String(Date.now()));
+  try {
+    const k = q[0], g = gh_('get', 'ofpdata/' + k + '.nq.json'); let nq = [];
+    if (g && g.code === 200 && g.j) { try { nq = JSON.parse(Utilities.newBlob(Utilities.base64Decode(g.j.content)).getDataAsString('UTF-8')); } catch (e) {} }
+    const t = gh_('get', 'ofpdata/' + k + '.tr.json'); let m = {}; if (t && t.code === 200 && t.j) { try { m = JSON.parse(Utilities.newBlob(Utilities.base64Decode(t.j.content)).getDataAsString('UTF-8')); } catch (e) {} }
+    const todo = nq.filter(function (n) { return !m[n[0]] || m['s:' + n[0]] == null; }).slice(0, 120);
+    if (todo.length) { const res = translate2_(todo.map(function (n) { return n[1]; })); trStore_(k, todo.map(function (n) { return n[0]; }), res.map(function (r) { return r.zh; }), 0, res.map(function (r) { return r.s; })); }
+    if (todo.length < 120) { q.shift(); pr.setProperty('trq', JSON.stringify(q)); }
+  } finally { pr.setProperty('trq_busy', '0'); }
 }
 function ofpBrief_(j) {
   const text = String(j.text || '').slice(0, 400000); if (text.length < 500) return { ok: false, error: 'no OFP text' };
@@ -1284,6 +1316,7 @@ function ofpSave_(j) {
   const r = ghPut_('ofpdata/' + k + '.txt.gz', Utilities.base64Encode(gz.getBytes()), 'ofp ' + k);
   if (!r || (r.code !== 200 && r.code !== 201)) return { ok: false, error: 'GitHub ' + (r && r.code) };
   cloudIdxSave_(cloudIdx_(), { k: k, meta: j.meta || {}, t: Date.now(), len: String(j.text).length });
+  try { trQueue_(k, j.nt); } catch (e) {}   // 通告清单：后台马上排队翻译
   return { ok: true, k: k };
 }
 function briefStore_(k, items) {
@@ -1292,13 +1325,13 @@ function briefStore_(k, items) {
     cloudIdxSave_(cloudIdx_(), { k: k, brief: Date.now() }); } catch (e) {}
 }
 // 通告译文存到云端（按通告编号）：ofpdata/<航班>.tr.json
-function trStore_(k, ids, out, again) {
+function trStore_(k, ids, out, again, sum) {
   k = String(k).replace(/[^\w.-]/g, ''); if (!k) return;
   const path = 'ofpdata/' + k + '.tr.json', cur = gh_('get', path); let m = {}, sha = null;
   if (cur && cur.code === 200 && cur.j) { sha = cur.j.sha; try { m = JSON.parse(Utilities.newBlob(Utilities.base64Decode(cur.j.content)).getDataAsString('UTF-8')); } catch (e) { m = {}; } }
-  ids.forEach(function (id, i) { if (out[i]) m[id] = out[i]; });
+  ids.forEach(function (id, i) { if (out[i]) m[id] = out[i]; if (sum && out[i]) m['s:' + id] = sum[i] || ''; });   // s:编号 = 一句话要点
   const body = { message: 'tr ' + k, content: Utilities.base64Encode(JSON.stringify(m), Utilities.Charset.UTF_8) }; if (sha) body.sha = sha;
-  const r = gh_('put', path, body); if (r && r.code === 409 && !again) return trStore_(k, ids, out, 1);   // 同时有人在写：重读再写一次
+  const r = gh_('put', path, body); if (r && r.code === 409 && !again) return trStore_(k, ids, out, 1, sum);   // 同时有人在写：重读再写一次
   cloudIdxSave_(cloudIdx_(), { k: k, tr: Object.keys(m).length });
 }
 
