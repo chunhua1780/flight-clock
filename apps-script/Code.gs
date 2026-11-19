@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-20b';
+const BACKEND_VER = '2026-11-20k';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -120,6 +120,16 @@ function postJson_(text) {
   // 简报包：设备把整理好的网页交来，这里转成 PDF 存到私有云端（iPad / 电脑下载）
   if (j.action === 'pkgpdf') return JSON.stringify(pkgPdf_(j));
   if (j.action === 'pkgget') return JSON.stringify(pkgGet_(j));
+  // 简报包「说人话」：每一部分交给 AI 整理成一句一句的中文要点（代号、数字都要和原文对得上）
+  if (j.action === 'pkgai') return JSON.stringify(pkgAi_(j));
+  // 诊断：每个 AI 模型回答一句话要多久
+  // 额外的 Gemini Key：只存在这个后台的脚本属性里（不在网站、不在代码）
+  if (j.action === 'setkeys') { const ks = (j.keys || []).map(String).filter(function (k) { return /^[\w.\-]{20,}$/.test(k); }); PropertiesService.getScriptProperties().setProperty('GEMINI_KEYS', JSON.stringify(ks)); return JSON.stringify({ ok: true, n: ks.length, total: gemKeys_().length }); }
+  if (j.action === 'gemtest') { const props = PropertiesService.getScriptProperties(), key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE, out = [];
+    gemKeys_().forEach(function (key, ki) { [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-lite-latest'].forEach(function (m) { const t0 = Date.now();
+      try { const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', { method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Reply OK' }] }] }) });
+        out.push({ key: ki + 1, m: m, code: r.getResponseCode(), ms: Date.now() - t0, msg: r.getResponseCode() === 200 ? '' : r.getContentText().slice(0, 120) }); } catch (e) { out.push({ key: ki + 1, m: m, err: String(e).slice(0, 120), ms: Date.now() - t0 }); } }); });
+    return JSON.stringify({ ok: true, models: out }); }
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -1096,23 +1106,46 @@ const AVE_ = '\nRULES: TWY/TAXIWAY = taxiway; RET / RAPID EXIT (TWY) = rapid exi
   + 'Copy every identifier (taxiway, runway, waypoint, frequency, time, level, coordinate) exactly; never invent or infer anything the text does not say; if unclear, say so.\n';
 function kbLocal_(t) { return /^[A-Z]{1,2}\d{1,2}[LRC]?$/.test(t) || /^\d{1,2}[LRC]?(\/\d{1,2}[LRC]?)?$/.test(t); }   // 机场里的滑行道 / 跑道代号：不当成通用词条
 
-function gemini_(prompt, json, temp) {
-  const props = PropertiesService.getScriptProperties(), key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE;
-  if (!key) return { ok: false, error: 'no GEMINI_KEY' };
-  const models = [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
-  let last = '';
-  for (let m = 0; m < models.length; m++) {
-    const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: temp == null ? 0 : temp } };
-    if (json) body.generationConfig.responseMimeType = 'application/json';
-    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent', { method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
-    const code = r.getResponseCode();
-    if (code !== 200) { last = models[m] + ' ' + code; continue; }
-    const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0];
-    const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
-    if (out) return { ok: true, out: out, model: models[m] };
-    last = models[m] + ' empty';
+// ===== Gemini：几个 Key 轮流用（脚本属性 GEMINI_KEY + GEMINI_KEYS），某个 Key 某个模型额度用完（429）就记 1 小时、换下一个 =====
+function gemKeys_() {
+  const props = PropertiesService.getScriptProperties(), out = [], k0 = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE; if (k0) out.push(k0);
+  try { JSON.parse(props.getProperty('GEMINI_KEYS') || '[]').forEach(function (k) { if (k && out.indexOf(k) < 0) out.push(k); }); } catch (e) {}
+  return out;
+}
+function gemModels_() { const m = PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') || 'gemini-3.5-flash'; return [m, 'gemini-flash-lite-latest', 'gemini-flash-latest'].filter(function (x, i, a) { return a.indexOf(x) === i; }); }
+const gemOut_ = function (m, k) { return CacheService.getScriptCache().get('gq_' + m + '_' + hash_(k)) === '1'; };
+const gemMark_ = function (m, k, sec) { CacheService.getScriptCache().put('gq_' + m + '_' + hash_(k), '1', sec || 3600); };
+function gemReq_(m, k, body) { return { url: 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': k }, muteHttpExceptions: true, payload: JSON.stringify(body) }; }
+function gemText_(r) { try { const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0]; return c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : ''; } catch (e) { return ''; } }
+function gemCall_(body) {
+  const keys = gemKeys_(); if (!keys.length) return { ok: false, error: 'no GEMINI_KEY' }; let last = '';
+  const models = gemModels_();
+  for (let mi = 0; mi < models.length; mi++) for (let ki = 0; ki < keys.length; ki++) {
+    const m = models[mi], k = keys[ki]; if (gemOut_(m, k)) { last = m + ' quota'; continue; }
+    let r; try { r = UrlFetchApp.fetch(gemReq_(m, k, body).url, gemReq_(m, k, body)); } catch (e) { last = m + ' ' + e; continue; }
+    const c = r.getResponseCode(); if (c === 429) { gemMark_(m, k); last = m + ' 429'; continue; }
+    if (c === 503 || c === 500) { gemMark_(m, k, 600); last = m + ' ' + c; continue; }   // 太忙：这个 Key 这个模型 10 分钟内不用
+    if (c !== 200) { last = m + ' ' + c; break; }   // 这个模型有别的问题（不存在等）：换下一个模型
+    const out = gemText_(r); if (out) return { ok: true, out: out, model: m, key: ki + 1 }; last = m + ' empty';
   }
   return { ok: false, error: last };
+}
+function gemini_(prompt, json, temp) {
+  const body = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: temp == null ? 0 : temp } }; if (json) body.generationConfig.responseMimeType = 'application/json';
+  return gemCall_(body);
+}
+function geminiParts_(parts, json) { const body = { contents: [{ role: 'user', parts: parts }], generationConfig: { temperature: 0 } }; if (json) body.generationConfig.responseMimeType = 'application/json'; return gemCall_(body); }
+// 一次发很多：分给几个 Key 同时跑（每个 Key 都没额度时用 flash-lite）
+function geminiAll_(prompts, json) {
+  const keys = gemKeys_(); if (!keys.length || !prompts.length) return prompts.map(function () { return { ok: false }; });
+  const M = gemModels_(), ok = []; M.forEach(function (m) { keys.forEach(function (k) { if (!gemOut_(m, k)) ok.push([m, k]); }); });
+  const slots = ok.filter(function (x) { return x[0] === (ok[0] || [])[0]; }); if (!slots.length) return prompts.map(function (p) { return gemini_(p, json, 0); });
+  const reqs = prompts.map(function (p, i) { const body = { contents: [{ role: 'user', parts: [{ text: p }] }], generationConfig: { temperature: 0 } }; if (json) body.generationConfig.responseMimeType = 'application/json'; const sl = slots[i % slots.length]; return gemReq_(sl[0], sl[1], body); });
+  let rs = []; try { rs = UrlFetchApp.fetchAll(reqs); } catch (e) { rs = []; }
+  return prompts.map(function (p, i) { const r = rs[i], sl = slots[i % slots.length];
+    if (r && r.getResponseCode() === 200) { const out = gemText_(r); if (out) return { ok: true, out: out, model: sl[0] }; }
+    if (r && r.getResponseCode() === 429) gemMark_(sl[0], sl[1]); if (r && (r.getResponseCode() === 503 || r.getResponseCode() === 500)) gemMark_(sl[0], sl[1], 600);
+    return gemini_(p, json, 0); });
 }
 // 原文里的代号（跑道、滑行道、频率、时间…）翻译后必须都还在；滑行道不能变成跑道
 function trOk_(src, zh) {
@@ -1123,17 +1156,6 @@ function trOk_(src, zh) {
   return !tw.some(function (x) { const id = x.split(/\s+/).pop(); return new RegExp('(跑道\\s*' + id + '(?![A-Z0-9])|(?<![A-Z0-9/])' + id + '\\s*号?跑道)').test(zh); });
 }
 // ===== 通告翻译：完整译文 + 一句话中文要点。所有批次同时发给 Gemini（fetchAll），不再一批一批排队 =====
-function geminiAll_(prompts, json) {
-  const props = PropertiesService.getScriptProperties(), key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE, model = props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash';
-  if (!key || !prompts.length) return prompts.map(function () { return { ok: false }; });
-  const reqs = prompts.map(function (p) { const body = { contents: [{ role: 'user', parts: [{ text: p }] }], generationConfig: { temperature: 0 } }; if (json) body.generationConfig.responseMimeType = 'application/json';
-    return { url: 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) }; });
-  let rs = []; try { rs = UrlFetchApp.fetchAll(reqs); } catch (e) { rs = []; }
-  return prompts.map(function (p, i) { const r = rs[i];
-    if (r && r.getResponseCode() === 200) { try { const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0], out = c && c.content && c.content.parts ? c.content.parts.map(function (q) { return q.text || ''; }).join('').trim() : ''; if (out) return { ok: true, out: out }; } catch (e) {} }
-    return gemini_(p, json, 0);   // 这一批失败（太忙、超额）：单独再试，会自动换备用模型
-  });
-}
 // 一句话要点：原文没有跑道时不能说成跑道；说到的跑道号必须是原文里的
 function sumOk_(src, s) {
   if (!s || s.length > 80) return false; const S = String(src).toUpperCase();
@@ -1384,23 +1406,6 @@ function mailDiag_(j) {
 
 // ======== Flight Intelligence 数据库 ========
 // 每条：id, name, fir, type, poly[[lat,lon]], firOnly, lower, upper, from, to, alertNm, alertMin, level, msg, msgEn, notes, quote, src{file,page}, ver, status(draft/approved), rev{by,at}, upd
-function geminiParts_(parts, json) {
-  const props = PropertiesService.getScriptProperties(), key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE;
-  if (!key) return { ok: false, error: 'no GEMINI_KEY' };
-  const models = [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
-  let last = '';
-  for (let m = 0; m < models.length; m++) {
-    const body = { contents: [{ role: 'user', parts: parts }], generationConfig: { temperature: 0 } };
-    if (json) body.generationConfig.responseMimeType = 'application/json';
-    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent', { method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
-    if (r.getResponseCode() !== 200) { last = models[m] + ' ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 160); continue; }
-    const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0];
-    const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
-    if (out) return { ok: true, out: out, model: models[m] };
-    last = models[m] + ' empty';
-  }
-  return { ok: false, error: last };
-}
 const FI_PROMPT_ = 'You are helping an airline pilot build a personal awareness database (NOT for operational use) from an uploaded document about airspace, FIRs, restricted / danger areas, conflict zones, CPDLC logon requirements, entry procedures (e.g. IFPS / flight-plan requirements, permits) and handover points.\n'
   + 'Extract every distinct area or reminder. Return JSON {"items":[{"name":"area or reminder name as written","fir":"ICAO 4-letter FIR code if stated or certain, else empty","firName":"FIR name","type":"one of RESTRICTED, DANGER, PROHIBITED, MILITARY, CONFLICT, GNSS, CPDLC, ENTRY, HANDOVER, PROCEDURE, OTHER","poly":[[lat,lon],...],"firOnly":true if the reminder applies to the whole FIR (no own coordinates),"circle":{"lat":0,"lon":0,"nm":0} or null,"lower":feet number (SFC/GND = 0),"upper":feet number (UNL = 99999),"from":"ISO 8601 UTC or empty","to":"ISO 8601 UTC or empty (PERM = empty)","sched":"daily schedule text if any","alertNm":suggested reminder distance before entry in NM,"alertMin":suggested reminder time before entry in minutes,"level":"info | caution | warning","msg":"short action reminder in Simplified Chinese, max 40 characters, e.g. 进入前 10 分钟登录 CPDLC VABF","msgEn":"same in English, max 15 words","notes":"other important restrictions or requirements, English, max 60 words","quote":"verbatim source text this item is based on, max 300 characters","page":page number or 0}]}\n'
   + 'RULES: Never invent coordinates, codes, levels or times. Coordinates only if they appear in the document (convert DDMMSS N/S E/W or similar to decimal degrees, south and west negative, keep polygon order). If a value is not in the document leave it empty / 0 / null. FL350 = 35000 ft. Use level "warning" only for conflict zones, prohibited areas or mandatory actions with safety impact. Every item must have a quote copied from the document.';
@@ -1454,4 +1459,45 @@ function pkgGet_(j) {
   const k = String(j.k || '').replace(/[^\w.-]/g, ''), g = gh_('get', 'ofpdata/' + k + '.pkg.pdf');
   if (!g || g.code !== 200 || !g.j) return { ok: false, error: 'not found' };
   return { ok: true, b64: g.j.content && g.j.encoding === 'base64' ? String(g.j.content).replace(/\s/g, '') : Utilities.base64Encode(Utilities.newBlob(ghRawText_('ofpdata/' + k + '.pkg.pdf')).getBytes()) };
+}
+
+// 要点里的代号 / 数字必须在原文里出现过（常见缩写除外）；原文没有跑道不能说跑道
+const PKG_OK_WORDS_ = /^(ATC|ACC|APP|TWR|FIR|UIR|ILS|VOR|DME|NDB|GNSS|GPS|RNP|RNAV|SID|STAR|RWY|TWY|NOTAM|UTC|CPDLC|ADS|HF|VHF|SATCOM|ACARS|MEL|TCAS|SLOP|OCL|RCL|NAT|HLA|ETOPS|EICAS|QRH|FCOM|OPT|LDA|PAPI|ALS|RVR|CAVOK|TAF|METAR|ETA|ETD|STD|ATD|TOD|TOC|MSL|AGL|AMSL|SFC|UNL|PERM|EST|WIP|PSR|AFI|IFBP|PIC|ASAP|LIDO|CRAR|EGPWS|GPWS|MMR|ADIRU|FMC|FMS|POS|REF|NAV|INIT|TOGA|ECON|DCT|AWY|WPT|CTOT|MDI|APU|GPU|ACU|PRM|PA|NOAA|SAT|OM|EK|UAE|DXB|DWC|DATA)$/;
+function pkgPointOk_(src, t) {
+  if (!t || t.length > 120) return false; const S = String(src).toUpperCase();
+  const toks = (t.toUpperCase().match(/[A-Z][A-Z0-9]{2,}|\b\d{3,}\b/g) || []);
+  if (toks.some(function (x) { return !PKG_OK_WORDS_.test(x) && S.indexOf(x) < 0; })) return false;
+  if (/跑道/.test(t) && !/\bRWY|RUNWAY/.test(S)) return false;
+  if (/跑道/.test(t) && (t.match(/\b\d{2}[LRC]?\b/g) || []).some(function (x) { return S.indexOf(x) < 0; })) return false;
+  return true;
+}
+function pkgAi_(j) {
+  const secs = (j.secs || []).filter(function (x) { return x && x.id && x.text; }).slice(0, 40), F = j.flight || {};
+  const ctx = '本航班：' + (F.no || '') + ' ' + (F.dep || '') + '→' + (F.arr || '') + '，起飞 ' + (F.off || '') + '，到达 ' + (F.eta || '') + '（UTC）。';
+  // 几个部分合成一批（每批最多 3 部分、约 12000 字），分给几个 Key 同时跑
+  const groups = []; let cur = [], n = 0;
+  secs.forEach(function (x) { const t = String(x.text).slice(0, 14000); if (cur.length && (n + t.length > 12000 || cur.length >= 3)) { groups.push(cur); cur = []; n = 0; } cur.push({ id: x.id, title: x.title, when: x.when || '', text: t }); n += t.length; });
+  if (cur.length) groups.push(cur);
+  const prompts = groups.map(function (g) {
+    return '你是阿联酋航空 B777 的资深机长，给同组机组做航前简报。' + ctx + '\n下面有几个部分（起飞、途经的各个情报区、到达、备降），每部分是原始资料（OFP 提醒、航行通告、天气、公司规定）。\n'
+      + '请把每一部分分别用简单、口语化但专业的中文整理成要点，让人一眼看懂：\n- 每条一句话，不超过 40 个字：什么、在哪、什么时候、对我们有什么影响、要做什么。\n'
+      + '- 只留和本航班有关、有影响的；时间和本航班不重叠的、停机位 / 机坪小事、对 B777 没影响的不要写。跑道 / 滑行道关闭、导航设施坏了、空域限制、天气、规定要做的动作都要写。\n'
+      + '- 代号、跑道号、频率、高度、时间必须和原文完全一样，绝对不能编；滑行道不能说成跑道。\n- 资料里只要有跑道、滑行道、导航设施、空域、天气、规定动作这类内容，每部分至少写 1–3 条最重要的；真的什么都没有才给空数组。\n- 每部分按重要性排序，最多 10 条。lv：red = 会影响运行、必须注意；amber = 注意；info = 知道就行。' + AVZ_
+      + '\n输出 JSON：{"secs":{"部分的id":{"points":[{"t":"…","lv":"red|amber|info"}]}}}，每个 id 都要有，没有值得说的就给空数组。\n'
+      + g.map(function (x) { return '\n===== id=' + x.id + ' · ' + x.title + (x.when ? '（本航班约 ' + x.when + '）' : '') + ' =====\n' + x.text; }).join('');
+  });
+  const outs = geminiAll_(prompts, true), res = {};
+  groups.forEach(function (g, gi) {
+    let M = {}; try { M = JSON.parse(outs[gi] && outs[gi].ok ? outs[gi].out : '{}').secs || {}; } catch (e) {}
+    g.forEach(function (x) { const P = (M[x.id] && M[x.id].points) || [], src = secs.find(function (s0) { return s0.id === x.id; }).text;
+      const kept = P.filter(function (p) { return p && pkgPointOk_(src, String(p.t || '')); }).slice(0, 10).map(function (p) { return { t: String(p.t), lv: /^(red|amber|info)$/.test(p.lv) ? p.lv : 'info' }; });
+      res[x.id] = { points: kept, dropped: P.length - kept.length, ok: !!M[x.id] }; });
+  });
+  // 第二遍：空着回来、但资料里明明有跑道 / 导航 / GPS / 空域内容的部分，每部分单独再问一次
+  const again = secs.filter(function (x) { const r = res[x.id]; return r && !r.points.length && (!r.ok || 1) && /RWY|TWY|VOR|ILS|DME|GNSS|GPS|CLSD|U\/S|DANGER|RESTRICTED|PROHIBITED|规定|Rule|OFP 提醒/i.test(x.text); }).slice(0, 14);
+  if (again.length) { const o2 = geminiAll_(again.map(function (x) { const gi = groups.findIndex(function (g) { return g.some(function (y) { return y.id === x.id; }); }); return prompts[gi].split('\n===== id=')[0] + '\n===== id=' + x.id + ' · ' + x.title + (x.when ? '（本航班约 ' + x.when + '）' : '') + ' =====\n' + String(x.text).slice(0, 14000); }), true);
+    again.forEach(function (x, i) { let M = {}; try { M = JSON.parse(o2[i] && o2[i].ok ? o2[i].out : '{}').secs || {}; } catch (e) {} const P = (M[x.id] && M[x.id].points) || [];
+      const kept = P.filter(function (p) { return p && pkgPointOk_(x.text, String(p.t || '')); }).slice(0, 10).map(function (p) { return { t: String(p.t), lv: /^(red|amber|info)$/.test(p.lv) ? p.lv : 'info' }; });
+      if (kept.length) res[x.id] = { points: kept, dropped: P.length - kept.length, ok: true, retry: 1 }; }); }
+  return { ok: true, secs: res, t: Date.now(), raw: j.debug ? outs.map(function (o) { return { ok: o && o.ok, model: o && o.model, err: o && o.error, out: o && o.out && o.out.slice(0, 1500) }; }) : undefined };
 }
