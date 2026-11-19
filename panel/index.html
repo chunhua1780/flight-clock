@@ -213,7 +213,24 @@ function einkPix(cv) {
   g.putImageData(im, 0, 0);
 }
 const API = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
-const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem('pnl.' + k); localStorage.setItem('pnl.' + k, v); } catch (e) { return null; } };
+const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem('pnl.' + k); localStorage.setItem('pnl.' + k, v); } catch (e) { return null; } if (!ls.quiet && /^(atd|zfw|cs|ato)\./.test(k)) stPush(k, v); };
+// ---------- 共享状态：ATD、实际 ZFW、呼号、过点时间 —— 改了马上传云端（没网先排队），其它设备有网就收到 ----------
+function stPush(k, v) {
+  const f = k.split('.')[0], lk = k.slice(f.length + 1).replace(/[^\w.-]/g, ''), t = Date.now(); let q = {}; try { q = JSON.parse(localStorage.getItem('pnl.stq') || '{}'); } catch (e) {}
+  q[lk] = q[lk] || {}; q[lk][f] = [f === 'ato' ? (v ? JSON.parse(v) : null) : f === 'cs' ? v : (+v || null), t]; ls.quiet = 1; ls('stu.' + lk + '.' + f, String(t)); ls('stq', JSON.stringify(q)); ls.quiet = 0; stFlush();
+}
+async function stFlush() {
+  if (!navigator.onLine || !ls('key') || stFlush.busy) return; let q = {}; try { q = JSON.parse(ls('stq') || '{}'); } catch (e) {} const ks = Object.keys(q); if (!ks.length) return; stFlush.busy = 1;
+  for (const k of ks) { const set = {}; let t = 0; Object.keys(q[k]).forEach(f => { set[f] = q[k][f][0]; t = Math.max(t, q[k][f][1]); });
+    try { const j = await postK({ action: 'stput', k, set, t }); if (j && j.ok) { delete q[k]; ls.quiet = 1; ls('stq', JSON.stringify(q)); ls.quiet = 0; } } catch (e) {} }
+  stFlush.busy = 0;
+}
+// 云端的状态比手机上的新：用云端的
+function stApply(lk, st) {
+  const L = LEGS.find(l => String(l.k).replace(/[^\w.-]/g, '') === lk); if (!L || !st || !st.u) return; ls.quiet = 1;
+  ['atd', 'zfw', 'cs', 'ato'].forEach(f => { if ((st.u[f] || 0) > +(ls('stu.' + lk + '.' + f) || 0)) { const v = st[f]; ls(f + '.' + L.k, v == null || v === '' ? '' : f === 'ato' ? JSON.stringify(v) : String(v)); ls('stu.' + lk + '.' + f, String(st.u[f])); } });
+  ls.quiet = 0;
+}
 const p2 = n => String(n).padStart(2, '0');
 const hmZ = t => { const d = new Date(t); return p2(d.getUTCHours()) + p2(d.getUTCMinutes()); };
 const dmZ = t => { const d = new Date(t); return p2(d.getUTCDate()) + '/' + hmZ(t) + 'Z'; };
@@ -280,7 +297,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611191543';
+const PAGEV = '202611191547';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -294,6 +311,7 @@ async function update(quiet) {
       const d = Date.UTC(+m[4], MON[m[3].toUpperCase()], +m[2]); if (d < day0 - 2 * 864e5 || d > day0 + 2 * 864e5) return;
       const k = m[1] + m[2] + m[3].toUpperCase() + m[5]; if (!best[k] || (f.t || 0) > (best[k].t || 0)) best[k] = f; });
     // 云端（GitHub 私有仓库）有的直接下载原文：快，不用在手机上解析 PDF
+    try { await stFlush(); } catch (e) {}   // 先把没网时改的东西传上去
     let got = 0; try { got += await cloudSync(now); } catch (e) {}
     try { await fiSync(); } catch (e) {}
     try { await wacSync(); } catch (e) {}   // 途经国家的应急程序   // Flight Intelligence 数据库（审核过的区域提醒）
@@ -337,6 +355,9 @@ async function cloudSync(now) {
     const txt = await gunzip(new Uint8Array(await f.arrayBuffer())), o = OFP.parse(txt); if (!o.ok) continue;
     const leg = summarize(o); fixLeg(leg); leg.fid = fid; const isNew = !LEGS.some(l => l.k === leg.k); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); ls('legs', JSON.stringify(LEGS)); got++; if (isNew) NEWL.push(leg);
   }
+  // 共享状态（别的设备改的 ATD / ZFW / 呼号 / 过点时间）
+  for (const x of idx) { if (!x.st || +(ls('stn.' + x.k) || 0) >= x.st) continue; if (!LEGS.some(l => l.k.replace(/[^\w.-]/g, '') === x.k)) continue;
+    try { const t = await ghRaw('ofpdata/' + x.k + '.st.json'); if (t) { stApply(x.k, await t.json()); ls('stn.' + x.k, String(x.st)); } } catch (e) {} }
   // iPad 生成的简洁版简报（Today Brief）
   for (const x of idx) { if (!x.sb || +(ls('sbn.' + x.k) || 0) >= x.sb) continue; if (!LEGS.some(l => l.k.replace(/[^\w.-]/g, '') === x.k)) continue;
     try { const t = await ghRaw('ofpdata/' + x.k + '.sb.html'); if (t) { ls('sb.' + x.k, await t.text()); ls('sbn.' + x.k, String(x.sb)); } } catch (e) {} }
@@ -876,7 +897,8 @@ window.addEventListener('online', () => update(true));
 
 applyLang(); draw(); wake(); setInterval(() => { draw(); try { const L = CUR, el = (NOW() - offOf(L)) / MIN; if (L && !DEMO && (L.fi || []).some(f => f[3] - el > 0 && f[3] - el <= 10)) blinkSoon(); } catch (e) {} }, 60000);   // 一分钟更新一次（省电）
 setTimeout(() => { if (Date.now() - +(ls('upd') || 0) > 10 * MIN || LEGS.some(l => l.sv !== SV)) update(true); }, 1500);
-setInterval(() => { if (navigator.onLine && Date.now() - +(ls('upd') || 0) > 5 * MIN) update(true); }, 60 * 1000);
+setInterval(() => { if (navigator.onLine && Date.now() - +(ls('upd') || 0) > 2 * MIN) update(true); }, 60 * 1000);   // 有网：每 2 分钟看一次云端
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navigator.onLine && Date.now() - +(ls('upd') || 0) > 30e3) update(true); });   // 一打开就同步
 setTimeout(() => { fiSync().then(() => draw()); }, 4000);   // 有网：每 5 分钟看一次云端 / 邮箱
 if (!window.AndroidPanel && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>

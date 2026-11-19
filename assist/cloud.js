@@ -45,6 +45,10 @@
           if (b) { const d = await b.json(); lsSet('aib.' + m.no + m.date, JSON.stringify({ ver: 4, t: d.t, items: d.items || [], dropped: 0, cloud: 1 })); }
         }
       }
+      // 共享状态：手机上改的 ATD（最新的赢）
+      try { if (S.ofp && !S.demo) { const k = keyOf(S.ofp), x = idx.find(e => e.k === k);
+        if (x && x.st && +(lsGet('stn.' + k) || 0) < x.st) { const r3 = await gh('ofpdata/' + k + '.st.json'); if (r3) { const st = await r3.json(); lsSet('stn.' + k, String(x.st));
+          if (st.u && (st.u.atd || 0) > +(lsGet('stu.atd.' + k) || 0)) { lsSet('stu.atd.' + k, String(st.u.atd)); if ((st.atd || null) !== (S.atd || null) && typeof setATD === 'function') { setATD(st.atd || null, true); toast('☁️ ' + th('ATD 已按其它设备更新：', 'ATD updated from another device: ') + (st.atd ? hmZ(st.atd) + 'Z' : '—'), 4000); } } } } } } catch (e) {}
       // 当前这份 OFP 的通告译文（云端已经翻好的）：合进来，就不用再翻
       try { if (S.ofp) { const k = keyOf(S.ofp), x = idx.find(e => e.k === k);
         if (x && x.tr && +(lsGet('cloudtr.' + k) || 0) < x.tr) { const r2 = await gh('ofpdata/' + k + '.tr.json'); if (r2) { const m = await r2.json(); if (typeof TR === 'object') { Object.assign(TR, m); lsSet('tr', JSON.stringify(TR)); } lsSet('cloudtr.' + k, String(x.tr)); } } } } catch (e) {}
@@ -62,8 +66,19 @@
     const html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:12.5px/1.5 -apple-system,"Noto Sans SC",sans-serif;color:#111;background:#fff;margin:10px}table{border-collapse:collapse;width:100%}' + css + '.note{display:none}.pg{margin:0!important;padding:8px!important;box-shadow:none!important;max-width:none!important}</style></head><body><div class="pg one">' + body + '</div></body></html>';
     try { const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'sbsave', k, html }) }); const j = JSON.parse(await r.text()); if (j.ok) lsSet('sbup.' + k, String(Date.now())); } catch (e) {}
   }
-  window.CLOUD = { upload, sync, sbUp };
-  window.addEventListener('online', () => sync(true));
+  // 共享状态：这台改了 ATD → 马上传（没网先存着，有网再传）
+  async function stPut(set) {
+    if (!S.ofp) return; const k = keyOf(S.ofp), t = Date.now(); Object.keys(set).forEach(f => lsSet('stu.' + f + '.' + k, String(t)));
+    let q = {}; try { q = JSON.parse(lsGet('stq') || '{}'); } catch (e) {} q[k] = Object.assign(q[k] || {}, set, { _t: t }); lsSet('stq', JSON.stringify(q)); stFlush();
+  }
+  async function stFlush() {
+    if (!navigator.onLine || !lsGet('key')) return; let q = {}; try { q = JSON.parse(lsGet('stq') || '{}'); } catch (e) {}
+    for (const k of Object.keys(q)) { const set = Object.assign({}, q[k]), t = set._t; delete set._t;
+      try { const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'stput', k, set, t }) }); const j = JSON.parse(await r.text()); if (j.ok) { delete q[k]; lsSet('stq', JSON.stringify(q)); } } catch (e) {} }
+  }
+  window.CLOUD = { upload, sync, sbUp, stPut };
+  window.addEventListener('online', () => { stFlush(); sync(true); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navigator.onLine) { stFlush(); sync(true); } });   // 一打开就同步
   setTimeout(() => sync(true), 2500);
-  setInterval(() => { if (navigator.onLine) sync(false); }, 5 * 60e3);   // 有网：每 5 分钟看一次云端，有新的就提示
+  setInterval(() => { if (navigator.onLine) { stFlush(); sync(false); } }, 2 * 60e3);   // 有网：每 2 分钟看一次云端，有新的就提示
 })();

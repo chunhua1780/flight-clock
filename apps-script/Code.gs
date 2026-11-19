@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-20p';
+const BACKEND_VER = '2026-11-20q';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -120,6 +120,11 @@ function postJson_(text) {
   // 简报包：设备把整理好的网页交来，这里转成 PDF 存到私有云端（iPad / 电脑下载）
   if (j.action === 'pkgpdf') return JSON.stringify(pkgPdf_(j));
   if (j.action === 'pkgget') return JSON.stringify(pkgGet_(j));
+  // 这一班的共享状态（ATD、实际 ZFW、呼号、过点时间）：手机、iPad、家里的时钟共用；每个字段按「最新的赢」合并
+  if (j.action === 'stput') return JSON.stringify(stPut_(j));
+  // 简报包 AI 要点：存云端，其它设备直接用，不再花 AI
+  if (j.action === 'pkgaiget') { const k = String(j.k || '').replace(/[^\w.-]/g, ''), g = gh_('get', 'ofpdata/' + k + '.pkgai.json'); if (!g || g.code !== 200 || !g.j) return JSON.stringify({ ok: false });
+    try { return JSON.stringify({ ok: true, d: JSON.parse(Utilities.newBlob(Utilities.base64Decode(g.j.content)).getDataAsString('UTF-8')) }); } catch (e) { return JSON.stringify({ ok: false }); } }
   // 简洁版简报（iPad 生成的 Today Brief 网页）：存云端，手机下载
   if (j.action === 'sbsave') { const k = String(j.k || '').replace(/[^\w.-]/g, ''); if (!k || !j.html) return JSON.stringify({ ok: false, error: 'no data' });
     const r = ghPut_('ofpdata/' + k + '.sb.html', Utilities.base64Encode(String(j.html), Utilities.Charset.UTF_8), 'sb ' + k); if (!r || (r.code !== 200 && r.code !== 201)) return JSON.stringify({ ok: false, error: 'GitHub ' + (r && r.code) });
@@ -1191,7 +1196,13 @@ function translate2_(texts) {
 }
 function translate_(j) {
   const texts = j.texts.slice(0, 120).map(function (t) { return String(t).slice(0, 4500); });
-  const res = translate2_(texts), out = res.map(function (r) { return r.zh; }), sum = res.map(function (r) { return r.s; });
+  // 云端已经有这一班的译文（别的设备、后台排队翻过的）：直接用，不再花 AI
+  let have = {}; if (j.k && Array.isArray(j.ids)) { try { const g = gh_('get', 'ofpdata/' + String(j.k).replace(/[^\w.-]/g, '') + '.tr.json'); if (g && g.code === 200 && g.j) have = JSON.parse(Utilities.newBlob(Utilities.base64Decode(g.j.content)).getDataAsString('UTF-8')); } catch (e) {} }
+  const need = [], needI = []; texts.forEach(function (t, i) { const id = j.ids && j.ids[i]; if (!(id && have[id] && have['s:' + id] != null)) { need.push(t); needI.push(i); } });
+  const got = translate2_(need), res = texts.map(function (t, i) { const id = j.ids && j.ids[i]; return id && have[id] && have['s:' + id] != null ? { zh: have[id], s: have['s:' + id] } : null; });
+  needI.forEach(function (i, n) { res[i] = got[n]; });
+  if (!need.length) return { ok: true, out: res.map(function (r) { return r.zh; }), sum: res.map(function (r) { return r.s; }), v: 4, cached: true };
+  const out = res.map(function (r) { return r.zh; }), sum = res.map(function (r) { return r.s; });
   if (j.k && Array.isArray(j.ids) && j.ids.length === texts.length) { try { trStore_(j.k, j.ids, out, 0, sum); } catch (e) {} }   // 存到云端：手机、电脑、另一台 iPad 直接用
   return { ok: true, out: out, sum: sum, v: 4 };
 }
@@ -1349,6 +1360,8 @@ function ofpSave_(j) {
   if (!r || (r.code !== 200 && r.code !== 201)) return { ok: false, error: 'GitHub ' + (r && r.code) };
   cloudIdxSave_(cloudIdx_(), { k: k, meta: j.meta || {}, t: Date.now(), len: String(j.text).length });
   try { trQueue_(k, j.nt); } catch (e) {}   // 通告清单：后台马上排队翻译
+  try { const m = j.meta || {}, dg = String(m.no || '').replace(/\D/g, '').replace(/^0+/, ''), pk = 'plan_' + dg + m.depI + m.arrI + m.date, pr = PropertiesService.getScriptProperties();   // 家里的时钟：有 OFP 就有计划时间
+    if (dg && m.depI && m.arrI && m.date && !pr.getProperty(pk)) pr.setProperty(pk, JSON.stringify({ digits: dg, date: m.date, depIata: m.depI, arrIata: m.arrI, reg: m.reg || null, trip: m.trip || null, taxi: null, gnd: null, pts: null, atd: null, t: Date.now() })); } catch (e) {}
   return { ok: true, k: k };
 }
 function briefStore_(k, items) {
@@ -1507,5 +1520,26 @@ function pkgAi_(j) {
     again.forEach(function (x, i) { let M = {}; try { M = JSON.parse(o2[i] && o2[i].ok ? o2[i].out : '{}').secs || {}; } catch (e) {} const P = (M[x.id] && M[x.id].points) || [];
       const kept = P.filter(function (p) { return p && pkgPointOk_(x.text, String(p.t || '')); }).slice(0, 10).map(function (p) { return { t: String(p.t), lv: /^(red|amber|info)$/.test(p.lv) ? p.lv : 'info' }; });
       if (kept.length) res[x.id] = { points: kept, dropped: P.length - kept.length, ok: true, retry: 1 }; }); }
+  const result = { ok: true, secs: res, t: Date.now() };
+  if (j.k) { try { const k = String(j.k).replace(/[^\w.-]/g, ''), g = gh_('get', 'ofpdata/' + k + '.pkgai.json'); let old = null; if (g && g.code === 200 && g.j) old = JSON.parse(Utilities.newBlob(Utilities.base64Decode(g.j.content)).getDataAsString('UTF-8'));
+    if (old && old.secs) Object.keys(old.secs).forEach(function (id) { if ((!res[id] || !res[id].points.length) && old.secs[id].points && old.secs[id].points.length) res[id] = old.secs[id]; });
+    ghPut_('ofpdata/' + k + '.pkgai.json', Utilities.base64Encode(JSON.stringify(result), Utilities.Charset.UTF_8), 'pkgai ' + k); cloudIdxSave_(cloudIdx_(), { k: k, pkgai: result.t }); } catch (e) {} }
   return { ok: true, secs: res, t: Date.now(), raw: j.debug ? outs.map(function (o) { return { ok: o && o.ok, model: o && o.model, err: o && o.error, out: o && o.out && o.out.slice(0, 1500) }; }) : undefined };
+}
+
+// ======== 共享状态 ========
+function stPut_(j) {
+  const k = String(j.k || '').replace(/[^\w.-]/g, ''); if (!k || !j.set) return { ok: false, error: 'no data' };
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const path = 'ofpdata/' + k + '.st.json', g = gh_('get', path); let st = { u: {} };
+    if (g && g.code === 200 && g.j) { try { st = JSON.parse(Utilities.newBlob(Utilities.base64Decode(g.j.content)).getDataAsString('UTF-8')); } catch (e) {} } if (!st.u) st.u = {};
+    const t = +j.t || Date.now(); let ch = false;
+    Object.keys(j.set).forEach(function (f) { if (!/^(atd|zfw|cs|ato)$/.test(f)) return; if ((st.u[f] || 0) <= t) { st[f] = j.set[f]; st.u[f] = t; ch = true; } });
+    if (ch) { ghPut_(path, Utilities.base64Encode(JSON.stringify(st), Utilities.Charset.UTF_8), 'st ' + k); cloudIdxSave_(cloudIdx_(), { k: k, st: Date.now() });
+      // 家里的时钟：把 ATD 写进它用的飞行计划
+      if (j.set.atd !== undefined) { try { const x = cloudIdx_().idx.find(function (e) { return e.k === k; }), m = x && x.meta; if (m) { const dg = String(m.no || '').replace(/\D/g, '').replace(/^0+/, ''), pk = 'plan_' + dg + m.depI + m.arrI + m.date, pr = PropertiesService.getScriptProperties();
+        let p = {}; try { p = JSON.parse(pr.getProperty(pk) || '{}'); } catch (e) {} Object.assign(p, { digits: dg, date: m.date, depIata: m.depI, arrIata: m.arrI, reg: p.reg || m.reg || null, trip: p.trip || m.trip || null, atd: st.atd || null, t: Date.now() }); pr.setProperty(pk, JSON.stringify(p)); } } catch (e) {} } }
+    return { ok: true, st: st };
+  } finally { lock.releaseLock(); }
 }

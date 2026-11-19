@@ -46,8 +46,10 @@ function pkgSections(L) {
 // AI「说人话」版：存在手机上（离线可看），有网时刷新
 const pkgAiGet = L => { try { return JSON.parse(ls('pkgai.' + String(L.k).replace(/[^\w.-]/g, '')) || 'null'); } catch (e) { return null; } };
 async function pkgAiRun(L) {
-  const S = pkgSections(L), off = offOf(L);
-  const j = await postK({ action: 'pkgai', flight: { no: L.no, dep: L.dep, arr: L.arr, off: dmZ(off), eta: dmZ(off + L.tr * MIN) }, secs: S.filter(x => x.text.trim()).map(x => ({ id: x.id, title: x.title, when: x.when, text: x.text })) });
+  const S = pkgSections(L), off = offOf(L), k = String(L.k).replace(/[^\w.-]/g, '');
+  // 别的设备已经整理过：直接下载，不再花 AI
+  if (!pkgAiRun.force) { try { const c = await postK({ action: 'pkgaiget', k }); if (c && c.ok && c.d && c.d.secs && Object.keys(c.d.secs).filter(id => c.d.secs[id].points.length).length >= S.length / 2) { ls('pkgai.' + k, JSON.stringify(c.d)); return c.d; } } catch (e) {} }
+  const j = await postK({ action: 'pkgai', k, flight: { no: L.no, dep: L.dep, arr: L.arr, off: dmZ(off), eta: dmZ(off + L.tr * MIN) }, secs: S.filter(x => x.text.trim()).map(x => ({ id: x.id, title: x.title, when: x.when, text: x.text })) });
   if (!j || !j.ok) throw new Error((j && j.error) || 'AI');
   const old = pkgAiGet(L); if (old && old.secs) Object.keys(old.secs).forEach(id => { if ((!j.secs[id] || !j.secs[id].points.length) && old.secs[id].points.length) j.secs[id] = old.secs[id]; });   // 这次没整理出来的部分：保留上次的
   ls('pkgai.' + String(L.k).replace(/[^\w.-]/g, ''), JSON.stringify(j)); return j;
@@ -87,7 +89,7 @@ function openPkg() {
   sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:16px">📑 ' + XS('简报包', 'Briefing package') + '</b><span style="flex:1"></span><span class="btn" id="pk-ai">🤖 ' + XS('AI 整理', 'AI rewrite') + '</span><span class="btn" id="pk-pdf">☁️ PDF</span><span class="btn" id="sh-x">✕</span></div><div id="pk-st" class="ok"></div><iframe id="pk-f" style="width:100%;height:calc(100vh - 90px);border:1px solid #999;background:#fff"></iframe>';
   $('pk-f').srcdoc = pkgHtml(L);
   $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); };
-  $('pk-ai').onclick = async () => { $('pk-st').textContent = '⏳ ' + XS('AI 正在逐段整理（30–90 秒）…', 'AI rewriting (30–90 s)…'); try { await pkgAiRun(L); $('pk-f').srcdoc = pkgHtml(L); $('pk-st').textContent = '✅ ' + XS('AI 整理好了', 'Done'); } catch (e) { $('pk-st').textContent = '⚠️ ' + e.message; } };
+  $('pk-ai').onclick = async () => { pkgAiRun.force = !!pkgAiGet(L); $('pk-st').textContent = '⏳ ' + XS('AI 正在逐段整理（30–90 秒）…', 'AI rewriting (30–90 s)…'); try { await pkgAiRun(L); $('pk-f').srcdoc = pkgHtml(L); $('pk-st').textContent = '✅ ' + XS('AI 整理好了', 'Done'); } catch (e) { $('pk-st').textContent = '⚠️ ' + e.message; } };
   $('pk-pdf').onclick = async () => { $('pk-st').textContent = '⏳ ' + XS('后台生成 PDF…', 'Making the PDF…'); const r = await pkgUpload(L, true); $('pk-st').textContent = r ? '✅ ' + XS('PDF 已存到云端（iPad：工具 → 📑 简报包）', 'PDF saved to the cloud') : '⚠️ ' + XS('没成功（要联网）', 'Failed (needs network)'); };
 }
 async function pkgUpload(L, force) {

@@ -1353,8 +1353,8 @@ function atdDays() {
   if (S.atd && std) { const k = Math.round((Date.UTC(new Date(S.atd).getUTCFullYear(), new Date(S.atd).getUTCMonth(), new Date(S.atd).getUTCDate()) - Date.UTC(new Date(std).getUTCFullYear(), new Date(std).getUTCMonth(), new Date(std).getUTCDate())) / 864e5); sel.value = [-1, 0, 1, 2].includes(k) ? String(k) : 'auto'; }
   else sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'auto';
 }
-function setATD(t) {
-  S.atd = t; lsSet('atd', t || ''); setTimeout(atdDays, 0); if (!S.demo) setTimeout(() => { try { LBK.sync(); } catch (e) {} }, 300); $('atd').value = t ? hmZ(t).slice(0, 4) : ''; S.drag = null; if (S.fix) { S.fix = null; lsSet('fix', ''); fixBar(); }
+function setATD(t, fromCloud) {
+  S.atd = t; lsSet('atd', t || ''); if (!fromCloud && !S.demo) try { CLOUD.stPut({ atd: t || null }); } catch (e) {}   // 共享给手机和家里的时钟 setTimeout(atdDays, 0); if (!S.demo) setTimeout(() => { try { LBK.sync(); } catch (e) {} }, 300); $('atd').value = t ? hmZ(t).slice(0, 4) : ''; S.drag = null; if (S.fix) { S.fix = null; lsSet('fix', ''); fixBar(); }
   S.follow = true; rcOn(true); lastList = 0; S.firToast = null; if (L_route) drawRoute(); tick(); if (t) fitRing();
 }
 $('atd').oninput = () => $('atd').classList.toggle('dirty', $('atd').value.trim() !== (S.atd ? hmZ(S.atd).slice(0, 4) : ''));
@@ -1656,7 +1656,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v88';
+const APPV = 'v89';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 // 简报包 PDF：手机 Panel（或这里）生成后存在云端；这里下载打开（存一份在本机，离线也能打开）
