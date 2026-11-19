@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-19c';
+const BACKEND_VER = '2026-11-19d';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -111,6 +111,8 @@ function postJson_(text) {
   if (j.action === 'relay') return JSON.stringify(relay_(true));
   // 检查邮箱：后台看得到哪些像 OFP 的附件、排班上有哪些航段（排查「副屏读不到 OFP」）
   if (j.action === 'maildiag') return JSON.stringify(mailDiag_(j));
+  // 马上换成网站上的最新程序（不等 1 小时缓存）
+  if (j.action === 'reload') { CacheService.getScriptCache().remove('src_n'); return JSON.stringify({ ok: true }); }
   // Flight Intelligence：上传资料 → AI 提取区域 / 提醒；数据库存在你的私有仓库 flight-box/fidata（不公开）
   if (j.action === 'fiextract') return JSON.stringify(fiExtract_(j));
   if (j.action === 'figet') return JSON.stringify(fiGet_());
@@ -1321,8 +1323,8 @@ function ofpMeta_(leg) {
 
 // ======== 邮箱诊断：只列「像 OFP」的附件（文件名 / 邮件标题里有 OFP、LIDO、EK 航班号、Lido 文件名格式），其他附件只报数量 ========
 function mailDiag_(j) {
-  const days = Math.min(14, Math.max(1, +j.days || 4)), LIDO = /EK\.?\s?(\d{3,4})\.(\d{2})([A-Za-z]{3})(\d{4})\.([A-Z]{3})\.([A-Z]{3})/, LIKE = /OFP|LIDO|FLIGHT\s?PLAN|\bEK\s?\d{3,4}\b|\bUAE\s?\d/i;
-  const ofp = [], now = Date.now(); let other = 0, threads = 0;
+  const days = Math.min(14, Math.max(1, +j.days || 4)), LIDO = /EK\.?\s?(\d{3,4})\.(\d{2})([A-Za-z]{3})(\d{4})\.([A-Z]{3})\.([A-Z]{3})/, LIKE = /OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|BRIEF|EK\s?-?\d{3,4}|UAE\s?\d/i;
+  const ofp = [], now = Date.now(); let other = 0, threads = 0, bigPdf = 0;
   try {
     GmailApp.search('has:attachment newer_than:' + days + 'd', 0, 50).forEach(function (th) { threads++;
       th.getMessages().forEach(function (m) {
@@ -1330,8 +1332,8 @@ function mailDiag_(j) {
         m.getAttachments({ includeInlineImages: false }).forEach(function (a, i) {
           const name = a.getName() || '', subj = String(m.getSubject() || '');
           const lido = LIDO.test(name), like = LIKE.test(name + ' ' + subj);
-          if (!lido && !like) { other++; return; }
-          ofp.push({ name: name, subject: subj.slice(0, 100), at: m.getDate().toISOString(), mb: Math.round(a.getSize() / 1e4) / 100, type: a.getContentType(),
+          if (!lido && !like) { other++; if (/pdf/i.test(a.getContentType()) && a.getSize() > 8e5) bigPdf++; return; }
+          ofp.push({ name: name, mbBig: a.getSize() > 8e5, subject: subj.slice(0, 100), at: m.getDate().toISOString(), mb: Math.round(a.getSize() / 1e4) / 100, type: a.getContentType(),
             lidoName: lido, pdf: /pdf/i.test(a.getContentType()) || /\.pdf$/i.test(name), tooBig: a.getSize() > 15e6,
             panelReads: (lido || like) && a.getSize() <= 15e6 && (/\.(pdf|docx?|rtf|txt|odt)$/i.test(name) || /pdf|word|rtf|text\/plain|opendocument/i.test(a.getContentType())) });
         });
@@ -1341,7 +1343,7 @@ function mailDiag_(j) {
   const legs = [];
   try { events_(new Date(now - 2 * 864e5), new Date(now + 4 * 864e5)).forEach(function (ev) { legsOf_(ev).forEach(function (l) { legs.push({ flight: 'EK' + l.digits, route: l.origin + '-' + l.dest, std: new Date(l.std).toISOString(), title: String(ev.getTitle ? ev.getTitle() : '').slice(0, 60) }); }); }); } catch (e) { legs.push({ error: String(e).slice(0, 120) }); }
   let cloud = []; try { cloud = cloudIdx_().idx.filter(function (x) { return x.meta && x.meta.std > now - 3 * 864e5; }).map(function (x) { return { k: x.k, std: new Date(x.meta.std).toISOString(), route: (x.meta.dep || '') + '-' + (x.meta.arr || ''), brief: !!x.brief }; }); } catch (e) {}
-  return { ok: true, v: BACKEND_VER, days: days, threads: threads, ofpAttachments: ofp, otherAttachments: other, rosterLegs: legs, cloudOfps: cloud };
+  return { ok: true, v: BACKEND_VER, days: days, threads: threads, ofpAttachments: ofp, otherAttachments: other, otherBigPdfs: bigPdf, rosterLegs: legs, cloudOfps: cloud };
 }
 
 // ======== Flight Intelligence 数据库 ========

@@ -51,7 +51,7 @@
   // ---------- 邮箱 ----------
   // 只认 OFP：Lido 的文件名（EK.9873.11Nov2026.CAN.DWC.pdf）或者邮件主题 / 文件名里有 OFP；别的私人文件不显示、不下载
   const LIDO = /EK\.?\s?(\d{3,4})\.(\d{2}[A-Za-z]{3}\d{4})\.([A-Z]{3})\.([A-Z]{3})/;
-  const isOfp = f => f.up || LIDO.test(f.name || '') || /OFP|LIDO|FLIGHT\s?PLAN|\bEK\s?\d{3,4}\b|\bUAE\s?\d/i.test((f.name || '') + ' ' + (f.subject || ''));
+  const isOfp = f => f.up || LIDO.test(f.name || '') || /OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|EK\s?-?\d{3,4}|\bUAE\s?\d/i.test((f.name || '') + ' ' + (f.subject || ''));
   // 邮箱来源：先走 Google 后台；连不上（例如在中国）就走你的 GitHub 私有仓库（后台每 10 分钟把 OFP 复制过去）
   const GH = () => ({ tok: ls('ghtok') || '', repo: ls('ghrepo') || 'chunhua1780/flight-box' });
   const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
@@ -156,7 +156,7 @@
       const onRoster = (digits, dest, std) => !legs.length ? true : legs.some(l => last4(l.digits) === last4(digits) && l.dest === dest && (std == null || Math.abs(l.std - std) < 12 * 36e5));
       for (const f of (j.files || []).filter(isOfp).slice(0, 12)) {
         if (seen.has(f.id) || libNames.has(f.name)) continue;
-        const m = LIDO.exec(f.name || ''); if (!m && !f.up && !/OFP|LIDO|FLIGHT\s?PLAN|\bEK\s?\d{3,4}\b/i.test((f.name || '') + ' ' + (f.subject || ''))) continue;   // 文件名或标题像 OFP 的都收（不再要求排班上有：日历读错时会漏掉回程）
+        const m = LIDO.exec(f.name || ''); if (!m && !f.up && !/OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|EK\s?-?\d{3,4}/i.test((f.name || '') + ' ' + (f.subject || ''))) continue;   // 文件名或标题像 OFP 的都收（不再要求排班上有：日历读错时会漏掉回程）
         let bin; try { bin = await getFile(f.id); } catch (e) { continue; }
         let text = ''; try { text = (await DOCR.readAny(new Blob([bin]), f.name, pdfText)).text; } catch (e) { continue; }
         const r = OFP.parse(text); seen.add(f.id);

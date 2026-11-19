@@ -223,7 +223,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190558';
+const PAGEV = '202611190613';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -233,7 +233,7 @@ async function update(quiet) {
     // 每个航班只要最新的一份；日期在 昨天 ~ 后天（UTC）之间
     const best = {};
     files.forEach(f => { const m = LIDO.exec(f.name || '');
-      if (!m) { if (/OFP|LIDO|FLIGHT\s?PLAN|\bEK\s?\d{3,4}\b|\bUAE\s?\d/i.test((f.name || '') + ' ' + (f.subject || '')) && now - (f.t || 0) < 3 * 864e5) best['n:' + f.id] = f; return; }   // 文件名不是 Lido 格式：标题或文件名像 OFP 的也读
+      if (!m) { if (/OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|EK\s?-?\d{3,4}|\bUAE\s?\d/i.test((f.name || '') + ' ' + (f.subject || '')) && now - (f.t || 0) < 3 * 864e5) best['n:' + f.id] = f; return; }   // 文件名不是 Lido 格式：标题或文件名像 OFP 的也读
       const d = Date.UTC(+m[4], MON[m[3].toUpperCase()], +m[2]); if (d < day0 - 2 * 864e5 || d > day0 + 2 * 864e5) return;
       const k = m[1] + m[2] + m[3].toUpperCase() + m[5]; if (!best[k] || (f.t || 0) > (best[k].t || 0)) best[k] = f; });
     // 云端（GitHub 私有仓库）有的直接下载原文：快，不用在手机上解析 PDF
@@ -506,7 +506,7 @@ async function pickOfp(days) {
   const rows = []; log('⏳ ' + X('正在看云端和邮箱…', 'Checking cloud and mail…'));
   const errs = [];
   try { const j = await withTimeout(postK({ action: 'ofpmail', days }), 90000); if (j && j.ok) { if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); }
-      (j.files || []).filter(f => LIDO.test(f.name || '') || /OFP/i.test((f.name || '') + ' ' + (f.subject || ''))).forEach(f => rows.push({ src: 'mail', id: f.id, t: f.t, name: f.name + ' · ' + X('收到 ', 'received ') + dmZ(f.t) + ' · ' + ((f.size || 0) / 1e6).toFixed(1) + ' MB' })); }
+      (j.files || []).filter(f => LIDO.test(f.name || '') || /OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|BRIEF|EK\s?-?\d{3,4}|UAE\s?\d/i.test((f.name || '') + ' ' + (f.subject || '')) || days >= 30).forEach(f => rows.push({ src: 'mail', id: f.id, t: f.t, name: f.name + ' · ' + X('收到 ', 'received ') + dmZ(f.t) + ' · ' + ((f.size || 0) / 1e6).toFixed(1) + ' MB' })); }
     else errs.push(X('邮箱：', 'Mail: ') + ((j && j.error) || '?')); } catch (e) { errs.push(X('邮箱：', 'Mail: ') + e.message); }
   try { const r = await ghRaw('ofpdata/index.json'); if (r) (await r.json()).filter(x => x.meta && x.meta.std > Date.now() - days * 864e5).forEach(x => rows.push({ src: 'cloud', id: x.k, t: x.meta.std, name: (x.meta.no || x.k) + ' ' + (x.meta.depI || x.meta.dep || '') + '→' + (x.meta.arrI || x.meta.arr || '') + ' ' + dmZ(x.meta.std) })); else errs.push(X('云端：', 'Cloud: ') + (GH().tok ? X('读不到（GitHub）', 'not reachable') : X('还没有同步码（先在有网时点一次 🔄 更新）', 'no sync key yet'))); } catch (e) { errs.push(X('云端：', 'Cloud: ') + e.message); }
   rows.sort((a, b) => b.t - a.t);
