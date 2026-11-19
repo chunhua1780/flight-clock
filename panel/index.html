@@ -167,18 +167,20 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 #top{position:relative}#ovw{display:none;position:absolute;left:8px;bottom:2px;z-index:3;color:var(--red);font-weight:900;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
 @media (orientation:landscape) and (min-width:700px){#ovw{font-size:32px}}
 .zfwb{border:2.5px solid #000;border-radius:12px;padding:6px 9px;margin:4px 0 8px}.zfwb b{font-size:16px}.zfwb input{width:110px;font-size:22px;font-weight:900;padding:3px 6px;border:2px solid #000;border-radius:8px;font-variant-numeric:tabular-nums}.zfwb .btn{padding:3px 12px;font-size:18px}.zfwb .bw{margin:3px 0;font-size:16px;font-weight:800}
+.zb{z-index:5}
+.crew p{font-size:18px;font-weight:800;line-height:1.45;margin:10px 0;border-bottom:1px solid #ccc;padding-bottom:8px}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="ovw"></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
-  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span>
+  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-zfw">⚖ <span data-i="无油重量 ZFW|Zero fuel weight"></span></span><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-zfw">⚖ <span data-i="无油重量 ZFW|Zero fuel weight"></span></span><span class="btn" id="b-sb">📋 <span data-i="简报（简洁版）|Short brief"></span></span><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="sheet"></div>
 <div id="set">
@@ -278,7 +280,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611191459';
+const PAGEV = '202611191543';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -335,6 +337,9 @@ async function cloudSync(now) {
     const txt = await gunzip(new Uint8Array(await f.arrayBuffer())), o = OFP.parse(txt); if (!o.ok) continue;
     const leg = summarize(o); fixLeg(leg); leg.fid = fid; const isNew = !LEGS.some(l => l.k === leg.k); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); ls('legs', JSON.stringify(LEGS)); got++; if (isNew) NEWL.push(leg);
   }
+  // iPad 生成的简洁版简报（Today Brief）
+  for (const x of idx) { if (!x.sb || +(ls('sbn.' + x.k) || 0) >= x.sb) continue; if (!LEGS.some(l => l.k.replace(/[^\w.-]/g, '') === x.k)) continue;
+    try { const t = await ghRaw('ofpdata/' + x.k + '.sb.html'); if (t) { ls('sb.' + x.k, await t.text()); ls('sbn.' + x.k, String(x.sb)); } } catch (e) {} }
   // 云端已经翻好的通告译文（AI 整段翻译）
   for (const x of idx) { if (!x.tr || +(ls('trn.' + x.k) || 0) >= x.tr) continue; const lg = LEGS.find(l => l.k.replace(/[^\w.-]/g, '') === x.k); if (!lg) continue;
     try { const t = await ghRaw('ofpdata/' + x.k + '.tr.json'); if (t) { ls('tr.' + x.k, JSON.stringify(await t.json())); ls('trn.' + x.k, String(x.tr)); } } catch (e) {} }
@@ -376,7 +381,7 @@ function summarize(o) {
   // 全部通告（每个机场、每个管制区）：编号、原文、生效时间 —— 点开能看全文、译文、地图上的区域
   Object.keys(o.notams || {}).forEach(k => { leg.nt[k] = o.notams[k].map(n => [n.id, n.text, n.from, n.to]); });
   leg.wx = {}; Object.keys(o.airports || {}).forEach(k => { const a = o.airports[k] || {}; leg.wx[k] = { m: (a.metar || []).slice(-1)[0] || '', t: (a.taf || []).slice(-1)[0] || '' }; });   // 天气原文（简报包用）
-  leg.alt = (o.alternates || []).map(a => a.icao); leg.fuel = { tof: (F.tof && F.tof.fuel) || 0, trip: (F.trip && F.trip.fuel) || 0 };
+  leg.alt = (o.alternates || []).map(a => a.icao); leg.fls = String(t.plndFl || '').split(/\s+/).map(x => (/(\d{3})$/.exec(x) || [])[1]).filter(Boolean); leg.fuel = { tof: (F.tof && F.tof.fuel) || 0, trip: (F.trip && F.trip.fuel) || 0 };
   const withC = N.filter(w => X[w.id]), step = Math.max(1, Math.ceil(withC.length / 12));
   withC.forEach((w, i) => { if (i % step === 0 || i === withC.length - 1) leg.c.push([w.t, Math.round(X[w.id][0] * 10) / 10, Math.round(X[w.id][1] * 10) / 10]); });
   // 重量
@@ -690,7 +695,7 @@ function draw() {
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
   if (pre) board(L, now, off, on);
   // 地图
-  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(tlAlerts(L, LS, now), ruleAlerts(L, LS, off, now), procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
+  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(crewAlerts(L, LS, now), tlAlerts(L, LS, now), ruleAlerts(L, LS, off, now), procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
   const drawMapNow = () => { if (!L.noOfp && !pre) { drawMap(L, el, ph, LS, HOT); einkPix($('map')); } else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
   // 右边：航路点时间线（下一个点绿色圆圈，移交点橙色圆圈并写下一个管制区；不用红线）
   if (!L.noOfp) {
@@ -774,6 +779,31 @@ $('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $(
 $('b-demo').onclick = () => demo();
 $('b-log').onclick = () => openLog();
 $('b-pkg').onclick = () => openPkg();
+$('b-sb').onclick = () => openShort();
+// 简洁版简报：iPad 上生成的那一页 Today Brief（云端下载，离线可看）
+function openShort() { const L = CUR; if (!L || L.noOfp) return; const h = ls('sb.' + String(L.k).replace(/[^\w.-]/g, '')), sh = $('sheet');
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px">📋 ' + XS('简报（简洁版）', 'Short brief') + '</b><span style="flex:1"></span><span class="btn" id="sb-z">🔍</span><span class="btn" id="sb-c">👥 ' + XS('机组简报', 'Crew brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
+    + (h ? '<iframe id="sb-f" style="width:100%;height:calc(100vh - 60px);border:1px solid #999;background:#fff"></iframe>' : '<div class="ok">' + XS('还没有：在 iPad 上打开这一班的 OFP（或 Today Brief），会自动传一份过来；有网时手机自动下载。', 'Not yet — open this OFP / Today Brief on the iPad; it uploads a copy automatically.') + '</div>');
+  sh.style.display = 'block'; sh.scrollTop = 0; if (h) { $('sb-f').onload = () => { try { const d = $('sb-f').contentDocument, w = d.documentElement.scrollWidth, W = $('sb-f').clientWidth; if (w > W + 4) d.body.style.zoom = (W / w).toFixed(3); openShort.fit = (W / w).toFixed(3); } catch (e) {} };
+    $('sb-z').onclick = () => { try { const b = $('sb-f').contentDocument.body; b.style.zoom = b.style.zoom === '1' ? openShort.fit : '1'; } catch (e) {} };   /* 🔍：整页 / 原大（可以左右滑） */ $('sb-f').srcdoc = h; }  /* 整页缩到手机宽度 */ $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('sb-c').onclick = () => openCrew(); }
+// 机组简报：飞行时间、高度、ETA、颠簸（来自 iPad 简报的客舱一栏）、回程
+function crewInfo(L) {
+  const off = offOf(L), on = off + L.tr * MIN, fl = (L.fls && L.fls.length ? L.fls : [String(Math.round((L.fl || 0) / 100))]).map(x => 'FL' + x).join(' / ');
+  let cabin = ''; const sb = ls('sb.' + String(L.k).replace(/[^\w.-]/g, '')); if (sb) { const m = /(?:客舱简报|Cabin brief)<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(sb); if (m) cabin = m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(); }
+  const F = flights(NOW()), back = F.find(x => x !== L && x.std > L.std && x.std < L.std + 36 * HOUR && (x.ai === L.bi || x.dep === L.arr) && (x.bi === L.ai || x.arr === L.dep));
+  const lines = [{ zh: '✈ ' + L.no + ' ' + L.ai + '→' + L.bi + '：飞行 ' + dur(L.tr) + ' · ' + fl + ' · 落地约 ' + hmZ(on) + 'Z', en: 'Flight ' + dur(L.tr) + ' · ' + fl + ' · ETA ' + hmZ(on) + 'Z' }];
+  if (cabin) lines.push({ zh: '⚠ ' + cabin, en: '' }); else lines.push({ zh: XS('（颠簸 / 天气：iPad 上生成 Today Brief 后这里会显示）', '(Turbulence: appears after the iPad Today Brief)'), en: '' });
+  if (back) { const bfl = back.fls && back.fls.length ? back.fls.map(x => 'FL' + x).join(' / ') : back.fl ? 'FL' + Math.round(back.fl / 100) : '';
+    lines.push({ zh: '↩ 回程 ' + (back.no || '') + ' ' + back.ai + '→' + back.bi + '：STD ' + hmZ(back.std) + 'Z · 飞行 ' + dur(back.tr) + (bfl ? ' · ' + bfl : '') + (back.noOfp ? '（按排班，还没有 OFP）' : ''), en: 'Return ' + back.ai + '→' + back.bi + ': STD ' + hmZ(back.std) + 'Z · ' + dur(back.tr) + (bfl ? ' · ' + bfl : '') }); }
+  return lines;
+}
+function crewAlerts(L, S, now) { if (L.noOfp || S.ph !== 0 || now < L.std - 85 * MIN || now >= L.std - 80 * MIN) return [];
+  const x = { id: 'crew:' + L.k, kind: 'crew', name: '👥 ' + XS('机组简报', 'Crew brief') + ' · STD−83', level: 'info', msg: XS('乘务组简报：飞行时间、高度、颠簸、回程', 'Crew brief: time, levels, turbulence, return'), msgEn: '', actions: crewInfo(L), ver: 1 };
+  PSEUDO[x.id] = x; return [{ x, state: 'proc', label: hmZ(L.std - 83 * MIN) + 'Z', min: 0, nm: 0 }]; }
+function openCrew() { const L = CUR; if (!L || L.noOfp) return; const sh = $('sheet');
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:17px">👥 ' + XS('机组简报', 'Crew brief') + ' · ' + esc(L.no) + '</b><span style="flex:1"></span><span class="btn" id="cb-s">📋 ' + XS('简洁版', 'Short brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
+    + '<div class="crew">' + crewInfo(L).map(l => '<p>' + esc(LANG === 'en' && l.en ? l.en : l.zh) + '</p>').join('') + '</div>';
+  sh.style.display = 'block'; sh.scrollTop = 0; $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('cb-s').onclick = () => openShort(); }
 $('b-zfw').onclick = () => { const L = CUR; if (!L || !wFix(L)) { MSG = XS('这个航班没有 OFP 重量数据', 'No OFP weights for this flight'); draw(); return; } const v = prompt(XS('实际无油重量 ZFW（吨，例如 245.3；留空 = 用计划 ', 'Actual ZFW (t; empty = plan ') + T(L.w.z) + '）', zfwOf(L) ? T(zfwOf(L)) : ''); if (v !== null) setZfw(L, v); };
 $('b-eink').onclick = () => { try { localStorage.setItem('pnl.eink', EINK ? '0' : '1'); } catch (e) {} location.reload(); };
 $('b-fi').onclick = async () => { ls('fit', '0'); MSG = '⏳ ' + X('下载区域提醒数据库…', 'Downloading Flight Intelligence…'); draw(); await fiSync();
@@ -801,6 +831,7 @@ $('alx').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) { o
   if (e.target.closest('.ack-b')) { ls(a.dataset.ak, String(Date.now())); draw(); return; }   // 确认：变成灰色小字，不再响
   if (a.dataset.ofp) { showWarn(0); return; } if (a.dataset.fir) { openNotams(a.dataset.fir); return; } if (a.dataset.id) fiDetail(a.dataset.id); };
 $('wpl').addEventListener('scroll', () => { wplTouch = Date.now(); }, { passive: true });
+$('zcb').onclick = () => openCrew();
 $('zfoc').onclick = () => { FOCUS = null; ZOOM = +(ls('zoom') || 700); draw(); };   // 回到飞机
 $('zin').onclick = () => { ZOOM = Math.max(150, ZOOM / 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
 $('zout').onclick = () => { ZOOM = Math.min(4000, ZOOM * 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };

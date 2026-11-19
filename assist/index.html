@@ -1405,7 +1405,7 @@ function useText(txt) {
   const prevK = lsGet('ofpk'), newK = (typeof OFL !== 'undefined') ? OFL.keyOf(r) : null;
   if (!useText.auto) lsSet('ofppin', String(Date.now()));   // 手动载入的：12 小时内不自动换到别的班
   if (newK) { OFL.snap(prevK, S.atd, S.fix); lsSet('ofpk', newK); OFL.save(txt, null, null, r).then(e => { if (e && newK !== prevK) { setATD(e.atd || null); if (e.fix) { S.fix = e.fix; lsSet('fix', JSON.stringify(e.fix)); fixBar(); tick(); } } }); }
-  setTimeout(() => { try { CLOUD.upload(txt, r); } catch (e) {} try { LIVE.fetch(true); } catch (e) {} try { AIB.fetch(false); } catch (e) {} }, 800);   // 读到 OFP 就传云端，其它设备有网就收到   // 有网：马上查实时天气 / ATIS
+  setTimeout(() => { try { CLOUD.upload(txt, r); } catch (e) {} setTimeout(() => { try { CLOUD.sbUp(true); } catch (e) {} }, 15000); try { LIVE.fetch(true); } catch (e) {} try { AIB.fetch(false); } catch (e) {} }, 800);   // 读到 OFP 就传云端，其它设备有网就收到   // 有网：马上查实时天气 / ATIS
   S.fix = null; lsSet('fix', ''); S.ofp = r; lsSet('ofp', JSON.stringify(r)); lsSet('ofptext1', txt.slice(0, 6000)); lsSet('ofptext', txt);   // 原文也存着：以后解析规则改进了可以自动重新读
   if (S.atd && Math.abs(S.atd - (r.times.std || 0)) > 18 * 3600e3) setATD(null);
   atdDays();
@@ -1656,7 +1656,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v87';
+const APPV = 'v88';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 // 简报包 PDF：手机 Panel（或这里）生成后存在云端；这里下载打开（存一份在本机，离线也能打开）
@@ -2063,7 +2063,7 @@ $('dec-q').onkeydown = e => { if (e.key !== 'Enter') return; const q = $('dec-q'
 
 /* ---------------- Today Brief ---------------- */
 let briefFullMode = false;
-const showBrief = () => { $('brief-pg').innerHTML = briefFullMode ? briefFull() : briefOne(); $('brief-pg').classList.toggle('one', !briefFullMode); };
+const showBrief = () => { $('brief-pg').innerHTML = briefFullMode ? briefFull() : briefOne(); $('brief-pg').classList.toggle('one', !briefFullMode); try { CLOUD.sbUp(true); } catch (e) {} };   // 打开一次就传一份给手机
 $('b-brief').onclick = e => { e.preventDefault(); if (!S.ofp) { openLoad(); return; } showBrief(); $('brief').classList.add('open'); $('brief').scrollTop = 0; };
 $('b-full').onclick = () => { briefFullMode = !briefFullMode; showBrief(); };
 $('b-bclose').onclick = () => $('brief').classList.remove('open');

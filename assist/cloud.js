@@ -53,7 +53,16 @@
     finally { busy = false; }
     return got;
   }
-  window.CLOUD = { upload, sync };
+  // 简洁版简报（Today Brief）：这台 iPad 生成一份网页传到云端，手机 Panel 下载显示
+  async function sbUp(force) {
+    if (!navigator.onLine || !lsGet('key') || !S.ofp || typeof briefOne !== 'function') return;
+    const k = keyOf(S.ofp); if (!force && Date.now() - +(lsGet('sbup.' + k) || 0) < 30 * 60e3) return;
+    let body = ''; try { body = briefOne(); } catch (e) { return; }
+    let css = ''; try { [].forEach.call(document.styleSheets, sh => { try { [].forEach.call(sh.cssRules, r => { if (r.selectorText && /#brief/.test(r.selectorText)) css += r.cssText.replace(/#brief /g, '') + '\n'; }); } catch (e) {} }); } catch (e) {}
+    const html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:12.5px/1.5 -apple-system,"Noto Sans SC",sans-serif;color:#111;background:#fff;margin:10px}table{border-collapse:collapse;width:100%}' + css + '.note{display:none}.pg{margin:0!important;padding:8px!important;box-shadow:none!important;max-width:none!important}</style></head><body><div class="pg one">' + body + '</div></body></html>';
+    try { const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'sbsave', k, html }) }); const j = JSON.parse(await r.text()); if (j.ok) lsSet('sbup.' + k, String(Date.now())); } catch (e) {}
+  }
+  window.CLOUD = { upload, sync, sbUp };
   window.addEventListener('online', () => sync(true));
   setTimeout(() => sync(true), 2500);
   setInterval(() => { if (navigator.onLine) sync(false); }, 5 * 60e3);   // 有网：每 5 分钟看一次云端，有新的就提示

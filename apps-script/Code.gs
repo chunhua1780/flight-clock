@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-20o';
+const BACKEND_VER = '2026-11-20p';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -120,6 +120,10 @@ function postJson_(text) {
   // 简报包：设备把整理好的网页交来，这里转成 PDF 存到私有云端（iPad / 电脑下载）
   if (j.action === 'pkgpdf') return JSON.stringify(pkgPdf_(j));
   if (j.action === 'pkgget') return JSON.stringify(pkgGet_(j));
+  // 简洁版简报（iPad 生成的 Today Brief 网页）：存云端，手机下载
+  if (j.action === 'sbsave') { const k = String(j.k || '').replace(/[^\w.-]/g, ''); if (!k || !j.html) return JSON.stringify({ ok: false, error: 'no data' });
+    const r = ghPut_('ofpdata/' + k + '.sb.html', Utilities.base64Encode(String(j.html), Utilities.Charset.UTF_8), 'sb ' + k); if (!r || (r.code !== 200 && r.code !== 201)) return JSON.stringify({ ok: false, error: 'GitHub ' + (r && r.code) });
+    cloudIdxSave_(cloudIdx_(), { k: k, sb: Date.now() }); return JSON.stringify({ ok: true }); }
   // 简报包「说人话」：每一部分交给 AI 整理成一句一句的中文要点（代号、数字都要和原文对得上）
   if (j.action === 'pkgai') return JSON.stringify(pkgAi_(j));
   // 诊断：每个 AI 模型回答一句话要多久

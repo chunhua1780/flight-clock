@@ -148,7 +148,7 @@ function alertHtml(L, list) {
   return list.map(a => { const x = a.x, ok = acked(L, a), txt = LANG === 'en' ? (x.msgEn || x.msg) : (x.msg || x.msgEn);
     const when = a.state === 'proc' ? a.label : x.kind === 'wac' ? fmtMin(a.min) : a.state === 'in' ? XS('已在区内', 'INSIDE') : a.state === 'near' ? Math.round(a.nm) + ' NM' : fmtMin(a.min) + ' · ' + Math.round(a.nm) + ' NM';
     return '<div class="al ' + esc(x.level) + (ok ? ' ack' : '') + '" data-ak="' + esc(ackKey(L, a)) + '" data-id="' + esc(x.id) + '"><b>' + (x.level === 'warning' ? '⛔ ' : x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + esc(x.name) + '</b> <span class="aw">' + esc(when) + '</span>'
-      + (ok ? '' : '<div class="at">' + esc(txt || '') + (LANG === 'both' && x.msgEn && x.msg ? '<small>' + esc(x.msgEn) + '</small>' : '') + '</div>' + actList(x) + '<div class="am">' + esc(x.kind === 'wac' ? XS('点开看全文', 'tap for details') : (x.fir || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)) + ' <span class="ack-b">✓ ' + XS('确认', 'ACK') + '</span></div>') + '</div>'; }).join('');
+      + (ok ? '' : '<div class="at">' + esc(txt || '') + (LANG === 'both' && x.msgEn && x.msg ? '<small>' + esc(x.msgEn) + '</small>' : '') + '</div>' + actList(x) + '<div class="am">' + esc(x.kind === 'wac' ? XS('点开看全文', 'tap for details') : /^(crew|tl|rule|proc)$/.test(x.kind) ? '' : (x.fir || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)) + ' <span class="ack-b">✓ ' + XS('确认', 'ACK') + '</span></div>') + '</div>'; }).join('');
 }
 function fiDetail(id) {
   if (PSEUDO[id] && PSEUDO[id].wac) return wacDetail(PSEUDO[id]);
