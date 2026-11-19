@@ -50,6 +50,9 @@ fetch('fir.json').then(r => r.json()).then(j => { FIRB = j.f.map(f => { const ri
 function inRing(x, y, r) { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const xi = r[i][0], yi = r[i][1], xj = r[j][0], yj = r[j][1]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
 // The FIR the aircraft is in: one of the OFP FIRs if possible (their names are official), otherwise the largest boundary containing the point (a FIR, not a sector)
 function firHere(lat, lon, L) {
+  // 先用你上传的 FIR / 管制区边界
+  const U = ((FIDB && FIDB.items) || []).filter(x => x.kind === 'area' && /^(FIR|UIR)$/.test(x.type) && fiUsable(x, Date.now())).find(x => { const G = fiGeom(x); return G && inGeom(G, lat, lon); });
+  if (U) return { id: U.fir || U.name, label: (/FIR|UIR/.test(U.name) ? U.name : U.name + ' ' + U.type) + (U.fir && U.name.indexOf(U.fir) < 0 ? ' – ' + U.fir : '') };
   if (!FIRB) return null;
   const C = FIRB.filter(f => !(lon < f.bb[0] || lon > f.bb[2] || lat < f.bb[1] || lat > f.bb[3]) && f.rings.some(r => inRing(lon, lat, r))); if (!C.length) return null;
   const ofp = {}; (L && L.fi || []).forEach(x => { ofp[x[1]] = x[0]; ofp[FIRALIAS[x[1]] || x[1]] = x[0]; });
@@ -60,13 +63,17 @@ function firHere(lat, lon, L) {
 function firRings(code) { if (!FIRB || !code) return null; const f = FIRB.find(x => x.id === code) || FIRB.find(x => x.id === (FIRALIAS[code] || code)); return f ? f.rings : null; }
 
 // ---------- 3. Flight Intelligence database (downloaded when online, used offline) ----------
-let FIDB = null; try { FIDB = JSON.parse(ls('fidb') || 'null'); } catch (e) {}
+let FIDB = null, WPTI = {}, WPTL = []; try { FIDB = JSON.parse(ls('fidb') || 'null'); } catch (e) {}
+// 上传的航路点：按名字索引（补 OFP 里缺坐标的点、地图上显示）
+function fiIndex() { WPTI = {}; WPTL = []; FIG = {}; ((FIDB && FIDB.items) || []).forEach(x => { if (x.kind !== 'wpt') return; (WPTI[x.name] = WPTI[x.name] || []).push([x.lat, x.lon]); WPTL.push(x); }); }
+function wptFix(id, near) { const a = WPTI[id]; if (!a || !a.length) return null; if (!near || a.length === 1) return a[0]; return a.slice().sort((p, q) => gcNm(p, near) - gcNm(q, near))[0]; }
+const BOUNDARY = /^(FIR|UIR|CTA|TMA)$/;
 async function fiSync() {
   if (!navigator.onLine || !ls('key') || Date.now() - +(ls('fit') || 0) < 10 * MIN) return;
-  try { const j = await postK({ action: 'figet' }); if (j && j.ok && j.db) { FIDB = j.db; ls('fidb', JSON.stringify(FIDB)); ls('fit', String(Date.now())); FIG = {}; } } catch (e) {}
+  try { const j = await postK({ action: 'figet' }); if (j && j.ok && j.db) { FIDB = j.db; try { localStorage.setItem('pnl.fidb', JSON.stringify(FIDB)); } catch (e) { MSG = '⚠️ ' + X('数据库太大，手机只能临时保存（重开要联网）', 'Database too large to store offline'); } ls('fit', String(Date.now())); fiIndex(); } } catch (e) {}
 }
 // Usable only if reviewed and in date; unreviewed / expired items are listed but never alert
-const fiUsable = (x, t) => x.status === 'approved' && !(x.to && Date.parse(x.to) < t) && !(x.from && Date.parse(x.from) > t + 24 * HOUR);
+const fiUsable = (x, t) => x.kind !== 'wpt' && x.status === 'approved' && !(x.to && Date.parse(x.to) < t) && !(x.from && Date.parse(x.from) > t + 24 * HOUR);
 const fiActiveAt = (x, t) => !(x.to && Date.parse(x.to) < t) && !(x.from && Date.parse(x.from) > t);
 let FIG = {};
 function fiGeom(x) {   // rings as [lon,lat] arrays
@@ -85,7 +92,7 @@ function fiAlerts(L, S, off, now) {
   const N = (L.n || []).filter(w => w.length >= 4); if (!N.length && !S.P) return out;
   const cum = cumNm(N);
   FIDB.items.forEach(x => {
-    if (!fiUsable(x, now)) return; const G = fiGeom(x); if (!G) return;
+    if (!fiUsable(x, now) || (BOUNDARY.test(x.type) && !x.msg && !x.msgEn)) return; const G = fiGeom(x); if (!G) return;   // 只是边界（FIR 等）的不提醒
     const lo = (+x.lower || 0) - 1000, hi = (x.upper ? +x.upper : 99999) + 1000;
     const here = S.P || (wpos(L, S.ph === 0 ? -1 : S.ph === 2 ? 1e9 : S.el) || {}).p, altNow = S.alt != null ? S.alt : altAt(L, S.ph, S.el);
     if (here && inGeom(G, here[0], here[1]) && altNow >= lo && altNow <= hi && fiActiveAt(x, now)) { out.push({ x, state: 'in', min: 0, nm: 0 }); return; }
@@ -141,10 +148,19 @@ function fiDetail(id) {
   $('sheet').style.display = 'block'; $('sh-x').onclick = () => { $('sheet').style.display = 'none'; draw(); };
 }
 // Draw the reviewed areas near the route on the map (light purple; red when alerting)
-function fiDrawMap(g, xy, hot) {
+function fiDrawMap(g, xy, hot, W, H) {
   if (!FIDB || !FIDB.items) return; const t = NOW();
-  FIDB.items.forEach(x => { if (!fiUsable(x, t)) return; const G = fiGeom(x); if (!G || (x.firOnly && !hot[x.id])) return;
+  // 上传的航路点（放大到 600 海里以内才画，灰色小三角）
+  if (W && ZOOM <= 600 && WPTL.length) { const vis = []; for (const w of WPTL) { const q = xy(w.lat, w.lon); if (q[0] > -10 && q[0] < W + 10 && q[1] > -10 && q[1] < H + 10) { vis.push([q, w.name]); if (vis.length > 400) break; } }
+    g.fillStyle = '#888'; g.font = '10px sans-serif'; vis.forEach(([q, n]) => { g.beginPath(); g.moveTo(q[0], q[1] - 4); g.lineTo(q[0] + 3.5, q[1] + 2.5); g.lineTo(q[0] - 3.5, q[1] + 2.5); g.closePath(); g.fill(); if (vis.length < 120) g.fillText(n, q[0] + 5, q[1] + 3); }); }
+  FIDB.items.forEach(x => { if (!fiUsable(x, t)) return; const G = fiGeom(x); if (!G || ((x.firOnly || BOUNDARY.test(x.type)) && !hot[x.id])) return;
     const h = hot[x.id]; g.strokeStyle = h ? '#d00000' : '#7a3db8'; g.fillStyle = h ? 'rgba(208,0,0,.10)' : 'rgba(122,61,184,.08)'; g.lineWidth = h ? 2.5 : 1.6; g.setLineDash(h ? [] : [5, 3]);
     G.R.forEach(r => { g.beginPath(); r.forEach((p, i) => { const q = xy(p[1], p[0]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); g.fill(); g.stroke(); });
     g.setLineDash([]); const q = xy(G.R[0][0][1], G.R[0][0][0]); g.fillStyle = h ? '#d00000' : '#7a3db8'; g.font = 'bold 11px sans-serif'; g.fillText(x.name.slice(0, 22), q[0] + 3, q[1] - 3); });
 }
+
+fiIndex();
+// OFP 里缺坐标的航路点：用上传的航路点数据库补上（同名的取离上一个点最近的）
+function wptFill(N, FX) { let prev = null; N.forEach(w => { if (FX[w.id]) { prev = FX[w.id]; return; } const p = wptFix(w.id, prev); if (p && (!prev || gcNm(p, prev) < 600)) { FX[w.id] = p; prev = p; } }); return FX; }
+// 上传的 NOTAM（这个机场 / FIR 的）
+function fiNotams(loc, t) { return ((FIDB && FIDB.items) || []).filter(x => x.kind === 'notam' && x.loc === loc && fiUsable(x, t)); }

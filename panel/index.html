@@ -41,11 +41,6 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 #wpop h3{margin:0 0 4px;font-size:14px;color:var(--red)}
 .fab{position:absolute;left:8px;bottom:8px;width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.9);border:1.5px solid #333;font-size:20px;font-weight:900;text-align:center;line-height:36px}
 #st{position:absolute;left:54px;right:56px;bottom:12px;font-size:11.5px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 3px #fff,0 0 3px #fff}
-#wpl{width:23%;min-width:78px;max-width:150px;overflow-y:auto;font-size:13px;border-left:1px solid #bbb}
-.wp{padding:3px 5px 2px;line-height:1.15;font-weight:800}.wp .t{display:block;font-size:11.5px;font-weight:600;color:#444;font-variant-numeric:tabular-nums}
-.wp.past{color:#aaa;font-weight:500}.wp.past .t{color:#aaa}.wp.nx{outline:3px solid #0a8a3a;outline-offset:-3px;background:#e8f7ec;color:#000}.wp.nx .t{color:#0a6a2c}
-.fir{padding:3px 5px;font-size:11px;font-weight:900;color:#c25a00;border-top:2px solid #e07000;border-bottom:2px solid #e07000;background:#fff4e6}.fir.risk{color:var(--red);border-color:var(--red);background:#fff0f0}.fir.soon{background:#e07000;color:#fff}
-.nowl{border-top:3px solid var(--red)}
 .it{border-left:5px solid #000;padding:3px 7px;margin-bottom:4px;font-size:14px;font-weight:700;line-height:1.3}
 .it.red{border-color:var(--red);color:var(--red)}
 .it small{display:block;font-weight:500;font-size:12px;color:var(--dim)}
@@ -59,31 +54,45 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .nt .id{font-weight:900}.nt .tm{font-size:12px;color:var(--dim)}.nt .zh{font-size:15px;font-weight:700;margin-top:4px}.nt .en{font-size:12.5px;color:var(--dim);margin-top:4px;font-family:ui-monospace,Menlo,monospace}
 .mb{display:inline-block;margin-top:6px;border:2px solid var(--red);color:var(--red);border-radius:8px;padding:2px 9px;font-weight:800;font-size:13px}.mb.on{background:var(--red);color:#fff}
 #empty{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;font-size:16px;line-height:1.5}
-#side{width:30%;min-width:96px;max-width:190px;display:flex;flex-direction:column;border-left:1px solid #bbb;min-height:0}
-#wpl{flex:1;width:auto;min-width:0;max-width:none;border-left:0}
-#alx{flex:none;max-height:48%;overflow-y:auto;border-top:2px solid #000;font-size:12.5px}#alx:empty{display:none}
-#side .al .aw{float:none;display:block}@media (orientation:landscape) and (min-width:700px){#side .al .aw{float:right;display:inline}}
-.al{padding:4px 5px;border-bottom:1px solid #bbb;line-height:1.2}.al b{font-weight:900}.al .aw{float:right;font-weight:800;font-variant-numeric:tabular-nums}
+#side{width:31%;min-width:100px;max-width:200px;display:flex;flex-direction:column;border-left:1px solid #bbb;min-height:0}
+#demob{top:56px;left:8px}
+#fhdr{flex:none;padding:3px 5px;border-bottom:1px solid #bbb;font-size:11.5px;line-height:1.25;font-weight:700}#fhdr:empty{display:none}#fhdr b{font-weight:900}
+#fhdr .fc{display:block;color:#000}#fhdr .fn{display:block;color:#c25a00}
+/* 航路点时间线：灰色细线 + 圆圈。下一个点 = 绿色实心圆；移交点 = 橙色圆圈，旁边写下一个管制区 */
+#wpl{flex:1;overflow-y:auto;font-size:13px;background:linear-gradient(#bbb,#bbb) 10px 0/2px 100% no-repeat}
+.wp{position:relative;padding:3px 4px 3px 22px;line-height:1.15;font-weight:800}
+.wp i{position:absolute;left:5px;top:5px;width:12px;height:12px;border-radius:50%;border:2px solid #000;background:#fff;box-sizing:border-box}
+.wp .n{font-size:14px}.wp .d{float:right;font-size:11px;font-weight:700;color:#444;font-variant-numeric:tabular-nums}
+.wp .t{display:block;font-size:11px;font-weight:600;color:#444;font-variant-numeric:tabular-nums}
+.wp.past{color:#aaa;font-weight:500}.wp.past .t{color:#aaa}.wp.past i{border-color:#bbb}
+.wp.ho i{border:3px solid #e07000;width:14px;height:14px;left:4px}
+.wp .hl{display:block;font-size:11px;font-weight:800;color:#c25a00;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wp .hl b{font-weight:900}
+.wp.soon .hl{background:#e07000;color:#fff;border-radius:4px;padding:0 3px}
+.wp.nx{background:#eaf7ee}.wp.nx i{background:#0a8a3a;border-color:#0a8a3a;width:16px;height:16px;left:3px;top:4px}.wp.nx.ho i{border:3px solid #e07000}
+.wp.nx .n{font-size:17px;font-weight:900}.wp.nx .t{color:#0a6a2c;font-weight:800}
+.wmore{padding:3px 4px 3px 22px;font-size:12px;color:#888;font-weight:700}
+/* 警告：独立弹出卡片（没有警告就不显示） */
+#alc{display:none;position:absolute;left:8px;right:52px;bottom:56px;max-height:58%;overflow:hidden;background:#fff;border:3px solid var(--red);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:4}
+#alc .ah{display:flex;align-items:center;padding:4px 8px;background:var(--red);color:#fff;font-size:14px}#alc .ah b{flex:1}#alc .ax{font-size:20px;font-weight:900;padding:0 4px;cursor:pointer}
+#alx{max-height:calc(58vh - 40px);overflow-y:auto;padding:4px;font-size:12.5px}
+#alx .it{margin:3px 0}.alh{font-size:12px;font-weight:900;margin:5px 2px 2px}
+.al{padding:4px 6px;border:1px solid #bbb;border-radius:8px;margin:3px 0;line-height:1.2}.al b{font-weight:900}.al .aw{float:right;font-weight:800;font-variant-numeric:tabular-nums}
 .al .at{font-weight:700;margin-top:2px}.al .at small{display:block;font-weight:500;color:#444}.al .am{font-size:11px;color:#444;margin-top:2px}
-.al.warning{background:var(--red);color:#fff}.al.warning .am,.al.warning .at small{color:#fff}.al.caution{border-left:6px solid var(--red);color:var(--red)}.al.info{border-left:6px solid #000}
-.al.ack{background:#fff;color:#777;border-left:6px solid #ccc;font-size:11.5px}.al.ack b{font-weight:700}
+.al.warning{background:var(--red);color:#fff;border-color:var(--red)}.al.warning .am,.al.warning .at small{color:#fff}.al.caution{border-left:6px solid var(--red);color:var(--red)}.al.info{border-left:6px solid #000}
 .ack-b{float:right;border:1.5px solid currentColor;border-radius:7px;padding:0 6px;font-weight:900}
-.al.hv{border-left:6px solid #e07000;color:#c25a00}.al.hv.soon{background:#e07000;color:#fff}
-.al.ofp{border-left:6px solid #000;font-weight:800}
+#warn{left:auto;right:8px;top:auto;bottom:56px;border-radius:14px;padding:6px 10px;font-size:15px;z-index:3}
 #firl{position:absolute;left:8px;top:8px;z-index:2;background:rgba(255,255,255,.88);border:1.5px solid #e07000;color:#a34a00;border-radius:7px;padding:1px 7px;font-size:12px;font-weight:900;white-space:nowrap;max-width:calc(100% - 60px);overflow:hidden;text-overflow:ellipsis}#firl:empty{display:none}
-#gpsb{position:absolute;left:8px;top:32px;z-index:2;font-size:11px;font-weight:900;border-radius:6px;padding:0 5px;background:#fff;border:1.5px solid #000}#gpsb.gps{background:#0a8a3a;color:#fff;border-color:#0a8a3a}
+#gpsb{position:absolute;left:8px;top:32px;z-index:2;font-size:11px;font-weight:900;border-radius:6px;padding:0 5px;background:#fff;border:1.5px solid #000}#gpsb:empty{display:none}#gpsb.gps{background:#0a8a3a;color:#fff;border-color:#0a8a3a}
 #hov{font-size:13px;font-weight:800;color:#c25a00;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#hov:empty{display:none}
-.wp .d{float:right;font-size:11px;font-weight:700;color:#444;font-variant-numeric:tabular-nums}
 .lbr{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0}.lbt{border:1.5px solid #000;border-radius:7px;padding:1px 6px;font-weight:800;font-variant-numeric:tabular-nums}.lbt i{font-style:normal;font-size:11px;font-weight:600;color:#444;margin-right:3px}.lbt sup{color:#888}
 @media (orientation:landscape){#top{height:30vh;flex-direction:row;align-items:center}#sel{flex:1.3}#tinfo{flex:1}}
-/* iPad / computer landscape: cockpit layout — flight info top-left, alerts top-right, waypoints left, map main */
+/* 横屏（iPad / 电脑 / 手机横放）：上面一整条 = 航班号 + 航班信息；下面 = 很窄的航路点栏 + 地图；警告是地图上的独立弹窗 */
 @media (orientation:landscape) and (min-width:700px){
-#app{display:grid;grid-template-columns:30% 20% 1fr;grid-template-rows:28vh minmax(0,1fr);grid-template-areas:"top top alx" "wpl map map"}
-#main,#side{display:contents}#top{grid-area:top;height:auto;flex-direction:column;align-items:stretch;border-bottom:1px solid #ccc;border-right:1px solid #ccc}#sel{flex:1}#tinfo{flex:none}
-#alx{grid-area:alx;max-height:none;border-top:0;border-bottom:1px solid #ccc;font-size:14px}#alx:empty{display:block}#alx:empty:before{content:"✓";display:block;padding:10px;color:#888;font-size:13px}
-#wpl{grid-area:wpl;border-right:1px solid #bbb;font-size:15px}#mapw{grid-area:map}.wp{padding:5px 8px}.wp .t{font-size:13px}
-#legs{position:fixed;left:8px;top:8px;width:45%;z-index:8}#menu{position:fixed;left:0;right:0;bottom:0;z-index:8}#empty{grid-column:1/-1;grid-row:1/-1}
-.wp.nx{outline-width:4px}}
+#top{height:26vh;padding:4px 12px;gap:14px}#sel{flex:1.15;justify-content:flex-start}#tinfo{flex:1;justify-content:center}
+#main{flex-direction:row-reverse}#side{width:17%;min-width:118px;max-width:190px;border-left:0;border-right:1px solid #bbb}
+.wp .t{font-size:10.5px}.wp .n{font-size:13px}.wp.nx{padding-top:6px;padding-bottom:6px}.wp.nx .n{font-size:22px}.wp.nx .t{font-size:13px}.wp.nx i{width:20px;height:20px;left:1px;top:9px}
+#fhdr{font-size:12px}#alc{left:auto;right:56px;top:10px;bottom:auto;width:min(380px,45%);max-height:70%}#alx{max-height:calc(70vh - 60px)}
+#warn{top:10px;bottom:auto;right:56px}#legs{position:fixed;left:8px;top:8px;width:45%;z-index:8}#menu{position:fixed;left:0;right:0;bottom:0;z-index:8}}
 </style>
 </head>
 <body>
@@ -91,7 +100,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
   <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span>
-    <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><span id="warn"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="wpl"></div><div id="alx"></div></div></div>
+    <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><span id="warn"></span><div id="wpop"></div><div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div></div></div>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
   <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新（读日历和邮箱）|Update (calendar & mail)"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光（白天完全关灯）|Allow backlight control (fully off in daylight)"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划（云端 / 邮箱 / 手机文件）|Choose OFP (cloud / mail / file)"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域提醒数据库（Flight Intelligence）|Flight Intelligence database"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许使用 GPS（飞行中离线定位）|Allow GPS (offline position in flight)"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示（快放整个航班）|Demo (fast-forward the flight)"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查新版本|Check for app update"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
@@ -175,7 +184,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190527';
+const PAGEV = '202611190547';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -204,7 +213,7 @@ async function update(quiet) {
       ls('legs', JSON.stringify(LEGS));
     }
     // 只留：还没落地超过 6 小时、40 小时以内起飞的
-    LEGS = LEGS.filter(l => l.std > now - 3 * 864e5 && l.std < now + 3 * 864e5).sort((a, b) => a.std - b.std);   // 保留 3 天：往返两段都在，还能演示
+    LEGS = LEGS.filter(l => (l.std > now - 3 * 864e5 && l.std < now + 3 * 864e5) || l.k === ls('pin')).sort((a, b) => a.std - b.std);   // 保留 3 天：往返两段都在，还能演示
     ls('legs', JSON.stringify(LEGS)); ls('upd', String(now));
     MSG = got ? '✅ ' + X('收到 ' + got + ' 份 OFP', got + ' OFP(s) received') : '✅ ' + X('已是最新', 'Up to date');
     if (NEWL.length) newBanner();
@@ -256,7 +265,7 @@ const FIRN = [
 const SV = 2;   // 摘要格式版本：旧的（没有航路坐标）有网时会重新读
 const FIRALIAS = { ZGGG: 'ZGZU', ZGNN: 'ZGZU', ZJSY: 'ZJSA', ZPPP: 'ZPKM', ZBAA: 'ZBPE', ZSSS: 'ZSHA', ZHHH: 'ZHWH', ZLLL: 'ZLHW', ZWWW: 'ZWUQ' };
 function summarize(o) {
-  const f = o.flight, t = o.times, W = o.weights || {}, F = o.fuel || {}, N = o.navlog || [], X = o.fixes || {};
+  const f = o.flight, t = o.times, W = o.weights || {}, F = o.fuel || {}, N = o.navlog || [], X = wptFill(N, Object.assign({}, o.fixes || {}));   // 缺坐标的点用上传的航路点数据库补
   const off0 = t.std + (t.taxi || 0) * MIN, eta0 = off0 + (t.trip || 0) * MIN, ref = f.dateUTC + 12 * HOUR;
   const apRisk = (icao, at, role) => {
     const a = o.airports[icao] || {}, out = [];
@@ -387,7 +396,7 @@ function drawMap(L, el, ph, S, hot) {
     LAND.land.forEach((r, i) => { if (!vis(LAND.bb[i])) return; g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.closePath(); g.fill(); g.stroke(); });
     g.strokeStyle = '#c2ad80'; g.setLineDash([3, 3]); g.lineWidth = .7;
     LAND.border.forEach((r, i) => { if (!vis(LAND.bbb[i])) return; g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.stroke(); }); g.setLineDash([]); }
-  fiDrawMap(g, xy, hot || {});   // Flight Intelligence 区域（紫色虚线；正在提醒的变红）
+  fiDrawMap(g, xy, hot || {}, W, H);   // Flight Intelligence 区域（紫色虚线；正在提醒的变红）
   // 通告区域（红色）
   Object.keys(AREAS).forEach(id => { const A = AREAS[id]; g.strokeStyle = '#d00000'; g.fillStyle = 'rgba(208,0,0,.13)'; g.lineWidth = 2.5; g.setLineDash([7, 4]); g.beginPath();
     if (A.poly) A.poly.forEach((p, i) => { const q = xy(p[0], p[1]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
@@ -405,12 +414,12 @@ function drawMap(L, el, ph, S, hot) {
   const nxt = ph === 1 ? N.find(w => w[1] > el) : null, FIRAT = {}; (L.fi || []).forEach(f => FIRAT[f[2]] = f);
   N.forEach((w, i) => { const q = xy(w[2], w[3]); if (q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) return;
     const fw = FIRWP.has(w[0]), soon = fw && ph === 1 && w[1] - el > 0 && w[1] - el <= 10;
-    if (nxt && w === nxt) { g.strokeStyle = '#0a8a3a'; g.lineWidth = 3; g.strokeRect(q[0] - 8, q[1] - 8, 16, 16); }   // 下一个点：绿框
-    if (fw) { const f = FIRAT[w[0]], lab = '▸ ' + f[1] + ' ' + f[0];   // 移交点：橙色，旁边写管制区；快到（10 分钟内）变红并闪
-      if (!(soon && BLINK)) { g.font = 'bold 12px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? '#d00000' : 'rgba(255,244,230,.92)'; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); g.fillStyle = soon ? '#fff' : '#c25a00'; g.fillText(lab, q[0] - tw / 2, q[1] + 22); g.font = 'bold 11px sans-serif'; } }
-    g.fillStyle = fw ? (soon ? '#d00000' : '#e07000') : '#000';
-    if (fw) { g.beginPath(); g.moveTo(q[0], q[1] - 6); g.lineTo(q[0] + 6, q[1]); g.lineTo(q[0], q[1] + 6); g.lineTo(q[0] - 6, q[1]); g.closePath(); g.fill(); } else g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5);
-    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); g.fillStyle = fw ? (soon ? '#d00000' : '#c25a00') : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
+    if (nxt && w === nxt) { g.strokeStyle = '#0a8a3a'; g.lineWidth = 3.5; g.beginPath(); g.arc(q[0], q[1], 10, 0, 7); g.stroke(); }   // 下一个点：绿色圆圈
+    if (fw) { const f = FIRAT[w[0]], lab = '→ ' + f[0] + ' ' + f[1];   // 移交点：橙色，旁边写管制区；快到（10 分钟内）变红并闪
+      if (!(soon && BLINK)) { g.font = 'bold 12px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? '#e07000' : 'rgba(255,244,230,.92)'; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); g.fillStyle = soon ? '#fff' : '#c25a00'; g.fillText(lab, q[0] - tw / 2, q[1] + 22); g.font = 'bold 11px sans-serif'; } }
+    g.fillStyle = '#000';
+    if (fw) { g.strokeStyle = '#e07000'; g.lineWidth = 3; g.fillStyle = soon ? '#e07000' : '#fff'; g.beginPath(); g.arc(q[0], q[1], 6, 0, 7); g.fill(); g.stroke(); } else g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5);   // 移交点：橙色圆圈
+    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); g.fillStyle = fw ? '#c25a00' : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
   // 飞机
   const ac = xy(P[0], P[1]); let hdg = 0;
   if (S && S.src === 'GPS' && GPS.fix && GPS.fix.trk >= 0 && GPS.fix.gs > 50) hdg = GPS.fix.trk * Math.PI / 180;
@@ -429,7 +438,7 @@ function drawMap(L, el, ph, S, hot) {
    ===================================================================== */
 const item = x => '<div class="it ' + (x.lv === 'red' ? 'red' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-id="' + esc(x.id) + '"' : '') + '>' + (x.id ? '<span class="go">' + X('全文', 'Full') + (WX.area(ntText(x.loc, x.id)) ? ' 🗺' : '') + '</span>' : '') + (x.lv === 'red' ? '⛔ ' : '⚠︎ ') + esc(LANG === 'en' ? x.en : x.zh) + (LANG === 'both' ? '<small>' + esc(x.en) + '</small>' : '') + '</div>';
 const tile = (l, v, s, id) => '<div class="c"' + (id ? ' id="' + id + '"' : '') + '><div class="l">' + l + '</div><div class="v">' + v + (s ? ' <span class="s">' + s + '</span>' : '') + '</div></div>';
-let CUR = null, wplTouch = 0, HOV = null;
+let CUR = null, wplTouch = 0, HOV = null, ALSIG = '';
 let WARN = { list: [] }, WSIG = '', wTimer = null;
 // ---------- 演示：把这个航班快放一遍（大约 90 秒），看看哪里有问题 ----------
 // ---------- 📂 选择飞行计划：云端 / 邮箱 / 手机里的文件（自动推送不来时，自己拿） ----------
@@ -438,19 +447,20 @@ async function useOfpText(txt, src, id) {
   const leg = summarize(o); leg.fid = id || ('local:' + leg.k + ':' + txt.length); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]).sort((a, b) => a.std - b.std); ls('legs', JSON.stringify(LEGS));
   ls('pin', leg.k); if (src !== 'cloud') cloudUp(txt, o); return leg;
 }
-async function pickOfp() {
+async function pickOfp(days) {
+  days = days || 7;
   const sh = $('sheet'); sh.style.display = 'block'; sh.scrollTop = 0;
   const log = m => { $('pk-st').innerHTML = m; };
   sh.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">📂 ' + X('选择飞行计划', 'Choose OFP') + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>'
-    + '<div id="pk-st" class="ok" style="color:#000;font-weight:700"></div><span class="btn" id="pk-file">📄 ' + X('从手机里选 PDF / 文字文件', 'Pick a PDF / text file on the phone') + '</span><div id="pk-list"></div>';
+    + '<div id="pk-st" class="ok" style="color:#000;font-weight:700"></div><span class="btn" id="pk-file">📄 ' + X('从手机里选 PDF / 文字文件', 'Pick a PDF / text file on the phone') + '</span>' + (days < 30 ? '<span class="btn" id="pk-old">📅 ' + X('显示更早的（30 天内，可以拿旧 OFP 测试）', 'Older (30 days, for testing)') + '</span>' : '') + '<div class="ok">' + X('旧航班读进来以后会自动快放演示一遍（约 90 秒），不影响正常航班。', 'A past flight is replayed as a demo (~90 s) after loading.') + '</div><div id="pk-list"></div>';
   $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); };
-  $('pk-file').onclick = () => $('f-ofp').click();
+  $('pk-file').onclick = () => $('f-ofp').click(); if ($('pk-old')) $('pk-old').onclick = () => pickOfp(30);
   const rows = []; log('⏳ ' + X('正在看云端和邮箱…', 'Checking cloud and mail…'));
   const errs = [];
-  try { const j = await withTimeout(postK({ action: 'ofpmail', days: 7 }), 90000); if (j && j.ok) { if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); }
+  try { const j = await withTimeout(postK({ action: 'ofpmail', days }), 90000); if (j && j.ok) { if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); }
       (j.files || []).filter(f => LIDO.test(f.name || '') || /OFP/i.test((f.name || '') + ' ' + (f.subject || ''))).forEach(f => rows.push({ src: 'mail', id: f.id, t: f.t, name: f.name + ' · ' + X('收到 ', 'received ') + dmZ(f.t) + ' · ' + ((f.size || 0) / 1e6).toFixed(1) + ' MB' })); }
     else errs.push(X('邮箱：', 'Mail: ') + ((j && j.error) || '?')); } catch (e) { errs.push(X('邮箱：', 'Mail: ') + e.message); }
-  try { const r = await ghRaw('ofpdata/index.json'); if (r) (await r.json()).filter(x => x.meta && x.meta.std > Date.now() - 7 * 864e5).forEach(x => rows.push({ src: 'cloud', id: x.k, t: x.meta.std, name: (x.meta.no || x.k) + ' ' + (x.meta.depI || x.meta.dep || '') + '→' + (x.meta.arrI || x.meta.arr || '') + ' ' + dmZ(x.meta.std) })); else errs.push(X('云端：', 'Cloud: ') + (GH().tok ? X('读不到（GitHub）', 'not reachable') : X('还没有同步码（先在有网时点一次 🔄 更新）', 'no sync key yet'))); } catch (e) { errs.push(X('云端：', 'Cloud: ') + e.message); }
+  try { const r = await ghRaw('ofpdata/index.json'); if (r) (await r.json()).filter(x => x.meta && x.meta.std > Date.now() - days * 864e5).forEach(x => rows.push({ src: 'cloud', id: x.k, t: x.meta.std, name: (x.meta.no || x.k) + ' ' + (x.meta.depI || x.meta.dep || '') + '→' + (x.meta.arrI || x.meta.arr || '') + ' ' + dmZ(x.meta.std) })); else errs.push(X('云端：', 'Cloud: ') + (GH().tok ? X('读不到（GitHub）', 'not reachable') : X('还没有同步码（先在有网时点一次 🔄 更新）', 'no sync key yet'))); } catch (e) { errs.push(X('云端：', 'Cloud: ') + e.message); }
   rows.sort((a, b) => b.t - a.t);
   $('pk-list').innerHTML = rows.map((r, i) => '<div class="nt" data-i="' + i + '" style="cursor:pointer"><b>' + (r.src === 'cloud' ? '☁️ ' : '📧 ') + esc(r.name) + '</b>' + (LEGS.some(l => l.fid && l.fid.indexOf(r.id) >= 0) ? ' <span class="tm">✓ ' + X('手机里已有', 'on phone') + '</span>' : '') + '</div>').join('') || '<div class="ok">' + X('云端和邮箱里都没找到 OFP', 'No OFP in cloud or mail') + '</div>';
   log(errs.length ? '⚠️ ' + errs.map(esc).join('<br>⚠️ ') : X('点一个来下载、读取（会存在手机里，离线可用）', 'Tap one to download and read it (stored on the phone)'));
@@ -459,15 +469,17 @@ async function pickOfp() {
       if (r.src === 'cloud') { log('⏳ ' + X('云端下载…', 'Downloading…')); const f = await ghRaw('ofpdata/' + r.id + '.txt.gz'); if (!f) throw new Error('GitHub'); const txt = await gunzip(new Uint8Array(await f.arrayBuffer())); const leg = await useOfpText(txt, 'cloud', 'cloud:' + r.id + ':' + txt.length); log('✅ ' + esc(leg.no) + ' ' + X('已读入', 'loaded')); }
       else { log('⏳ ' + X('从邮箱下载…（大文件要 10–60 秒）', 'Downloading from mail… (10–60 s)')); const u8 = await getFile(r.id);
         const txt = await pdfText(u8, (n, N) => log('⏳ ' + X('读取 PDF ', 'Reading PDF ') + n + '/' + N)); const leg = await useOfpText(txt, 'mail', r.id); log('✅ ' + esc(leg.no) + ' ' + X('已读入，并传到云端', 'loaded and uploaded to the cloud')); }
-      setTimeout(() => { sh.style.display = 'none'; draw(); }, 900);
+      setTimeout(() => { sh.style.display = 'none'; draw(); maybeDemo(); }, 900);
     } catch (x) { log('❌ ' + X('失败：', 'Failed: ') + esc(x.message || String(x))); } };
 }
 $('f-ofp').onchange = async () => { const f = $('f-ofp').files[0]; $('f-ofp').value = ''; if (!f) return; const log = m => { const s = $('pk-st'); if (s) s.innerHTML = m; else MSG = m.replace(/<[^>]+>/g, ''); };
   try { log('⏳ ' + X('读取 ', 'Reading ') + esc(f.name)); const u8 = new Uint8Array(await f.arrayBuffer());
     const txt = /%PDF/.test(String.fromCharCode.apply(null, u8.subarray(0, 1024))) ? await pdfText(u8, (n, N) => log('⏳ ' + X('读取 PDF ', 'Reading PDF ') + n + '/' + N)) : new TextDecoder().decode(u8);
-    const leg = await useOfpText(txt, 'file'); log('✅ ' + esc(leg.no) + ' ' + X('已读入，并传到云端', 'loaded and uploaded to the cloud')); setTimeout(() => { $('sheet').style.display = 'none'; draw(); }, 900);
+    const leg = await useOfpText(txt, 'file'); log('✅ ' + esc(leg.no) + ' ' + X('已读入，并传到云端', 'loaded and uploaded to the cloud')); setTimeout(() => { $('sheet').style.display = 'none'; draw(); maybeDemo(); }, 900);
   } catch (x) { log('❌ ' + X('失败：', 'Failed: ') + esc(x.message || String(x))); } };
 let DEMO = null, BLINK = false;
+// 读进来的是已经飞完的旧航班：自动快放演示（拿旧 OFP 测试界面、提醒）
+function maybeDemo() { const L = pick(Date.now()); if (!L || L.noOfp || DEMO) return; if (offOf(L) + (L.tr + 30) * MIN < Date.now()) { MSG = '▶ ' + X('旧航班：快放演示', 'Past flight: demo replay'); demo(); } }
 // 有新航班下载下来：顶上弹出绿色提示，点「查看」切过去
 let NEWL = [];
 function newBanner() {
@@ -526,9 +538,9 @@ function draw() {
     setNight(MODE === 'night'); return; }
   ['row', 'top'].forEach(i => $(i).style.display = ''); $('main').style.display = ''; $('empty').style.display = 'none';
   const std = L.std, off = offOf(L), on = off + L.tr * MIN, LS = L.noOfp ? { el: (now - off) / MIN, ph: now < off ? 0 : now < on ? 1 : 2, src: 'PLAN' } : liveState(L, now, off, on), el = LS.el, ph = LS.ph;   // GPS 优先，没有就按计划
-  const cs = csOf(L), m = /^([A-Z]{3})([A-Z0-9]+)$/.exec(cs) || [0, '', cs];
-  const fl = '<small>' + m[1] + '</small>' + esc(m[2]) + '<span class="dd">' + (ls('cs.' + L.k) ? '✎' : '▾') + '</span>'; if ($('fl').innerHTML !== fl) { $('fl').innerHTML = fl; } fitFl();
-  $('rt').innerHTML = esc(L.ai) + ' → ' + esc(L.bi) + ' <span>' + esc(L.no) + (L.reg ? ' · ' + esc(L.reg) : '') + '</span> <b id="phx" style="color:var(--red);font-size:14px"></b>';
+  const cs = csOf(L), dg = String(L.no || '').replace(/^[A-Z]{2}/, '').replace(/^0+(?=\d)/, '');
+  const fl = '<small>EK</small>' + esc(dg) + '<span class="dd">▾</span>'; if ($('fl').innerHTML !== fl) { $('fl').innerHTML = fl; } fitFl();   // 航班号统一 EK 开头；ATC 呼号写在下面一行
+  $('rt').innerHTML = esc(L.ai) + ' → ' + esc(L.bi) + ' <span>' + esc(cs) + (ls('cs.' + L.k) ? '✎' : '') + (L.reg ? ' · ' + esc(L.reg) : '') + '</span> <b id="phx" style="color:var(--red);font-size:14px"></b>';
   $('ph').style.display = 'none'; $('phx').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : X('起飞前 ', 'T/O in ') + dur((off - now) / MIN)) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
   const P = LS.P ? { p: LS.P } : wpos(L, ph === 0 ? -1 : ph === 2 ? 1e9 : el);
   if (!DEMO) setNight(MODE === 'night' || (MODE === 'auto' && P && isDark(now, [0, P.p[0], P.p[1]], LS.alt != null ? LS.alt : altAt(L, ph, el))));
@@ -550,29 +562,32 @@ function draw() {
   // 地图
   const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
   if (!L.noOfp && !pre) drawMap(L, el, ph, LS, HOT); else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); }
-  // 右边：流动的航路点 + 管制区分界（有风险的红色）
+  // 右边：航路点时间线（下一个点绿色圆圈，移交点橙色圆圈并写下一个管制区；不用红线）
   if (!L.noOfp) {
     const riskFir = new Set((L.R.enr || []).map(r => r[2].loc)), FIW = {}; FI.forEach(f => FIW[f[2]] = f);
-    // 只列附近的点：手机竖屏约 15 个、iPad 横屏约 8 个（下一个点绿框，移交点橙色），带距离和预计时间
     const wide = matchMedia('(orientation:landscape) and (min-width:700px)').matches, all = ls('wpall') === '1';
     const Nc = N.filter(w => w.length >= 4), cum = cumNm(Nc), dNow = alongNm(Nc, cum, Math.max(0, el));
-    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), a0 = all ? 0 : Math.max(0, ni - (wide ? 1 : 2)), a1 = all ? N.length : Math.min(N.length, ni + (wide ? 7 : 13));
-    let h = a0 > 0 ? '<div class="wp past" data-more="1">⋯ ' + a0 + '</div>' : '', nowDone = false;
-    N.slice(a0, a1).forEach((w, j) => { const i = a0 + j;
-      if (ph === 1 && !nowDone && w[1] > el) { h += '<div class="nowl" id="wpnow"></div>'; nowDone = true; }
-      const f = FIW[w[0]]; if (f) { const code = FIRALIAS[f[1]] || f[1], cnt = (L.nt[code] || L.nt[f[1]] || []).length; h += '<div class="fir' + (riskFir.has(code) ? ' risk' : '') + (ph === 1 && f[3] - el > 0 && f[3] - el <= 10 ? ' soon' : '') + '" data-fir="' + esc(code) + '">' + (riskFir.has(code) ? '⚠ ' : '▸ ') + esc(f[1]) + ' ' + esc(f[0]) + (cnt ? ' · ' + cnt : '') + '</div>'; }
-      const past = ph === 1 && w[1] <= el || ph === 2, dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
-      h += '<div class="wp' + (past ? ' past' : '') + (nx && w === nx ? ' nx' : '') + '" data-w="' + esc(w[0]) + '">' + esc(w[0]) + (dd != null && dd >= 0 ? '<span class="d">' + dd + '</span>' : '') + '<span class="t">' + hmZ(off + w[1] * MIN) + 'Z' + (!past && ph === 1 ? ' · ' + dur(w[1] - el) : '') + '</span></div>';
+    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), a0 = all ? 0 : Math.max(0, ni - 1), a1 = all ? N.length : Math.min(N.length, ni + (wide ? 8 : 13));
+    let h = a0 > 0 ? '<div class="wmore" data-more="1">⋯ ' + a0 + '</div>' : '';
+    N.slice(a0, a1).forEach(w => {
+      const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
+      const dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
+      h += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + (f && ph === 1 && f[3] - el > 0 && f[3] - el <= 10 ? ' soon' : '') + '" data-w="' + esc(w[0]) + '"><i></i><span class="n">' + esc(w[0]) + '</span>' + (dd != null && dd >= 0 ? '<span class="d">' + dd + '</span>' : '')
+        + '<span class="t">' + hmZ(off + w[1] * MIN) + 'Z' + (!past && ph === 1 ? ' · ' + dur(w[1] - el) : '') + '</span>'
+        + (f ? '<span class="hl" data-fir="' + esc(code) + '">→ ' + (riskFir.has(code) ? '⚠ ' : '') + esc(f[0]) + ' <b>' + esc(f[1]) + '</b></span>' : '') + '</div>';
     });
-    if (a1 < N.length || all) h += '<div class="wp past" data-more="1">' + (all ? '▴ ' + X('只看附近', 'Nearby only') : '⋯ +' + (N.length - a1)) + '</div>';
+    if (a1 < N.length || all) h += '<div class="wmore" data-more="1">' + (all ? '▴ ' + XS('只看附近', 'Nearby only') : '⋯ +' + (N.length - a1)) + '</div>';
     if ($('wpl').innerHTML !== h) { $('wpl').innerHTML = h; }
-    if (all && Date.now() - wplTouch > 30000) { const a = $('wpl').querySelector('.wp.nx') || $('wpl').querySelector('#wpnow'); if (a) $('wpl').scrollTop = Math.max(0, a.offsetTop - $('wpl').offsetTop - 40); }
-    // 下一个移交点：剩余距离和时间（航班信息旁边）
-    const hx = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el));
+    if (all && Date.now() - wplTouch > 30000) { const a = $('wpl').querySelector('.wp.nx'); if (a) $('wpl').scrollTop = Math.max(0, a.offsetTop - $('wpl').offsetTop - 40); }
+    // 现在的管制区 → 下一个管制区（剩余时间、距离）
+    const hx = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el)), cf = FI.filter(f => f[3] <= Math.max(0, el)).slice(-1)[0];
     HOV = hx ? { f: hx, min: hx[3] - Math.max(0, el), nm: Math.round(alongNm(Nc, cum, hx[3]) - dNow), t: off + hx[3] * MIN } : null;
+    const curF = cf ? [cf[1], cf[0]] : FH ? [FH.id, ''] : [L.dep, ''];
+    const fh = '<span class="fc"><b>' + esc(curF[0]) + '</b> ' + esc(curF[1]) + '</span>' + (HOV ? '<span class="fn">▸ <b>' + esc(HOV.f[1]) + '</b> ' + esc(HOV.f[0]) + '<br>' + dur(HOV.min) + ' · ' + HOV.nm + ' NM</span>' : '');
+    if ($('fhdr').innerHTML !== fh) $('fhdr').innerHTML = fh;
     $('hov').textContent = HOV ? '▸ ' + XS('下一个移交 ', 'Next handover ') + HOV.f[1] + ' ' + HOV.f[0] + ' · ' + dur(HOV.min) + ' · ' + HOV.nm + ' NM · ' + hmZ(HOV.t) + 'Z' : '';
-  } else { $('wpl').innerHTML = ''; HOV = null; $('hov').textContent = ''; }
-  // 警告：地图左边的红色三角（点开看）；有新的就自动弹出 20 秒再收起
+  } else { $('wpl').innerHTML = ''; $('fhdr').innerHTML = ''; HOV = null; $('hov').textContent = ''; }
+  // 警告：独立的弹出卡片。没有警告就什么都不显示；有新的才弹出，可以手动关（关了以后地图上留一个小「⚠ n」可以再打开）
   let list = [], title = '';
   if (!L.noOfp) {
     if (ph === 0 || el < 20) { title = '🛫 ' + X('起飞', 'Departure') + ' ' + L.ai; list = L.R.dep; }
@@ -580,15 +595,16 @@ function draw() {
     else { title = '🛬 ' + X('落地', 'Arrival') + ' ' + L.bi; list = L.R.arr; }
   }
   WARN = { title, list, L, ph };
-  $('warn').style.display = 'none';   // 改到右下角的提醒栏里 $('warn').textContent = '⚠ ' + list.length;
-  const sig = L.k + '|' + list.map(x => x.id || x.zh).join(',');
-  if (list.length && sig !== WSIG) { WSIG = sig; }   // 不再自动盖住地图：在提醒栏里点开 else if (!list.length) { WSIG = sig; $('wpop').style.display = 'none'; }
-  else if ($('wpop').style.display === 'block') showWarn(0);
-  // 提醒栏（手机：右下角；iPad 横屏：右上角）：Flight Intelligence 区域提醒 > 移交点 > OFP 里的警告，按等级排
-  let ax = alertHtml(L, FA);
-  if (HOV && ph === 1 && HOV.min <= 15) ax += '<div class="al hv' + (HOV.min <= 5 ? ' soon' : '') + '" data-fir="' + esc(FIRALIAS[HOV.f[1]] || HOV.f[1]) + '"><b>▸ ' + esc(HOV.f[1]) + ' ' + esc(HOV.f[0]) + '</b> <span class="aw">' + dur(HOV.min) + ' · ' + HOV.nm + ' NM</span><div class="am">' + XS('移交 ', 'Handover at ') + esc(HOV.f[2]) + ' ' + hmZ(HOV.t) + 'Z</div></div>';
-  if (list.length) ax += '<div class="al ofp" data-ofp="1">' + esc(title) + ' · ⚠ ' + list.length + ' <span class="aw">' + XS('点开', 'open') + '</span></div>';
+  const live = FA.filter(a => !acked(L, a)), sig = L.k + '|' + live.map(a => ackKey(L, a)).concat(list.map(x => x.id || x.zh)).join(',');
+  const n = live.length + list.length;
+  let ax = alertHtml(L, live);
+  if (list.length) ax += '<div class="alh">' + esc(title) + ' · OFP</div>' + list.map(item).join('');
   if ($('alx').innerHTML !== ax) $('alx').innerHTML = ax;
+  $('alt').textContent = '⚠ ' + XS('警告 ', 'Warnings ') + n;
+  ALSIG = sig; const closed = ls('alclosed') === sig;
+  $('alc').style.display = n && !closed && !pre ? 'block' : 'none';
+  $('warn').style.display = n && (closed || pre) ? 'block' : 'none'; $('warn').textContent = '⚠ ' + n;
+  if (n && !closed && sig !== WSIG && !DEMO) { WSIG = sig; }
   alertSound(L, FA);
 }
 
@@ -597,7 +613,7 @@ function draw() {
    ===================================================================== */
 function openNotams(loc, onlyId) {
   const L = CUR; if (!L || !L.nt) return;
-  const list = (L.nt[loc] || []).filter(n => !onlyId || n[0] === onlyId);
+  const list = (L.nt[loc] || []).concat(fiNotams(loc, NOW()).map(x => [x.nid + ' 📤', x.text, x.from ? Date.parse(x.from) : null, x.to ? Date.parse(x.to) : null])).filter(n => !onlyId || n[0] === onlyId);   // 📤 = 电脑上传的
   const card = n => { const zh = trName(L, n[0]), A = WX.area(n[1]);
     return '<div class="nt"><span class="id">' + esc(n[0]) + '</span> <span class="tm">' + (n[2] ? dmZ(n[2]) : '') + ' – ' + (n[3] ? dmZ(n[3]) : 'UFN') + '</span>'
       + (LANG !== 'en' ? '<div class="zh">' + (zh ? esc(zh) : '<span style="color:var(--dim);font-weight:500">' + X('（还没翻译：有网时在 iPad 上打开这份 OFP，AI 翻好会存到云端）', '(not translated yet)') + '</span>') + '</div>' : '')
@@ -624,15 +640,16 @@ $('b-pick').onclick = () => pickOfp();
 $('b-upd').onclick = () => { try { if (window.AndroidPanel && AndroidPanel.checkNow) { AndroidPanel.checkNow(); MSG = '⏳ ' + X('正在检查新版本…（有新的会自动换上并显示「已更新」）', 'Checking for updates…'); } else { MSG = X('网页版：刷新页面就是最新', 'Web version: reload to update'); location.reload(); } } catch (e) {} draw(); };
 $('newb').onclick = e => { const b = e.target.closest('[data-k]'); if (b) { ls('pin', b.dataset.k); draw(); } $('newb').style.display = 'none'; }; $('demob').onclick = () => demo();
 $('board').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
-$('warn').onclick = () => { if ($('wpop').style.display === 'block') $('wpop').style.display = 'none'; else showWarn(0); };
+$('warn').onclick = () => { ls('alclosed', ''); draw(); };
 $('wpop').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); else $('wpop').style.display = 'none'; };
-$('wpl').onclick = e => { if (e.target.closest('[data-more]')) { ls('wpall', ls('wpall') === '1' ? '0' : '1'); draw(); return; } const t = e.target.closest('.fir[data-fir]'); if (t) { openNotams(t.dataset.fir); return; }
+$('wpl').onclick = e => { if (e.target.closest('[data-more]')) { ls('wpall', ls('wpall') === '1' ? '0' : '1'); draw(); return; } const t = e.target.closest('[data-fir]'); if (t) { openNotams(t.dataset.fir); return; }
   const w = e.target.closest('.wp[data-w]'); if (!w || !CUR || !CUR.n) return;   // 点航路点：填过这个点的实际时间
   const v = prompt(X('过 ', 'Time over ') + w.dataset.w + X(' 的实际时间（UTC，4 位，例如 0815；留空 = 取消过点修正）', ' (UTC, e.g. 0815; empty = clear)'), hmZ(Date.now())); if (v === null) return;
   if (!/^\d{4}$/.test(v.trim())) { ls('ato.' + CUR.k, ''); draw(); return; }
   const wp = CUR.n.find(x => x[0] === w.dataset.w), plan = offOf(CUR) + wp[1] * MIN, d0 = Date.UTC(new Date(plan).getUTCFullYear(), new Date(plan).getUTCMonth(), new Date(plan).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
   ls('ato.' + CUR.k, JSON.stringify({ w: wp[0], t: [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - plan) - Math.abs(b - plan))[0] })); draw(); };
-$('alx').onclick = e => { const a = e.target.closest('.al'); if (!a) return;
+$('alc-x').onclick = () => { ls('alclosed', ALSIG); draw(); };
+$('alx').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) { openNotams(t.dataset.loc, t.dataset.id); return; } const a = e.target.closest('.al'); if (!a) return;
   if (e.target.closest('.ack-b')) { ls(a.dataset.ak, String(Date.now())); draw(); return; }   // 确认：变成灰色小字，不再响
   if (a.dataset.ofp) { showWarn(0); return; } if (a.dataset.fir) { openNotams(a.dataset.fir); return; } if (a.dataset.id) fiDetail(a.dataset.id); };
 $('wpl').addEventListener('scroll', () => { wplTouch = Date.now(); }, { passive: true });

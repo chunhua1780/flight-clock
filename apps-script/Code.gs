@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-19a';
+const BACKEND_VER = '2026-11-19b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -1374,9 +1374,14 @@ function fiExtract_(j) {
 }
 function fiLoad_() {
   const cur = gh_('get', 'fidata/db.json'); let db = { v: 0, t: 0, items: [] }, sha = null;
-  if (cur && cur.code === 200 && cur.j) { sha = cur.j.sha; try { db = JSON.parse(Utilities.newBlob(Utilities.base64Decode(cur.j.content)).getDataAsString('UTF-8')); } catch (e) {} }
+  if (cur && cur.code === 200 && cur.j) { sha = cur.j.sha;
+    try { db = JSON.parse(cur.j.content && cur.j.encoding === 'base64' ? Utilities.newBlob(Utilities.base64Decode(cur.j.content)).getDataAsString('UTF-8') : ghRawText_('fidata/db.json')); } catch (e) {} }   // 超过 1 MB（航路点很多）时 GitHub 不直接给内容，另外下载原文
   else if (!cur) throw new Error('no GitHub token');
   return { db: db, sha: sha };
+}
+function ghRawText_(path) {
+  const pr = PropertiesService.getScriptProperties(), tok = pr.getProperty('GITHUB_TOKEN') || GITHUB_TOKEN_INLINE, repo = pr.getProperty('GITHUB_REPO') || GITHUB_REPO_INLINE;
+  return UrlFetchApp.fetch('https://api.github.com/repos/' + repo + '/contents/' + path, { muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github.raw+json' } }).getContentText('UTF-8');
 }
 function fiGet_() { try { return { ok: true, db: fiLoad_().db }; } catch (e) { return { ok: false, error: String(e).slice(0, 160) }; } }
 function fiPut_(j) {

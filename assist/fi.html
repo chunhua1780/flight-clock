@@ -30,7 +30,7 @@ textarea{min-height:70px;font-family:ui-monospace,Menlo,monospace;font-size:13px
 <header><b>🛰 Flight Intelligence</b><span class="small" id="dbv"></span><span style="flex:1"></span>
   <select id="flt" style="width:auto"><option value="all">全部 All</option><option value="draft">待审核 Draft</option><option value="approved">已审核 Approved</option><option value="expired">过期 Expired</option></select>
   <input id="q" placeholder="搜索 Search" style="width:150px">
-  <button class="btn" id="b-new">＋ 手动添加</button><button class="btn pri" id="b-save">☁️ 保存到云端</button><a class="btn" href="./" style="text-decoration:none">✕</a></header>
+  <a class="btn" href="data.html" style="text-decoration:none">📤 批量上传（JSON / CSV / Excel）</a><button class="btn" id="b-new">＋ 手动添加</button><button class="btn pri" id="b-save">☁️ 保存到云端</button><a class="btn" href="./" style="text-decoration:none">✕</a></header>
 <main>
   <section>
     <div class="card"><div id="drop">📤 上传资料（PDF、Word、Excel、图片、KML / GeoJSON / GPX / CSV 坐标文件）<br><span class="small">AI 自动提取区域、FIR、坐标、高度、生效时间、提醒距离、注意事项 —— 全部是「待审核」，你核对后点 ✓ 审核通过才会在 Panel 上提醒</span><br><br>
@@ -150,9 +150,9 @@ $('f').onchange = async () => { const fs = [...$('f').files]; $('f').value = '';
 
 // ---------- 列表 ----------
 function render() {
-  $('dbv').textContent = 'v' + (DB.v || 0) + ' · ' + DB.items.length + ' 条' + (Object.keys(DIRTY).length ? ' · ' + Object.keys(DIRTY).length + ' 条未保存' : '');
+  $('dbv').textContent = 'v' + (DB.v || 0) + ' · ' + DB.items.filter(x => x.kind !== 'wpt').length + ' 条区域 / NOTAM · ' + DB.items.filter(x => x.kind === 'wpt').length + ' 个航路点' + (Object.keys(DIRTY).length ? ' · ' + Object.keys(DIRTY).length + ' 条未保存' : '');
   const f = $('flt').value, q = $('q').value.trim().toLowerCase();
-  const L = DB.items.filter(x => f === 'all' || (f === 'draft' ? x.status !== 'approved' : f === 'expired' ? expired(x) : x.status === 'approved' && !expired(x)))
+  const L = DB.items.filter(x => x.kind !== 'wpt').filter(x => f === 'all' || (f === 'draft' ? x.status !== 'approved' : f === 'expired' ? expired(x) : x.status === 'approved' && !expired(x)))
     .filter(x => !q || JSON.stringify(x).toLowerCase().indexOf(q) >= 0).sort((a, b) => (a.fir || '').localeCompare(b.fir || '') || a.name.localeCompare(b.name));
   $('list').innerHTML = L.map(x => { const v = validity(x);
     return '<div class="card it' + (SEL === x.id ? ' sel' : '') + '" data-id="' + esc(x.id) + '"><span class="chip ' + esc(x.level) + '">' + esc(x.level) + '</span><span class="chip">' + esc(x.type) + '</span>' + (x.fir ? '<span class="chip">' + esc(x.fir) + '</span>' : '') + '<b>' + esc(x.name) + '</b>'

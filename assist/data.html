@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Flight Data Upload</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--fg:#111;--dim:#667;--line:#d5dbe3;--pri:#0a5bd8;--red:#c40000;--amb:#b35c00;--grn:#0a7a34}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--card:#161b22;--fg:#e6edf3;--dim:#8b949e;--line:#30363d;--pri:#4c9aff;--red:#ff6b6b;--amb:#f0a040;--grn:#3fb950}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,"Segoe UI","Noto Sans SC",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header b{font-size:17px}.wrap{max-width:1250px;margin:0 auto;padding:14px 16px 30px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+h2{font-size:16px;margin:0 0 8px}h3{font-size:14px;margin:12px 0 4px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:9px;padding:6px 12px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}.btn.pri{background:var(--pri);color:#fff;border-color:var(--pri)}.btn:disabled{opacity:.45;cursor:default}
+#drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--dim)}#drop.on{border-color:var(--pri);background:rgba(10,91,216,.06)}
+.small{font-size:12.5px;color:var(--dim)}.err{color:var(--red)}.wrn{color:var(--amb)}.ok{color:var(--grn)}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px}@media (max-width:900px){.grid{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%;font-size:12.5px}td,th{border-bottom:1px solid var(--line);padding:3px 6px;text-align:left;vertical-align:top}th{background:var(--bg);position:sticky;top:0}
+.tbl{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+#mapc{width:100%;height:380px;background:#e6f1fb;border:1px solid var(--line);border-radius:12px;display:block}
+.stat{display:inline-block;margin-right:14px;font-weight:700}
+code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 4px;font-size:12.5px}
+details{margin:6px 0}summary{cursor:pointer;font-weight:700}
+.disc{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<header><b>📤 飞行数据上传 · Flight Data Upload</b><span class="small" id="dbv"></span><span style="flex:1"></span><a class="btn" href="fi.html">🛰 管理 / 审核数据库</a><a class="btn" href="./">✕</a></header>
+<div class="wrap">
+  <div class="card">
+    <h2>1. 选文件</h2>
+    <div id="drop">把文件拖到这里，或 <input type="file" id="f" multiple accept=".json,.csv,.xlsx,.txt"><br><span class="small">支持 JSON、CSV、Excel（.xlsx，一个工作表一种数据）。可以一次选多个文件。</span></div>
+    <div style="margin-top:10px"><span class="small">模板：</span>
+      <a class="btn" href="data/flight-intel-template.xlsx" download>⬇︎ Excel 模板（4 个工作表）</a>
+      <button class="btn" id="t-json">⬇︎ JSON 模板</button>
+      <button class="btn" data-csv="waypoints">⬇︎ CSV 航路点</button><button class="btn" data-csv="areas">⬇︎ CSV 区域</button><button class="btn" data-csv="notams">⬇︎ CSV NOTAM</button>
+      <span class="small">· 模板里 EXAMPLE 开头的示例行导入时会自动忽略</span></div>
+  </div>
+  <div class="grid">
+    <div class="card"><h2>2. 检查结果</h2><div id="sum" class="small">还没有选文件。</div><div id="errs"></div><div class="tbl" id="tbl" style="display:none"></div>
+      <div style="margin-top:10px"><button class="btn pri" id="go" disabled>☁️ 导入并同步到手机 / iPad</button> <span id="st" style="font-weight:600"></span></div>
+      <div class="small" style="margin-top:6px">导入的数据记为「已审核（导入）」：你整理好的资料直接生效。同一条（同名同区域 / 同编号）再导入会<b>更新</b>，没变化的跳过，不会重复。</div></div>
+    <div><canvas id="mapc"></canvas><div class="small" style="margin:4px 2px">地图预览：蓝色 = 区域 / NOTAM 范围，黑点 = 航路点，橙色虚线 = FIR 边界。</div></div>
+  </div>
+  <div class="card"><h2>📘 数据格式标准（flight-intel-1）</h2>
+    <p class="small">所有时间都是 UTC。坐标可以写十进制（<code>25.2532</code>、<code>-55.3657</code>，南纬 / 西经为负），也可以写 <code>252400N</code> / <code>0551800E</code>、<code>N25 24.0</code>、<code>25°24'00"N</code>。区域边界写在一个格子里，点与点之间用分号：<code>252400N0551800E; 253000N0560000E; 250000N0560000E</code>（至少 3 个点，不用重复第一个点）。时间：<code>2026-11-20T06:00Z</code>、<code>2026-11-20 06:00</code> 或 NOTAM 写法 <code>2611200600</code>；失效时间空着或写 <code>PERM</code> = 长期有效。高度用英尺：<code>0</code> = SFC，<code>99999</code> = UNL，也可以写 <code>FL350</code>。</p>
+    <details open><summary>航路点 Waypoints（工作表名 / 文件名含 waypoint、wpt 或「航路点」）</summary><div id="spec-w"></div></details>
+    <details><summary>区域 Areas：危险区、限制区、禁飞区、FIR / 管制区、其他（工作表名含 area、danger、restricted、prohibited、FIR、other）</summary><div id="spec-a"></div></details>
+    <details><summary>航行通告 NOTAMs（工作表名 / 文件名含 notam）</summary><div id="spec-n"></div></details>
+    <details><summary>JSON 写法</summary><pre class="small" id="spec-j" style="white-space:pre-wrap"></pre></details>
+    <p class="disc">⚠️ 仅供辅助了解情况，不能替代官方航行情报、公司运行程序及 ATC 指令。数据存在你自己的私有云端（不公开），手机和 iPad 有网时自动下载到本机，离线可用。</p>
+  </div>
+</div>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const API = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
+const lsGet = k => { try { return localStorage.getItem('fa.' + k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem('fa.' + k, v); } catch (e) {} };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function key() { let k = lsGet('key'); if (!k) { k = prompt('口令（和飞行助手里填的一样）· Password'); if (k) lsSet('key', k.trim()); } return lsGet('key'); }
+const post = body => fetch((lsGet('clock') || API) + '?k=' + encodeURIComponent(key() || ''), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch (e) { return { ok: false, error: t.slice(0, 160) }; } });
+
+// ================= 标准：字段 =================
+const SPEC = {
+  waypoints: [['ident', '✔', '名称，2–5 个字母 / 数字', 'CHILA'], ['lat', '✔', '纬度', '25.2532 或 251512N'], ['lon', '✔', '经度', '55.3657 或 0552157E'], ['type', '', 'WPT / VOR / NDB / APT / RNAV', 'WPT'], ['airways', '', '所在航路（空格分开）', 'L301 M300'], ['fir', '', 'FIR 代码', 'OMAE'], ['country', '', '国家 / 地区', 'UAE'], ['remarks', '', '备注', '']],
+  areas: [['name', '✔', '区域名称', 'OMD 123 TEST AREA'], ['type', '✔', 'DANGER / RESTRICTED / PROHIBITED / MILITARY / CONFLICT / GNSS / FIR / CTA / CPDLC / ENTRY / OTHER', 'DANGER'], ['fir', '', 'FIR 代码（type=FIR 时就是这个 FIR 的代码）', 'OMAE'], ['coords', '✔*', '边界坐标，分号隔开，至少 3 点', '252400N0551800E; 253000N0560000E; 250000N0560000E'], ['circle_lat / circle_lon / radius_nm', '✔*', '或者：圆心 + 半径（海里）', '25.4 / 55.3 / 10'], ['whole_fir', '', 'Y = 整个 FIR（不用坐标，用 FIR 边界）', 'Y'], ['lower_ft', '', '下限', '0'], ['upper_ft', '', '上限', 'FL250'], ['from_utc', '', '生效', '2026-11-20T00:00Z'], ['to_utc', '', '失效（空 / PERM = 长期）', '2026-12-31T23:59Z'], ['schedule', '', '时间表', 'DAILY 0400-1200'], ['level', '', 'info / caution / warning（默认 caution）', 'warning'], ['alert_nm', '', '提前多少海里提醒（默认 50）', '60'], ['alert_min', '', '提前多少分钟提醒（默认 10）', '10'], ['message_zh', '', 'Panel 上的提醒（中文）', '危险区：保持在航路上'], ['message_en', '', 'Reminder (English)', 'Danger area – stay on track'], ['notes', '', '限制条件、注意事项', ''], ['source', '', '资料来源（AIP、公司通告…）', 'AIP UAE ENR 5.1']],
+  notams: [['id', '✔', 'NOTAM 编号', 'A1234/26'], ['location', '✔', '机场或 FIR（ICAO）', 'OMAE'], ['text', '✔', '内容（E 项）', 'TEMPO DANGER AREA ACT …'], ['from_utc', '✔', '生效（B 项）', '2611200600'], ['to_utc', '', '失效（C 项，空 / PERM = 长期）', '2611211800'], ['schedule', '', 'D 项时间表', 'DAILY 0600-1800'], ['coords / circle_lat / circle_lon / radius_nm', '', '影响区域（有了才会在地图上画、沿航路提醒）', '…'], ['lower_ft / upper_ft', '', 'F / G 项高度', 'SFC / FL200'], ['level', '', 'info / caution / warning', 'caution'], ['message_zh / message_en', '', '提醒文字（空着就用编号 + 内容开头）', ''], ['source', '', '来源', '']]
+};
+const specTbl = a => '<table><tr><th>列名</th><th>必填</th><th>说明</th><th>例子</th></tr>' + a.map(r => '<tr><td><code>' + esc(r[0]) + '</code></td><td>' + r[1] + '</td><td>' + esc(r[2]) + '</td><td class="small">' + esc(r[3]) + '</td></tr>').join('') + '</table>' + (a === SPEC.areas ? '<div class="small">✔* = 坐标、圆、整个 FIR 三选一</div>' : '');
+$('spec-w').innerHTML = specTbl(SPEC.waypoints); $('spec-a').innerHTML = specTbl(SPEC.areas); $('spec-n').innerHTML = specTbl(SPEC.notams);
+const EXJ = { format: 'flight-intel-1', waypoints: [{ ident: 'EXAMPLE1', lat: 25.2532, lon: 55.3657, type: 'WPT', airways: 'L301', fir: 'OMAE' }],
+  areas: [{ name: 'EXAMPLE DANGER AREA', type: 'DANGER', fir: 'OMAE', coords: '252400N0551800E; 253000N0560000E; 250000N0560000E', lower_ft: 0, upper_ft: 'FL250', from_utc: '2026-11-20T00:00Z', to_utc: '', level: 'warning', alert_nm: 60, alert_min: 10, message_zh: '危险区：保持在航路上', message_en: 'Danger area – stay on track', source: 'AIP' },
+    { name: 'EXAMPLE CPDLC LOGON', type: 'CPDLC', fir: 'VABF', whole_fir: 'Y', level: 'caution', alert_min: 15, message_zh: '进入前登录 CPDLC VABF', message_en: 'Log on CPDLC VABF before entry' }],
+  notams: [{ id: 'EXAMPLE A1234/26', location: 'OMAE', text: 'DANGER AREA ACT', from_utc: '2611200600', to_utc: '2611211800', circle_lat: 24.5, circle_lon: 54.8, radius_nm: 8, lower_ft: 0, upper_ft: 'FL200', level: 'caution' }] };
+$('spec-j').textContent = JSON.stringify(EXJ, null, 2);
+const dl = (name, text, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); };
+$('t-json').onclick = () => dl('flight-intel-template.json', JSON.stringify(EXJ, null, 2), 'application/json');
+document.querySelectorAll('[data-csv]').forEach(b => b.onclick = () => { const k = b.dataset.csv, cols = SPEC[k].map(r => r[0].split(' / ')).flat(), rows = EXJ[k];
+  const q = v => /[",;\n]/.test(String(v == null ? '' : v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v == null ? '' : v);
+  dl('flight-intel-' + k + '.csv', '﻿' + cols.join(',') + '\n' + rows.map(r => cols.map(c => q(r[c])).join(',')).join('\n') + '\n', 'text/csv'); });
+
+// ================= 读文件：JSON / CSV / XLSX =================
+async function zipEntries(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); let e = u8.length - 22; while (e > 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e <= 0) throw new Error('不是有效的 .xlsx 文件'); const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const out = {};
+  for (let i = 0; i < n; i++) { const meth = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+    out[name] = async () => { const ln = dv.getUint16(off + 26, true), lx = dv.getUint16(off + 28, true), d = u8.subarray(off + 30 + ln + lx, off + 30 + ln + lx + csz);
+      return new TextDecoder().decode(meth === 0 ? d : await new Response(new Blob([d]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()); }; }
+  return out;
+}
+const unx = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&');
+const colIx = r => { const m = /^([A-Z]+)/.exec(r || ''); if (!m) return -1; let n = 0; for (const c of m[1]) n = n * 26 + c.charCodeAt(0) - 64; return n - 1; };
+async function xlsxSheets(u8) {   // → [{name, rows: [[...]]}]
+  const z = await zipEntries(u8), ss = z['xl/sharedStrings.xml'] ? (await z['xl/sharedStrings.xml']()).split(/<si>/).slice(1).map(s => unx(s.replace(/<\/si>[\s\S]*/, '').replace(/<rPh[\s\S]*?<\/rPh>/g, '').replace(/<[^>]+>/g, ''))) : [];
+  const wb = await z['xl/workbook.xml'](), rel = z['xl/_rels/workbook.xml.rels'] ? await z['xl/_rels/workbook.xml.rels']() : '', R = {};
+  rel.replace(/<Relationship [^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g, (m, id, t) => { R[id] = t.replace(/^\/?xl\//, '').replace(/^\//, ''); return ''; });
+  rel.replace(/<Relationship [^>]*Target="([^"]+)"[^>]*Id="([^"]+)"/g, (m, t, id) => { R[id] = R[id] || t.replace(/^\/?xl\//, ''); return ''; });
+  const out = [];
+  for (const m of wb.matchAll(/<sheet [^>]*name="([^"]+)"[^>]*r:id="([^"]+)"/g)) { const f = 'xl/' + (R[m[2]] || ''); if (!z[f]) continue; const x = await z[f](), rows = [];
+    x.split(/<row[ >]/).slice(1).forEach(r => { const cells = []; r.replace(/<c ([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, (mm, a, b) => { const ix = colIx((/ r="([A-Z]+)\d+"/.exec(' ' + a) || [])[1]); const v = /<v>([\s\S]*?)<\/v>/.exec(b || ''), is = /<t[^>]*>([\s\S]*?)<\/t>/.exec(b || '');
+      const val = /t="s"/.test(a) && v ? ss[+v[1]] || '' : /t="inlineStr"/.test(a) && is ? unx(is[1]) : v ? unx(v[1]) : ''; if (ix >= 0) cells[ix] = val; else cells.push(val); return ''; }); rows.push(Array.from(cells, c => c == null ? '' : c)); });
+    out.push({ name: unx(m[1]), rows }); }
+  return out;
+}
+function csvRows(t) {
+  t = t.replace(/^﻿/, ''); const sep = (t.split('\n')[0].match(/;/g) || []).length > (t.split('\n')[0].match(/,/g) || []).length ? ';' : t.split('\n')[0].indexOf('\t') >= 0 ? '\t' : ',';
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < t.length; i++) { const c = t[i];
+    if (q) { if (c === '"') { if (t[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true; else if (c === sep) { row.push(cur); cur = ''; } else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; } else cur += c; }
+  if (cur || row.length) { row.push(cur); rows.push(row); } return rows.filter(r => r.some(c => String(c).trim()));
+}
+// 表格 → 对象（第一行是列名，不分大小写；中文列名也认一些）
+const ALIAS = { '名称': 'name', '航路点': 'ident', '纬度': 'lat', '经度': 'lon', '类型': 'type', '航路': 'airways', '坐标': 'coords', '边界': 'coords', '下限': 'lower_ft', '上限': 'upper_ft', '生效': 'from_utc', '失效': 'to_utc', '编号': 'id', '内容': 'text', '地点': 'location', '提醒': 'message_zh', '等级': 'level', '来源': 'source', '备注': 'remarks', latitude: 'lat', longitude: 'lon', lng: 'lon', name_id: 'ident', waypoint: 'ident', notam: 'id', polygon: 'coords', boundary: 'coords', from: 'from_utc', to: 'to_utc', lower: 'lower_ft', upper: 'upper_ft', message: 'message_zh' };
+function objects(rows) { const hi = rows.findIndex(r => r.filter(c => String(c).trim()).length >= 2); if (hi < 0) return [];
+  const H = rows[hi].map(h => { const k = String(h).trim().toLowerCase().replace(/\s+/g, '_').replace(/[()（）*✔]/g, ''); return ALIAS[k] || ALIAS[String(h).trim()] || k; });
+  return rows.slice(hi + 1).map((r, i) => { const o = { _row: hi + i + 2 }; H.forEach((h, j) => { if (h && r[j] != null && String(r[j]).trim() !== '') o[h] = String(r[j]).trim(); }); return o; }); }
+function kindOf(name, objs) { const n = String(name).toLowerCase();
+  if (/way|wpt|fix|航路点/.test(n)) return 'wpt'; if (/notam|通告/.test(n)) return 'notam';
+  const o = objs[0] || {}; if (o.ident || (o.lat && o.lon && !o.coords && !o.name)) return 'wpt'; if (o.id && o.text) return 'notam'; return 'area'; }
+const typeHint = name => { const n = String(name).toLowerCase(); return /danger|危险/.test(n) ? 'DANGER' : /prohib|禁/.test(n) ? 'PROHIBITED' : /restrict|限制/.test(n) ? 'RESTRICTED' : /\bfir\b|管制|cta|control/.test(n) ? 'FIR' : ''; };
+
+// ================= 校验 + 标准化 =================
+function coord1(v, ax) {   // 一个纬度或经度
+  if (v == null || v === '') return NaN; const s = String(v).trim().toUpperCase().replace(/[°º'’"”]/g, ' ');
+  if (/^-?\d+(\.\d+)?$/.test(s)) return +s;
+  let m = /^([NSEW])\s*(\d{1,3})[\s]+(\d{1,2}(?:\.\d+)?)(?:\s+(\d{1,2}(?:\.\d+)?))?$/.exec(s) || /^(\d{1,3})[\s]+(\d{1,2}(?:\.\d+)?)(?:\s+(\d{1,2}(?:\.\d+)?))?\s*([NSEW])$/.exec(s);
+  if (m) { const h = /[NSEW]/.test(m[1]) ? m[1] : m[4], a = /[NSEW]/.test(m[1]) ? m.slice(2, 5) : m.slice(1, 4); const d = +a[0] + +a[1] / 60 + (+a[2] || 0) / 3600; return /[SW]/.test(h) ? -d : d; }
+  m = /^([NSEW])?\s*(\d{2,3})(\d{2})(\d{2}(?:\.\d+)?)?\s*([NSEW])?$/.exec(s.replace(/\s+/g, ''));
+  if (m) { const h = m[1] || m[5] || '', dl = ax === 'lat' ? 2 : 3, raw = m[2] + m[3] + (m[4] || ''); const dd = +raw.slice(0, dl), mm = +raw.slice(dl, dl + 2), ss = +(raw.slice(dl + 2) || 0); const d = dd + mm / 60 + ss / 3600; return /[SW]/.test(h) ? -d : d; }
+  return NaN;
+}
+function polyOf(v) { const s = String(v || '').toUpperCase(); if (!s.trim()) return [];
+  const re = /(\d{2})(\d{2})(\d{2}(?:\.\d+)?)?\s?([NS])[\s,\/-]*(\d{3})(\d{2})(\d{2}(?:\.\d+)?)?\s?([EW])/g, out = []; let m, any = false;
+  while ((m = re.exec(s.replace(/\s(?=\d)/g, '')))) { any = true; out.push([(+m[1] + +m[2] / 60 + (+m[3] || 0) / 3600) * (m[4] === 'S' ? -1 : 1), (+m[5] + +m[6] / 60 + (+m[7] || 0) / 3600) * (m[8] === 'W' ? -1 : 1)]); }
+  if (any) return out.map(p => [+p[0].toFixed(5), +p[1].toFixed(5)]);
+  return s.split(/[;\n|]/).map(t => t.trim()).filter(Boolean).map(t => { const a = t.split(/[\s,]+/).filter(Boolean); return [coord1(a[0], 'lat'), coord1(a[1], 'lon')]; }).map(p => [+(+p[0]).toFixed(5), +(+p[1]).toFixed(5)]);
+}
+function timeOf(v) { if (v == null || v === '') return ''; const s = String(v).trim().toUpperCase(); if (/^(PERM|UFN|EST)$/.test(s)) return '';
+  let m = /^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:EST)?$/.exec(s); if (m) return new Date(Date.UTC(2000 + +m[1], +m[2] - 1, +m[3], +m[4], +m[5])).toISOString().slice(0, 16) + 'Z';
+  if (/^\d{5}(\.\d+)?$/.test(s)) return new Date((+s - 25569) * 864e5).toISOString().slice(0, 16) + 'Z';   // Excel 日期格子
+  m = /^(\d{4})-(\d{2})-(\d{2})[T\s]?(\d{2})?:?(\d{2})?/.exec(s); if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0))).toISOString().slice(0, 16) + 'Z';
+  return null; }
+function ftOf(v, def) { if (v == null || v === '') return def; const s = String(v).trim().toUpperCase(); if (/^(SFC|GND|0)$/.test(s)) return 0; if (/^UNL/.test(s)) return 99999;
+  let m = /^FL\s?(\d{2,3})$/.exec(s); if (m) return +m[1] * 100; m = /^(\d+)\s*(FT|AMSL|MSL|AGL)?$/.exec(s.replace(/,/g, '')); return m ? +m[1] : null; }
+const TYPES = ['DANGER', 'RESTRICTED', 'PROHIBITED', 'MILITARY', 'CONFLICT', 'GNSS', 'FIR', 'UIR', 'CTA', 'TMA', 'CPDLC', 'ENTRY', 'HANDOVER', 'PROCEDURE', 'OTHER'];
+const normName = s => String(s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+const num = (v, d) => v == null || v === '' ? d : isFinite(+v) ? +v : NaN;
+// 一行 → 数据库里的一条（错误写进 E，警告写进 W）
+function build(kind, o, where, th, E, W) {
+  const err = m => { E.push(where + ' 第 ' + o._row + ' 行：' + m); }, base = { status: 'approved', src: { file: where, row: o._row } };
+  const geo = (it, need) => { if (o.coords) { const p = polyOf(o.coords); if (p.some(q => !isFinite(q[0]) || !isFinite(q[1]))) return err('坐标看不懂：' + String(o.coords).slice(0, 60)); if (p.some(q => Math.abs(q[0]) > 90 || Math.abs(q[1]) > 180)) return err('坐标超出范围'); if (p.length < 3) return err('边界只有 ' + p.length + ' 个点（至少 3 个）'); it.poly = p; }
+    else if (o.circle_lat || o.radius_nm) { const la = coord1(o.circle_lat, 'lat'), lo = coord1(o.circle_lon, 'lon'), r = num(o.radius_nm); if (!isFinite(la) || !isFinite(lo) || !(r > 0)) return err('圆心或半径不对'); it.circle = { lat: +la.toFixed(5), lon: +lo.toFixed(5), nm: r }; }
+    else if (/^(Y|YES|1|TRUE|是)$/i.test(o.whole_fir || '')) { if (!o.fir) return err('whole_fir=Y 时要填 fir 代码'); it.firOnly = true; }
+    else if (need) return err('没有区域：要 coords，或 circle_lat/circle_lon/radius_nm，或 whole_fir=Y'); return it; };
+  const common = it => { const f = timeOf(o.from_utc), t = timeOf(o.to_utc), lo = ftOf(o.lower_ft, 0), hi = ftOf(o.upper_ft, 99999);
+    if (f === null) return err('生效时间看不懂：' + o.from_utc); if (t === null) return err('失效时间看不懂：' + o.to_utc);
+    if (f && t && t <= f) return err('失效时间早于生效时间'); if (lo === null || hi === null) return err('高度看不懂'); if (hi < lo) return err('上限低于下限');
+    if (t && Date.parse(t) < Date.now()) W.push(where + ' 第 ' + o._row + ' 行：已经过期（' + t + '），导入了也不会提醒');
+    const lv = String(o.level || 'caution').toLowerCase(); if (!/^(info|caution|warning)$/.test(lv)) return err('level 只能是 info / caution / warning');
+    const an = num(o.alert_nm, 50), am = num(o.alert_min, 10); if (isNaN(an) || isNaN(am)) return err('alert_nm / alert_min 要写数字');
+    return Object.assign(it, { from: f, to: t, sched: o.schedule || '', lower: lo, upper: hi, level: lv, alertNm: an, alertMin: am, msg: o.message_zh || '', msgEn: o.message_en || '', notes: o.notes || o.remarks || '', quote: o.source ? '来源：' + o.source : '' }); };
+  if (kind === 'wpt') { const id = normName(o.ident || o.name); if (!id) return err('没有 ident'); if (!/^[A-Z0-9]{2,7}$/.test(id)) return err('ident 格式不对：' + id);
+    const la = coord1(o.lat, 'lat'), lo = coord1(o.lon, 'lon'); if (!isFinite(la) || Math.abs(la) > 90) return err('纬度不对：' + o.lat); if (!isFinite(lo) || Math.abs(lo) > 180) return err('经度不对：' + o.lon);
+    return Object.assign(base, { id: 'w:' + id + ':' + Math.round(la) + ':' + Math.round(lo), kind: 'wpt', name: id, lat: +la.toFixed(5), lon: +lo.toFixed(5), wtype: normName(o.type || 'WPT'), airways: o.airways || '', fir: normName(o.fir), country: o.country || '', notes: o.remarks || '' }); }
+  if (kind === 'notam') { const id = normName(o.id), loc = normName(o.location); if (!id) return err('没有 NOTAM 编号'); if (!/^[A-Z0-9]{4}$/.test(loc)) return err('location 要 4 个字母的 ICAO：' + (o.location || '空')); if (!o.text) return err('没有内容 text');
+    if (!o.from_utc) return err('没有生效时间 from_utc');
+    let it = Object.assign(base, { id: 'n:' + id + ':' + loc, kind: 'notam', nid: id, loc, name: 'NOTAM ' + id + ' ' + loc, type: 'NOTAM', fir: loc, text: o.text }); if (!geo(it, false)) return; if (!common(it)) return;
+    if (!it.msg) it.msg = id + ' ' + o.text.slice(0, 70); if (!it.msgEn) it.msgEn = id + ' ' + o.text.slice(0, 70); return it; }
+  const name = normName(o.name); if (!name) return err('没有名称 name'); const type = normName(o.type || th || 'OTHER'); if (TYPES.indexOf(type) < 0) return err('type 不认识：' + type + '（可用：' + TYPES.join(' / ') + '）');
+  let it = Object.assign(base, { id: 'a:' + type + ':' + normName(o.fir) + ':' + name, kind: 'area', name, type, fir: normName(o.fir), firName: o.fir_name || '' }); if (!geo(it, true)) return; if (!common(it)) return;
+  if (!it.msg && !it.msgEn && !/^(FIR|UIR|CTA|TMA)$/.test(type)) W.push(where + ' 第 ' + o._row + ' 行：' + name + ' 没有提醒文字（会用名称代替）');
+  return it;
+}
+
+// ================= 处理文件 =================
+let DB = { v: 0, items: [] }; try { DB = JSON.parse(lsGet('fidb') || 'null') || DB; } catch (e) {}
+let PEND = [], ERRS = [], WARNS = [], CMP = null;
+async function loadDb() { if (!navigator.onLine) return; const j = await post({ action: 'figet' }); if (j.ok && j.db) { DB = j.db; try { lsSet('fidb', JSON.stringify(DB)); } catch (e) {} } else $('st').textContent = '⚠️ ' + (j.error || '读不到云端') + (/缺少航班/.test(j.error || '') ? '（后台还是旧版，先打开 Apps Script API 让它自动更新）' : ''); showDbv(); }
+const showDbv = () => { const c = { wpt: 0, area: 0, notam: 0 }; DB.items.forEach(x => c[x.kind || 'area']++); $('dbv').textContent = '云端数据库 v' + (DB.v || 0) + ' · 航路点 ' + c.wpt + ' · 区域 ' + c.area + ' · NOTAM ' + c.notam; };
+async function handle(files) {
+  if (!key()) return; PEND = []; ERRS = []; WARNS = []; const seen = {};
+  for (const f of files) { const ext = f.name.split('.').pop().toLowerCase(), u8 = new Uint8Array(await f.arrayBuffer()); let groups = [];
+    try {
+      if (ext === 'json') { const j = JSON.parse(new TextDecoder().decode(u8)); const add = (k, a) => { if (Array.isArray(a)) groups.push({ name: f.name + ' · ' + k, kind: k === 'waypoints' ? 'wpt' : k === 'notams' ? 'notam' : 'area', objs: a.map((o, i) => Object.assign({ _row: i + 1 }, o)) }); };
+        if (Array.isArray(j)) { ['wpt', 'area', 'notam'].forEach(k => { const a = j.filter(o => (o.kind || 'area') === k || (k === 'wpt' && o.kind === 'waypoint')); if (a.length) groups.push({ name: f.name, kind: k, objs: a.map((o, i) => Object.assign({ _row: i + 1 }, o)) }); }); }
+        else { add('waypoints', j.waypoints); add('areas', j.areas || j.danger_areas || j.restricted_areas); add('notams', j.notams); add('firs', j.firs && j.firs.map(o => Object.assign({ type: 'FIR' }, o))); } }
+      else if (ext === 'xlsx') (await xlsxSheets(u8)).forEach(sh => { const objs = objects(sh.rows); if (objs.length) groups.push({ name: f.name + ' · ' + sh.name, kind: kindOf(sh.name, objs), th: typeHint(sh.name), objs }); });
+      else if (ext === 'csv' || ext === 'txt') { const objs = objects(csvRows(new TextDecoder().decode(u8))); groups.push({ name: f.name, kind: kindOf(f.name, objs), th: typeHint(f.name), objs }); }
+      else ERRS.push(f.name + '：不支持（用 JSON / CSV / .xlsx；老的 .xls 请另存为 .xlsx）');
+    } catch (e) { ERRS.push(f.name + '：读不出来 — ' + e.message); }
+    groups.forEach(g => g.objs.forEach(o => { const lk = Object.keys(o).filter(k => k !== '_row').map(k => String(o[k])).join(' ');
+      if (/^EXAMPLE/i.test(o.ident || o.name || o.id || '') || /^\s*$/.test(lk)) return;   // 模板里的示例行
+      const it = build(g.kind, o, g.name, g.th, ERRS, WARNS); if (!it) return;
+      if (seen[it.id]) WARNS.push(g.name + ' 第 ' + o._row + ' 行：和 ' + seen[it.id] + ' 重复，用后面这一条'); seen[it.id] = g.name + ' 第 ' + o._row + ' 行';
+      PEND = PEND.filter(x => x.id !== it.id); PEND.push(it); })); }
+  compare(); render();
+}
+const same = (a, b) => { const s = x => JSON.stringify(Object.assign({}, x, { ver: 0, upd: 0, rev: 0, src: 0 })); return s(a) === s(b); };
+function compare() { const by = {}; DB.items.forEach(x => by[x.id] = x); CMP = { add: [], upd: [], same: [] };
+  PEND.forEach(x => { const o = by[x.id]; if (!o) CMP.add.push(x); else if (same(Object.assign({}, x, { rev: 0 }), Object.assign({}, o, { rev: 0 }))) CMP.same.push(x); else CMP.upd.push(x); }); }
+function render() {
+  const c = k => PEND.filter(x => x.kind === k).length;
+  $('sum').innerHTML = PEND.length || ERRS.length ? '<span class="stat">航路点 ' + c('wpt') + '</span><span class="stat">区域 ' + c('area') + '</span><span class="stat">NOTAM ' + c('notam') + '</span><br>'
+    + '<span class="stat ok">新增 ' + CMP.add.length + '</span><span class="stat">更新 ' + CMP.upd.length + '</span><span class="stat small">没变化（跳过） ' + CMP.same.length + '</span><span class="stat err">有错（不导入） ' + ERRS.length + '</span>' : '没有读到数据。';
+  $('errs').innerHTML = (ERRS.length ? '<h3 class="err">❌ 错误（这些行不会导入，改好再传）</h3><div class="small err">' + ERRS.slice(0, 200).map(esc).join('<br>') + (ERRS.length > 200 ? '<br>… 还有 ' + (ERRS.length - 200) + ' 条' : '') + '</div>' : '')
+    + (WARNS.length ? '<h3 class="wrn">⚠️ 提醒</h3><div class="small wrn">' + WARNS.slice(0, 100).map(esc).join('<br>') + '</div>' : '');
+  const show = CMP.add.concat(CMP.upd); $('tbl').style.display = show.length ? 'block' : 'none';
+  $('tbl').innerHTML = '<table><tr><th></th><th>类型</th><th>名称</th><th>位置 / 范围</th><th>有效期</th><th>高度</th></tr>' + show.slice(0, 500).map(x => '<tr><td>' + (CMP.add.indexOf(x) >= 0 ? '<span class="ok">新</span>' : '更新') + '</td><td>' + esc(x.kind === 'wpt' ? x.wtype : x.type) + '</td><td>' + esc(x.name) + '</td><td class="small">'
+    + (x.kind === 'wpt' ? x.lat + ', ' + x.lon : x.poly ? x.poly.length + ' 点' : x.circle ? '圆 ' + x.circle.nm + ' NM' : x.firOnly ? '整个 ' + esc(x.fir) : '—') + '</td><td class="small">' + esc((x.from || '') + (x.from || x.to ? ' → ' : '') + (x.to || (x.kind === 'wpt' ? '' : 'PERM'))) + '</td><td class="small">' + (x.kind === 'wpt' ? '' : fl(x.lower) + '–' + fl(x.upper)) + '</td></tr>').join('') + '</table>';
+  $('go').disabled = !show.length; $('go').textContent = '☁️ 导入 ' + show.length + ' 条并同步到手机 / iPad'; drawMap();
+}
+const fl = v => v >= 99999 ? 'UNL' : !v ? 'SFC' : v >= 10000 ? 'FL' + Math.round(v / 100) : v + 'ft';
+$('go').onclick = async () => {
+  const send = CMP.add.concat(CMP.upd).map(x => Object.assign(x, { rev: { by: 'import', at: Date.now() } })); if (!send.length) return;
+  $('go').disabled = true; let done = 0;
+  for (let i = 0; i < send.length; i += 3000) { $('st').textContent = '⏳ 上传 ' + Math.min(send.length, i + 3000) + ' / ' + send.length + '…';
+    const j = await post({ action: 'fiput', items: send.slice(i, i + 3000) }); if (!j.ok) { $('st').innerHTML = '<span class="err">❌ 失败：' + esc(j.error || '') + '</span>'; $('go').disabled = false; return; } DB = j.db; done += Math.min(3000, send.length - i); }
+  try { lsSet('fidb', JSON.stringify(DB)); } catch (e) {}
+  $('st').innerHTML = '<span class="ok">✅ 已导入 ' + done + ' 条 · 数据库 v' + DB.v + '。手机 / iPad 有网时自动下载（Panel：☰ → 🛰 可以马上下载）</span>'; showDbv(); compare(); render();
+};
+$('f').onchange = () => { const fs = [...$('f').files]; $('f').value = ''; handle(fs); };
+const dz = $('drop'); dz.ondragover = e => { e.preventDefault(); dz.classList.add('on'); }; dz.ondragleave = () => dz.classList.remove('on');
+dz.ondrop = e => { e.preventDefault(); dz.classList.remove('on'); handle([...e.dataTransfer.files]); };
+
+// ================= 地图预览 =================
+let LAND = null, FIRB = null;
+fetch('../panel/land.json').then(r => r.json()).then(j => { LAND = j; drawMap(); }).catch(() => {});
+fetch('fir.json').then(r => r.json()).then(j => { FIRB = j.f; drawMap(); }).catch(() => {});
+function drawMap() {
+  const cv = $('mapc'), W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#e6f1fb'; g.fillRect(0, 0, W, H);
+  const P = PEND.length ? PEND : DB.items, pts = []; P.forEach(x => { if (x.kind === 'wpt') pts.push([x.lat, x.lon]); else if (x.poly) x.poly.forEach(p => pts.push(p)); else if (x.circle) pts.push([x.circle.lat, x.circle.lon]); });
+  let c = [25, 55], span = 40; if (pts.length) { let a = 90, b = -90, d = 999, e = -999; pts.forEach(p => { a = Math.min(a, p[0]); b = Math.max(b, p[0]); d = Math.min(d, p[1]); e = Math.max(e, p[1]); }); c = [(a + b) / 2, (d + e) / 2]; span = Math.max(2, (b - a) * 1.25, (e - d) * Math.cos(c[0] * Math.PI / 180) * 1.25 * H / W); }
+  const k = Math.cos(c[0] * Math.PI / 180), s = H / span, xy = (la, lo) => [W / 2 + (lo - c[1]) * k * s, H / 2 - (la - c[0]) * s];
+  if (LAND) { const sc = LAND.s || 20; g.fillStyle = '#f3ecd9'; g.strokeStyle = '#a8946a'; g.lineWidth = .7; LAND.land.forEach(r => { g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.closePath(); g.fill(); g.stroke(); }); }
+  if (FIRB) { g.strokeStyle = 'rgba(224,112,0,.6)'; g.setLineDash([4, 3]); g.lineWidth = 1; FIRB.forEach(f => f.r.forEach(a => { g.beginPath(); for (let j = 0; j < a.length; j += 2) { const q = xy(a[j + 1], a[j]); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.stroke(); })); g.setLineDash([]); }
+  g.font = '11px sans-serif';
+  P.forEach(x => { g.strokeStyle = '#0a5bd8'; g.fillStyle = 'rgba(10,91,216,.15)'; g.lineWidth = 2;
+    if (x.kind === 'wpt') { const q = xy(x.lat, x.lon); g.fillStyle = '#000'; g.fillRect(q[0] - 2, q[1] - 2, 4, 4); if (P.length < 300) g.fillText(x.name, q[0] + 4, q[1] - 3); return; }
+    if (x.poly) { g.beginPath(); x.poly.forEach((p, i) => { const q = xy(p[0], p[1]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); g.fill(); g.stroke(); const q = xy(x.poly[0][0], x.poly[0][1]); g.fillStyle = '#0a5bd8'; g.fillText(x.name.slice(0, 24), q[0] + 3, q[1] - 3); }
+    else if (x.circle) { const q = xy(x.circle.lat, x.circle.lon); g.beginPath(); g.arc(q[0], q[1], Math.max(3, x.circle.nm / 60 * s), 0, 7); g.fill(); g.stroke(); g.fillStyle = '#0a5bd8'; g.fillText(x.name.slice(0, 24), q[0] + 3, q[1] - 3); } });
+}
+window.addEventListener('resize', drawMap);
+showDbv(); loadDb().then(drawMap);
+</script>
+</body>
+</html>
