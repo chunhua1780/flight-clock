@@ -100,31 +100,32 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .rt{white-space:normal;line-height:1.15}.rt .rr{display:block;font-size:16px;font-weight:900}.rt .rc{display:block;font-size:11px;font-weight:600;color:#444}#phx{display:block;font-size:12.5px;color:var(--red);font-weight:800}
 .row{grid-template-columns:auto 1fr;column-gap:5px}.row .l{font-size:10.5px}.row .v{font-size:16px}.row .v .s{font-size:10.5px}
 #hov{display:none}
-#side{width:36%;min-width:0;max-width:none}
+#side{width:27%;min-width:0;max-width:none}
 #wpl{background:none;flex:1;overflow:hidden}
-.wp{display:flex;align-items:center;gap:5px;padding:3px 4px;line-height:1.1;font-weight:800;position:static}
-.bx{flex:none;display:inline-flex;flex-direction:column;align-items:center;min-width:62px;max-width:72%;border:2.5px solid #1f4e9c;border-radius:9px;padding:2px 6px;font-size:15px;font-weight:900;color:#000;background:#fff}
+.wp{display:flex;align-items:center;gap:3px;padding:3px 3px;line-height:1.1;font-weight:800;position:static}
+.bx{flex:none;display:inline-flex;flex-direction:column;align-items:center;min-width:50px;max-width:60%;border:2.5px solid #1f4e9c;border-radius:9px;padding:1px 4px;font-size:13.5px;font-weight:900;color:#000;background:#fff}
 .bx .n{white-space:nowrap}
 .wp.ho .bx{border-color:#e07000;border-width:3px}
-.hf{position:relative;display:block;width:100%;height:1.25em;font-size:10.5px;font-weight:900;color:#c25a00;overflow:hidden}
+.hf{position:relative;display:block;width:100%;height:1.25em;font-size:9.5px;font-weight:900;color:#c25a00;overflow:hidden}
 .h1,.h2{position:absolute;left:0;right:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:hfa 5s steps(1) infinite}.h2{animation-delay:-2.5s}
 @keyframes hfa{0%{opacity:1}50%{opacity:0}}
-.wp.nx .bx{border:3.5px solid #0a8a3a;background:#eaf7ee;font-size:19px;padding:3px 7px}.wp.nx.ho .bx{box-shadow:0 0 0 3px #e07000}
+.wp.nx .bx{border:3.5px solid #0a8a3a;background:#eaf7ee;font-size:15px;padding:2px 4px}.wp.nx.ho .bx{box-shadow:0 0 0 3px #e07000}
 .wp.past .bx{border-color:#ccc;color:#aaa}.wp.past .hf{color:#bbb}
-.wp .m{flex:1;min-width:0;text-align:right;font-size:9.5px;white-space:nowrap;overflow:hidden;font-weight:600;color:#444;line-height:1.2;font-variant-numeric:tabular-nums}.wp .m .t{display:block;font-size:12px;font-weight:800;color:#000}
+.wp .m{flex:1;min-width:0;text-align:right;font-size:9px;white-space:nowrap;overflow:hidden;font-weight:600;color:#444;line-height:1.2;font-variant-numeric:tabular-nums}.wp .m .t{display:block;font-size:11px;font-weight:800;color:#000}
 .wp.nx .m .t{color:#0a6a2c;font-size:13px}.wp.past .m,.wp.past .m .t{color:#aaa}
 #fhdr .fc,#fhdr .fn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 警告：竖屏在右边栏的下半部分弹出 */
-#alc{position:fixed;left:auto;right:0;width:36%;top:calc(24vh + (76vh - 0px) / 2);bottom:0;max-height:none;border-radius:12px 0 0 0;z-index:6;display:none;flex-direction:column}
-#alx{max-height:none;height:calc(100% - 32px);overflow-y:auto;font-size:11.5px}#alx .it{font-size:12.5px}
-#warn{position:fixed;left:auto;right:6px;bottom:8px;top:auto;z-index:6;border-radius:14px;padding:6px 10px;font-size:15px}
+#alc{position:fixed;left:4px;right:calc(27% + 4px);width:auto;top:auto;bottom:4px;max-height:42vh;border-radius:12px;z-index:6;display:none}
+.wp .m .tg{display:none}
+#alx{max-height:calc(42vh - 36px);height:auto;overflow-y:auto;font-size:12px}#alx .it{font-size:12.5px}
+#warn{position:fixed;left:auto;right:calc(27% + 8px);bottom:56px;top:auto;z-index:6;border-radius:14px;padding:6px 10px;font-size:15px}
 /* ====== 横屏：上半部分左边 = 航班号框（独立）；右边 = 弹出的警告；下面 = 窄航路点栏 + 地图 ====== */
 @media (orientation:landscape) and (min-width:700px){
 #top{height:30vh;width:57%;margin:6px 0 4px 6px;border:2.5px solid #000;border-radius:14px;padding:6px 10px;gap:10px}
 #sel{flex:1.5}#tinfo{flex:1}.rt .rr{font-size:20px}.row .v{font-size:20px}.row .l{font-size:12px}#phx{font-size:15px}#hov{display:block;font-size:13px}
 #side{width:20%;min-width:150px;max-width:230px}.wp{padding:4px 6px}.bx{min-width:70px;font-size:16px}.wp.nx .bx{font-size:23px}.hf{font-size:11.5px}
-#alc{top:8px;right:8px;width:41%;height:calc(30vh - 4px);bottom:auto;border-radius:12px}
-#warn{top:12px;right:12px;bottom:auto}}
+#alc{top:8px;right:8px;left:auto;width:41%;height:calc(30vh - 4px);max-height:none;bottom:auto;border-radius:12px}#alx{max-height:calc(30vh - 44px)}.wp .m .tg{display:inline}
+#warn{top:12px;right:12px;bottom:auto}.wp .m{font-size:10.5px}}
 </style>
 </head>
 <body>
@@ -217,7 +218,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190554';
+const PAGEV = '202611190557';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -608,14 +609,14 @@ function draw() {
     const riskFir = new Set((L.R.enr || []).map(r => r[2].loc)), FIW = {}; FI.forEach(f => FIW[f[2]] = f);
     // 只显示最近的 7 个航路点。每个点的名字用框圈起来：正在飞向的 = 绿框；普通 = 蓝框；移交点 = 橙框，框里交替显示下一个管制区的名字和四字代码
     const Nc = N.filter(w => w.length >= 4), cum = cumNm(Nc), dNow = alongNm(Nc, cum, Math.max(0, el));
-    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), a0 = Math.max(0, Math.min(ni - (ph === 1 ? 1 : 0), N.length - 7)), a1 = Math.min(N.length, a0 + 7);
+    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), a0 = Math.max(0, Math.min(ni - (ph === 1 ? 1 : 0), N.length - 12)), a1 = Math.min(N.length, a0 + 40);
     let h = '';
     N.slice(a0, a1).forEach(w => {
       const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
       const dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
       h += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + '</span>'
         + (f ? '<span class="hf" data-fir="' + esc(code) + '"><span class="h1">' + (riskFir.has(code) ? '⚠' : '') + esc(f[0]) + '</span><span class="h2">' + esc(f[1]) + '</span></span>' : '') + '</span>'
-        + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? ' ' + dur(w[1] - el) : '') + '</span></div>';
+        + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? '<span class="tg"> ' + dur(w[1] - el) + '</span>' : '') + '</span></div>';
     });
     if ($('wpl').innerHTML !== h) { $('wpl').innerHTML = h; }
     // 现在的管制区 → 下一个管制区（剩余时间、距离）
