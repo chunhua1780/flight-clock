@@ -60,7 +60,8 @@ function firHere(lat, lon, L) {
   const nm = (hit ? ofp[f.id] : f.n).toUpperCase().replace(/\s+-\s+.*$/, '');
   return { id: f.id, label: (/FIR|UIR|OCEANIC|CONTROL/.test(nm) ? nm : nm + ' FIR') + ' – ' + f.id };
 }
-function firRings(code) { if (!FIRB || !code) return null; const f = FIRB.find(x => x.id === code) || FIRB.find(x => x.id === (FIRALIAS[code] || code)); return f ? f.rings : null; }
+const FIRGEO = { KZWY: 'KZNY' };   // 边界库里没有单独的代码：New York Oceanic 在 KZNY 里
+function firRings(code) { if (!FIRB || !code) return null; const id = FIRGEO[code] || code; let F = FIRB.filter(x => x.id === id); if (!F.length) F = FIRB.filter(x => x.id === (FIRALIAS[code] || code)); return F.length ? [].concat.apply([], F.map(f => f.rings)) : null; }
 
 // ---------- 3. Flight Intelligence database (downloaded when online, used offline) ----------
 let FIDB = null, WPTI = {}, WPTL = []; try { FIDB = JSON.parse(ls('fidb') || 'null'); } catch (e) {}
@@ -115,7 +116,7 @@ function cumNm(N) { const c = [0]; for (let i = 1; i < N.length; i++) c.push(c[i
 function alongNm(N, cum, el) { if (!N.length) return 0; if (el <= N[0][1]) return 0; for (let i = 1; i < N.length; i++) if (el <= N[i][1]) { const k = (el - N[i - 1][1]) / Math.max(.5, N[i][1] - N[i - 1][1]); return cum[i - 1] + (cum[i] - cum[i - 1]) * k; } return cum[cum.length - 1]; }
 
 // ---------- 4. Acknowledge + sound ----------
-const ackKey = (L, a) => 'ack.' + L.k + '.' + a.x.id + '.' + (a.x.ver || 0);
+const ackKey = (L, a) => 'ack.' + L.k + '.' + a.x.id + '.' + (a.x.ver || 0) + (a.state === 'in' && a.x.repeatMin ? '.r' + Math.floor(NOW() / (a.x.repeatMin * MIN)) : '');
 const acked = (L, a) => !!ls(ackKey(L, a));
 let ACTX = null, BEEPED = {};
 function beep(n, hi) {
@@ -132,7 +133,15 @@ function alertSound(L, list) {
 const fmtMin = m => m == null ? '' : m < 1 ? XS('现在', 'now') : m < 60 ? Math.round(m) + ' min' : Math.floor(m / 60) + 'h' + String(Math.round(m % 60)).padStart(2, '0');
 const flLab = v => v >= 99999 ? 'UNL' : !v ? 'SFC' : v >= 10000 ? 'FL' + Math.round(v / 100) : v + 'ft';
 // 「要做的事」清单（通讯：CPDLC 登录、RCL、联系频率……）
-function actList(x) { const A = x.actions || []; if (!A.length) return '';
+// 广播 / 喊话模板：把 {call_sign} 这些换成这一班此刻的数据
+function fillPhrase(t) { const L = CUR; if (!L || !t) return t || ''; const now = NOW(), off = offOf(L), el = (now - off) / MIN, N = (L.n || []).filter(w => w.length >= 4);
+  const nx = N.find(w => w[1] > el), pv = N.filter(w => w[1] <= el).slice(-1)[0], P = (wpos(L, el) || {}).p, fh = P ? firHere(P[0], P[1], L) : null;
+  const trk = nx && pv ? (Math.atan2(dlon(nx[3], pv[3]) * Math.cos(pv[2] * Math.PI / 180), nx[2] - pv[2]) * 180 / Math.PI + 360) % 360 : 0;
+  const fl = GPS.fix && GPS.fix.alt > 5000 && !DEMO ? Math.round(GPS.fix.alt / 1000) * 10 : Math.round((L.fl || 35000) / 100);
+  const V = { call_sign: csOf(L), current_fir: fh ? fh.label.replace(/ – .*/, '') : '', current_position: pv ? pv[0] : '', current_time_utc: hmZ(now), flight_level: fl, direction: trk < 180 ? 'EAST' : 'WEST', airway: '(AWY)',
+    next_wpt_or_crossing_awy: nx ? nx[0] : '', next_est_time_utc: nx ? hmZ(off + nx[1] * MIN) : '', next_wpt: (N[N.indexOf(nx) + 1] || [''])[0] };
+  return t.replace(/\{(\w+)\}/g, (m, k) => V[k] != null && V[k] !== '' ? V[k] : m); }
+function actList(x) { const A = (x.actions || []).concat(x.phrase ? [{ zh: '📻 ' + fillPhrase(x.phrase), en: '' }] : []); if (!A.length) return '';
   return '<ol class="acts">' + A.map(t => '<li>' + esc(LANG === 'en' ? (t.en || t.zh) : (t.zh || t.en)) + (LANG === 'both' && t.en && t.zh ? '<small>' + esc(t.en) + '</small>' : '') + '</li>').join('') + '</ol>'; }
 function alertHtml(L, list) {
   return list.map(a => { const x = a.x, ok = acked(L, a), txt = LANG === 'en' ? (x.msgEn || x.msg) : (x.msg || x.msgEn);
