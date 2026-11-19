@@ -160,11 +160,17 @@ html.eink #menu.open{display:block}html.eink #menu .btn{display:inline-block;wid
 .tl{border-left:3px solid #000;margin:4px 0 8px 6px}.tli{position:relative;padding:3px 0 3px 12px;font-size:14px;line-height:1.3}.tli b{font-variant-numeric:tabular-nums;margin-right:6px}.tli i{font-style:normal;color:#666;margin-right:6px;font-size:12px}
 .tli.done{color:#999}.tli.nx{background:#eaf7ee;font-weight:800}.tli.nx:before{content:"▶";position:absolute;left:-9px;color:#0a8a3a}.tli small{color:#888}
 html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
+.lbh{font-size:18px;font-weight:900;text-align:center;margin:6px 0 2px;letter-spacing:.05em}.lbw{overflow:auto;-webkit-overflow-scrolling:touch;border:1.5px solid #000;max-height:68vh}
+.lbx{border-collapse:collapse;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}.lbx th,.lbx td{border:1px solid #888;padding:3px 5px;text-align:center}.lbx th{background:#eef1f6;font-size:11px;position:sticky;top:0}.lbx tr:nth-child(2) th{top:22px}
+.lbx td.b{font-weight:900}.lbx tr.tot td{font-weight:900;background:#f3f3f3}.lbx tr.bf td{color:#555;background:#fafafa}.lbx tr.q td{background:#fff8e0}.lbx td.lbt{text-decoration:underline dotted;cursor:pointer}.lbx sup{color:#888}
+.btn.sg{padding:4px 9px;font-size:13px}.btn.sg.on{background:#000;color:#fff}
+#top{position:relative}#ovw{display:none;position:absolute;left:6px;bottom:3px;max-width:62%;z-index:3;background:#fff;color:var(--red);font-weight:800;font-size:12.5px;line-height:1.25;border:2px solid var(--red);border-radius:8px;padding:2px 6px}#ovw b{font-size:15px;font-weight:900}
+@media (orientation:landscape) and (min-width:700px){#ovw{max-width:55%;font-size:14px}}
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
+  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="ovw"></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div></div></div>
@@ -271,7 +277,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190857';
+const PAGEV = '202611190907';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -351,7 +357,7 @@ const FIRN = [
   [/\bBIRDS?\b[^.]{0,60}(?:ACTIVIT|MIGRAT|FLOCK|STRIKE)/, 'amber', '鸟群活动', 'Bird activity'],
   [/ARTILLERY|FIRING|\bEXER\b|MIL(?:ITARY)? EXERCISE|PARA DROP|DANGER AREA|DNG AREA|RESTRICTED AREA|PROHIBITED/, 'amber', '军事活动 / 限制区', 'Military activity / restricted area']
 ];
-const SV = 2;   // 摘要格式版本：旧的（没有航路坐标）有网时会重新读
+const SV = 3;   // 摘要格式版本：旧的（没有航路坐标）有网时会重新读
 const FIRALIAS = { ZGGG: 'ZGZU', ZGNN: 'ZGZU', ZJSY: 'ZJSA', ZPPP: 'ZPKM', ZBAA: 'ZBPE', ZSSS: 'ZSHA', ZHHH: 'ZHWH', ZLLL: 'ZLHW', ZWWW: 'ZWUQ' };
 function summarize(o) {
   const f = o.flight, t = o.times, W = o.weights || {}, F = o.fuel || {}, N = o.navlog || [], X = wptFill(N, Object.assign({}, o.fixes || {}));   // 缺坐标的点用上传的航路点数据库补
@@ -376,7 +382,7 @@ function summarize(o) {
   if (W.ezfw && W.etow && W.elwt) {
     const z = W.ezfw[0], tof = (F.tof && F.tof.fuel) || (W.etow[0] - z), trip = (F.trip && F.trip.fuel) || (W.etow[0] - W.elwt[0]);
     const towL = Math.min(W.etow[1], W.rtow || 1e9), lwL = Math.min(W.elwt[1], W.rlwt || 1e9), tm = towL - (z + tof), lm = lwL - (z + tof - trip);
-    leg.w = { tow: z + tof, towL, ldw: z + tof - trip, lwL, lf: tof - trip };
+    leg.w = { tow: z + tof, towL, ldw: z + tof - trip, lwL, lf: tof - trip, z, tof, taxi: (F.taxi && F.taxi.fuel) || 0 };
     if (tm < 2000) leg.R.dep.push({ lv: tm < 0 ? 'red' : 'amber', zh: '起飞重量余量只有 ' + T(tm) + ' t（限制 ' + T(towL) + ' t）', en: 'TOW margin ' + T(tm) + ' t (limit ' + T(towL) + ' t)' });
     if (lm < 2000) leg.R.arr.push({ lv: lm < 0 ? 'red' : 'amber', zh: '落地重量余量只有 ' + T(lm) + ' t（限制 ' + T(lwL) + ' t）', en: 'LDW margin ' + T(lm) + ' t (limit ' + T(lwL) + ' t)' });
   }
@@ -538,6 +544,18 @@ function drawMap(L, el, ph, S, hot) {
    ===================================================================== */
 const item = x => '<div class="it ' + (x.lv === 'red' ? 'red' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-id="' + esc(x.id) + '"' : '') + '>' + (x.id ? '<span class="go">' + X('全文', 'Full') + (WX.area(ntText(x.loc, x.id)) ? ' 🗺' : '') + '</span>' : '') + (x.lv === 'red' ? '⛔ ' : '⚠︎ ') + esc(LANG === 'en' ? x.en : x.zh) + (LANG === 'both' ? '<small>' + esc(x.en) + '</small>' : '') + '</div>';
 const tile = (l, v, s, id) => '<div class="c"' + (id ? ' id="' + id + '"' : '') + '><div class="l">' + l + '</div><div class="v">' + v + (s ? ' <span class="s">' + s + '</span>' : '') + '</div></div>';
+// 实际无油重量（自己输入；没输入就用 OFP 计划）
+const zfwOf = L => +(ls('zfw.' + L.k) || 0);
+// 起飞前：起飞重量 > 最大起飞重量−100 kg → 最大起飞油量；落地前 4 小时（起飞前也显示）：落地重量 > 最大落地重量−100 kg → 最大无油重
+function ovwShow(L, ph, el) {
+  const w = L.w, o = $('ovw'); let h = '';
+  if (w && w.tof && ph !== 2) {
+    const z = zfwOf(L) || w.z, tof = w.tof, trip = tof - w.lf, tow = z + tof, ldw = z + tof - trip, src = zfwOf(L) ? '' : XS('（按计划 ZFW）', ' (plan ZFW)');
+    if (ph === 0 && tow > w.towL - 100) { const mf = w.towL - 100 - z; h += '<div>⛔ ' + XS('起飞超重 ', 'T/O overweight ') + T(tow - w.towL) + ' t' + src + ' → ' + XS('最大起飞油 ', 'max T/O fuel ') + '<b>' + T(mf) + ' t</b>' + (w.taxi ? XS('（加滑行油 ', ' (block ') + T(mf + w.taxi) + ' t）' : '') + '</div>'; }
+    if (ldw > w.lwL - 100 && (ph === 0 || L.tr - el <= 240)) { const mz = w.lwL - 100 - (tof - trip); h += '<div>⛔ ' + XS('落地超重 ', 'LDG overweight ') + T(ldw - w.lwL) + ' t' + src + ' → ' + XS('最大无油重 ', 'max ZFW ') + '<b>' + T(mz) + ' t</b></div>'; }
+  }
+  if (o.innerHTML !== h) o.innerHTML = h; o.style.display = h ? 'block' : 'none'; if (h) fitFl();
+}
 let CUR = null, wplTouch = 0, HOV = null, ALSIG = '', FLASHED = {};
 let WARN = { list: [] }, WSIG = '', wTimer = null;
 // ---------- 演示：把这个航班快放一遍（大约 90 秒），看看哪里有问题 ----------
@@ -621,7 +639,7 @@ function showWarn(ms) {
   $('wpop').style.display = 'block'; clearTimeout(wTimer); if (ms) wTimer = setTimeout(() => { $('wpop').style.display = 'none'; }, ms);
 }
 // 呼号字体：占满左上角那一块
-function fitFl() { const box = $('sel'), el = $('fl'); if (!box.clientWidth) return; el.style.fontSize = '100px'; const r = Math.min(box.clientWidth / el.scrollWidth, box.clientHeight * .92 / el.offsetHeight); el.style.fontSize = Math.max(28, Math.floor(100 * r)) + 'px'; }
+function fitFl() { const box = $('sel'), el = $('fl'), ov = $('ovw'); if (!box.clientWidth) return; el.style.fontSize = '100px'; const r = Math.min(box.clientWidth / el.scrollWidth, (box.clientHeight - (ov && ov.style.display === 'block' ? ov.offsetHeight + 4 : 0)) * .92 / el.offsetHeight); el.style.fontSize = Math.max(28, Math.floor(100 * r)) + 'px'; }
 function ntText(loc, id) { const L = CUR; if (!L || !L.nt) return ''; const A = (L.nt[loc] || []).find(n => n[0] === id) || Object.values(L.nt).reduce((r, a) => r || a.find(n => n[0] === id), null); return A ? A[1] : ''; }
 function draw() {
   const now = NOW(), F = flights(now);
@@ -656,7 +674,8 @@ function draw() {
   const FI = L.fi || [], fx = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el));
   let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
     + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
-    ;
+    + (L.w && L.w.tof ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
+  ovwShow(L, ph, el);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
@@ -775,6 +794,8 @@ $('zin').onclick = () => { ZOOM = Math.max(150, ZOOM / 1.6); ls('zoom', String(M
 $('zout').onclick = () => { ZOOM = Math.min(4000, ZOOM * 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
 $('row').addEventListener('click', e => {
   const L = CUR; if (!L) return;
+  if (e.target.closest('#c-zfw')) { const v = prompt(XS('实际无油重量 ZFW（吨，例如 245.3；或公斤 245300；留空 = 用计划）', 'Actual ZFW (t, e.g. 245.3, or kg; empty = plan)'), zfwOf(L) ? T(zfwOf(L)) : ''); if (v === null) return;
+    const n = parseFloat(v.replace(/,/g, '')); ls('zfw.' + L.k, isFinite(n) && n > 0 ? String(Math.round(n < 1000 ? n * 1000 : n)) : ''); draw(); return; }
   if (e.target.closest('#c-fir')) { const FI = L.fi || [], el = (Date.now() - offOf(L)) / MIN, fx = FI.find(f => f[3] > Math.max(0, el)); if (fx) openNotams(FIRALIAS[fx[1]] || fx[1]); return; }
   if (e.target.closest('#c-wp') && L.n) {
     const off = offOf(L), el = (Date.now() - off) / MIN, last = L.n.filter(w => w[1] <= el).slice(-1)[0] || L.n[1] || L.n[0];
