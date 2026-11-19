@@ -164,8 +164,8 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 .lbx{border-collapse:collapse;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}.lbx th,.lbx td{border:1px solid #888;padding:3px 5px;text-align:center}.lbx th{background:#eef1f6;font-size:11px;position:sticky;top:0}.lbx tr:nth-child(2) th{top:22px}
 .lbx td.b{font-weight:900}.lbx tr.tot td{font-weight:900;background:#f3f3f3}.lbx tr.bf td{color:#555;background:#fafafa}.lbx tr.q td{background:#fff8e0}.lbx td.lbt{text-decoration:underline dotted;cursor:pointer}.lbx sup{color:#888}
 .btn.sg{padding:4px 9px;font-size:13px}.btn.sg.on{background:#000;color:#fff}
-#top{position:relative}#ovw{display:none;position:absolute;left:6px;bottom:3px;max-width:62%;z-index:3;background:#fff;color:var(--red);font-weight:800;font-size:12.5px;line-height:1.25;border:2px solid var(--red);border-radius:8px;padding:2px 6px}#ovw b{font-size:15px;font-weight:900}
-@media (orientation:landscape) and (min-width:700px){#ovw{max-width:55%;font-size:14px}}
+#top{position:relative}#ovw{display:none;position:absolute;left:8px;bottom:2px;z-index:3;color:var(--red);font-weight:900;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
+@media (orientation:landscape) and (min-width:700px){#ovw{font-size:32px}}
 </style>
 </head>
 <body>
@@ -277,7 +277,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190907';
+const PAGEV = '202611190909';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -550,9 +550,9 @@ const zfwOf = L => +(ls('zfw.' + L.k) || 0);
 function ovwShow(L, ph, el) {
   const w = L.w, o = $('ovw'); let h = '';
   if (w && w.tof && ph !== 2) {
-    const z = zfwOf(L) || w.z, tof = w.tof, trip = tof - w.lf, tow = z + tof, ldw = z + tof - trip, src = zfwOf(L) ? '' : XS('（按计划 ZFW）', ' (plan ZFW)');
-    if (ph === 0 && tow > w.towL - 100) { const mf = w.towL - 100 - z; h += '<div>⛔ ' + XS('起飞超重 ', 'T/O overweight ') + T(tow - w.towL) + ' t' + src + ' → ' + XS('最大起飞油 ', 'max T/O fuel ') + '<b>' + T(mf) + ' t</b>' + (w.taxi ? XS('（加滑行油 ', ' (block ') + T(mf + w.taxi) + ' t）' : '') + '</div>'; }
-    if (ldw > w.lwL - 100 && (ph === 0 || L.tr - el <= 240)) { const mz = w.lwL - 100 - (tof - trip); h += '<div>⛔ ' + XS('落地超重 ', 'LDG overweight ') + T(ldw - w.lwL) + ' t' + src + ' → ' + XS('最大无油重 ', 'max ZFW ') + '<b>' + T(mz) + ' t</b></div>'; }
+    const z = zfwOf(L) || w.z, tow = z + w.tof, ldw = z + w.lf;
+    if (ph === 0 && tow > w.towL - 100) h += '<div>' + T(w.towL - 100 - z) + '</div>';   // 起飞前：不超重的最大起飞油量（吨）
+    else if (ph === 1 && L.tr - el <= 240 && ldw > w.lwL - 100) h += '<div>' + T(w.lwL - 100 - z) + '</div>';   // 落地前 4 小时：不超重的最大落地油量（吨）
   }
   if (o.innerHTML !== h) o.innerHTML = h; o.style.display = h ? 'block' : 'none'; if (h) fitFl();
 }
