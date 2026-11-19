@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-19b';
+const BACKEND_VER = '2026-11-19c';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -152,7 +152,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN && p.token !== TOKEN) return out_({ ok: false, error: 'unauthorized' });
   // 查后台版本和自动更新情况（不需要口令，不含任何私人资料）
-  if (p.action === 'ver') { let u = null; try { u = JSON.parse(PropertiesService.getScriptProperties().getProperty('upd_last') || 'null'); } catch (x) {} return out_({ ok: true, v: BACKEND_VER, lastCheck: u }); }
+  if (p.action === 'ver') { let u = null; try { u = JSON.parse(PropertiesService.getScriptProperties().getProperty('upd_last') || 'null'); } catch (x) {} return out_({ ok: true, v: BACKEND_VER, loader: globalThis.__LOADER || 0, lastCheck: globalThis.__LOADER ? null : u }); }
   try {
     if (p.action === 'photo') return out_(photo_(p));
     if (p.action === 'ofpcheck') return out_(ofpCheck_());
@@ -1187,6 +1187,7 @@ function ofpBrief_(j) {
    需要：① 在 script.google.com/home/usersettings 打开「Google Apps Script API」；② appsscript.json 里有 script.projects 和 script.deployments 权限。 */
 const UPDATE_URL = 'https://chunhua1780.github.io/flight-cloch/apps-script/Code.txt';   // .txt：网站会标明 UTF-8，中文不会变乱码
 function autoUpdate_() {
+  if (globalThis.__LOADER) return;   // 用「加载器」运行：每次都从网站读最新程序，不需要自己更新
   const pr = PropertiesService.getScriptProperties(), last = +pr.getProperty('upd_check') || 0;
   if (Date.now() - last < 3600e3) return; pr.setProperty('upd_check', String(Date.now()));
   const r = selfUpdate_(false); pr.setProperty('upd_last', JSON.stringify({ t: Date.now(), r: r }).slice(0, 2000));
@@ -1220,6 +1221,7 @@ function selfUpdate_(force) {
 }
 // 第一次设置时在编辑器里运行一次（授权 + 测试）
 function setupAutoUpdate() {
+  if (globalThis.__LOADER) { const r = { ok: true, loader: true, v: BACKEND_VER }; Logger.log(JSON.stringify(r)); return r; }
   const r = selfUpdate_(false);
   Logger.log(JSON.stringify(r));
   return r;
