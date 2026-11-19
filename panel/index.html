@@ -101,7 +101,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .row{grid-template-columns:auto 1fr;column-gap:5px}.row .l{font-size:10.5px}.row .v{font-size:16px}.row .v .s{font-size:10.5px}
 #hov{display:none}
 #side{width:27%;min-width:0;max-width:none}
-#wpl{background:none;flex:1;overflow:hidden}
+#wpl{background:none;flex:none;overflow:hidden}
+#sinfo{flex:1;min-height:0;overflow-y:auto;border-top:2px solid #000;font-size:10.5px;line-height:1.25}#sinfo:empty{border-top:0}
+.si{padding:3px 4px;border-bottom:1px solid #ccc;font-weight:700}.si b{font-weight:900}.si span{display:block;font-weight:600;color:#444}
+.si.ho{color:#c25a00}.si.ho span{color:#c25a00}.si.soon{background:#e07000;color:#fff}.si.soon span{color:#fff}
+.si.warning{background:var(--red);color:#fff}.si.warning span{color:#fff}.si.caution{color:var(--red);border-left:4px solid var(--red)}.si.info{border-left:4px solid #000}.si.ack{color:#999;background:#fff;border-left:4px solid #ccc}.si.ack span{color:#999}
+.si.ofp{font-weight:700;color:#000}
 .wp{display:flex;align-items:center;gap:3px;padding:3px 3px;line-height:1.1;font-weight:800;position:static}
 .bx{flex:none;display:inline-flex;flex-direction:column;align-items:center;min-width:50px;max-width:60%;border:2.5px solid #1f4e9c;border-radius:9px;padding:1px 4px;font-size:13.5px;font-weight:900;color:#000;background:#fff}
 .bx .n{white-space:nowrap}
@@ -125,7 +130,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 #sel{flex:1.5}#tinfo{flex:1}.rt .rr{font-size:20px}.row .v{font-size:20px}.row .l{font-size:12px}#phx{font-size:15px}#hov{display:block;font-size:13px}
 #side{width:20%;min-width:150px;max-width:230px}.wp{padding:4px 6px}.bx{min-width:70px;font-size:16px}.wp.nx .bx{font-size:23px}.hf{font-size:11.5px}
 #alc{top:8px;right:8px;left:auto;width:41%;height:calc(30vh - 4px);max-height:none;bottom:auto;border-radius:12px}#alx{max-height:calc(30vh - 44px)}.wp .m .tg{display:inline}
-#warn{top:12px;right:12px;bottom:auto}.wp .m{font-size:10.5px}}
+#warn{top:12px;right:12px;bottom:auto}.wp .m{font-size:10.5px}#wpl{flex:1}#sinfo{display:none}}
 </style>
 </head>
 <body>
@@ -133,7 +138,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
   <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span>
-    <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div></div></div>
+    <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
@@ -218,7 +223,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190557';
+const PAGEV = '202611190558';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -609,7 +614,7 @@ function draw() {
     const riskFir = new Set((L.R.enr || []).map(r => r[2].loc)), FIW = {}; FI.forEach(f => FIW[f[2]] = f);
     // 只显示最近的 7 个航路点。每个点的名字用框圈起来：正在飞向的 = 绿框；普通 = 蓝框；移交点 = 橙框，框里交替显示下一个管制区的名字和四字代码
     const Nc = N.filter(w => w.length >= 4), cum = cumNm(Nc), dNow = alongNm(Nc, cum, Math.max(0, el));
-    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), a0 = Math.max(0, Math.min(ni - (ph === 1 ? 1 : 0), N.length - 12)), a1 = Math.min(N.length, a0 + 40);
+    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), a0 = Math.max(0, Math.min(ni - (ph === 1 ? 1 : 0), N.length - 12)), a1 = Math.min(N.length, a0 + (matchMedia('(orientation:landscape) and (min-width:700px)').matches ? 40 : 6));   // 竖屏 6 个，横屏排满
     let h = '';
     N.slice(a0, a1).forEach(w => {
       const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
@@ -645,6 +650,15 @@ function draw() {
   $('alc').style.display = n && !closed ? 'block' : 'none';
   $('warn').style.display = n && closed ? 'block' : 'none'; $('warn').textContent = '⚠ ' + n;
   if (n && !closed && sig !== WSIG && !DEMO) { WSIG = sig; }
+  // 竖屏：航路点下面那块 = 航路提醒（接下来的移交点）+ 当前警告的简要列表（点一下看详细）
+  let si = '';
+  if (!L.noOfp && ph !== 2) {
+    const Nc2 = (L.n || []).filter(w => w.length >= 4), cum2 = cumNm(Nc2), d0 = alongNm(Nc2, cum2, Math.max(0, el));
+    FI.filter(f => f[3] > Math.max(0, el)).slice(0, 3).forEach((f, i) => si += '<div class="si ho' + (i === 0 && f[3] - el <= 10 ? ' soon' : '') + '" data-fir="' + esc(FIRALIAS[f[1]] || f[1]) + '">▸ <b>' + esc(f[1]) + '</b> ' + esc(f[0]) + '<span>' + dur(f[3] - Math.max(0, el)) + ' · ' + Math.round(alongNm(Nc2, cum2, f[3]) - d0) + 'nm · ' + esc(f[2]) + '</span></div>');
+  }
+  FA.forEach(a => { const ok = acked(L, a); si += '<div class="si ' + esc(a.x.level) + (ok ? ' ack' : '') + '" data-id="' + esc(a.x.id) + '">' + (a.x.level === 'warning' ? '⛔ ' : a.x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + '<b>' + esc(a.x.name) + '</b><span>' + (a.state === 'in' ? XS('区内', 'INSIDE') : fmtMin(a.min) + ' · ' + Math.round(a.nm) + 'nm') + '</span>' + (ok ? '' : '<span>' + esc((LANG === 'en' ? a.x.msgEn || a.x.msg : a.x.msg || a.x.msgEn) || '') + '</span>') + '</div>'; });
+  list.forEach(x => { si += '<div class="si ofp' + (x.lv === 'red' ? ' warning' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-nid="' + esc(x.id) + '"' : '') + '>⚠ ' + esc(LANG === 'en' ? x.en : x.zh) + '</div>'; });
+  if ($('sinfo').innerHTML !== si) $('sinfo').innerHTML = si;
   drawMapNow();
   alertSound(L, FA);
 }
@@ -689,6 +703,7 @@ $('wpl').onclick = e => { if (e.target.closest('[data-more]')) { ls('wpall', ls(
   if (!/^\d{4}$/.test(v.trim())) { ls('ato.' + CUR.k, ''); draw(); return; }
   const wp = CUR.n.find(x => x[0] === w.dataset.w), plan = offOf(CUR) + wp[1] * MIN, d0 = Date.UTC(new Date(plan).getUTCFullYear(), new Date(plan).getUTCMonth(), new Date(plan).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
   ls('ato.' + CUR.k, JSON.stringify({ w: wp[0], t: [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - plan) - Math.abs(b - plan))[0] })); draw(); };
+$('sinfo').onclick = e => { const t = e.target.closest('.si'); if (!t) return; if (t.dataset.fir) openNotams(t.dataset.fir); else if (t.dataset.nid) openNotams(t.dataset.loc, t.dataset.nid); else if (t.dataset.id) fiDetail(t.dataset.id); };
 $('alc-x').onclick = () => { ls('alclosed', ALSIG); draw(); };
 $('alx').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) { openNotams(t.dataset.loc, t.dataset.id); return; } const a = e.target.closest('.al'); if (!a) return;
   if (e.target.closest('.ack-b')) { ls(a.dataset.ak, String(Date.now())); draw(); return; }   // 确认：变成灰色小字，不再响
