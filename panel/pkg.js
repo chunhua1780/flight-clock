@@ -45,7 +45,9 @@ const pkgAiGet = L => { try { return JSON.parse(ls('pkgai.' + String(L.k).replac
 async function pkgAiRun(L) {
   const S = pkgSections(L), off = offOf(L);
   const j = await postK({ action: 'pkgai', flight: { no: L.no, dep: L.dep, arr: L.arr, off: dmZ(off), eta: dmZ(off + L.tr * MIN) }, secs: S.filter(x => x.text.trim()).map(x => ({ id: x.id, title: x.title, when: x.when, text: x.text })) });
-  if (!j || !j.ok) throw new Error((j && j.error) || 'AI'); ls('pkgai.' + String(L.k).replace(/[^\w.-]/g, ''), JSON.stringify(j)); return j;
+  if (!j || !j.ok) throw new Error((j && j.error) || 'AI');
+  const old = pkgAiGet(L); if (old && old.secs) Object.keys(old.secs).forEach(id => { if ((!j.secs[id] || !j.secs[id].points.length) && old.secs[id].points.length) j.secs[id] = old.secs[id]; });   // 这次没整理出来的部分：保留上次的
+  ls('pkgai.' + String(L.k).replace(/[^\w.-]/g, ''), JSON.stringify(j)); return j;
 }
 function pkgHtml(L, simple) {
   const off = offOf(L), eta = off + L.tr * MIN, now = Date.now(), AI = pkgAiGet(L), S = pkgSections(L);
