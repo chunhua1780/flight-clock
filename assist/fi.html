@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Flight Intelligence</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--fg:#111;--dim:#667;--line:#d5dbe3;--pri:#0a5bd8;--red:#c40000;--amb:#c26a00;--grn:#0a8a3a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1117;--card:#161b22;--fg:#e6edf3;--dim:#8b949e;--line:#30363d;--pri:#4c9aff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 -apple-system,"Noto Sans SC",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+header b{font-size:17px}main{padding:12px 16px;max-width:1300px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:820px){main{grid-template-columns:1fr}}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:9px;padding:6px 11px;font-size:14px;font-weight:600;cursor:pointer}.btn.pri{background:var(--pri);color:#fff;border-color:var(--pri)}.btn.red{color:var(--red)}.btn.sm{padding:3px 8px;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.it{cursor:pointer}.it.sel{outline:2px solid var(--pri)}
+.chip{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:0 6px;margin-right:4px;border:1px solid currentColor}
+.warning{color:var(--red)}.caution{color:var(--amb)}.info{color:var(--dim)}.ok{color:var(--grn)}
+.small{font-size:12.5px;color:var(--dim)}
+#mapc{width:100%;height:420px;background:#e6f1fb;border-radius:12px;border:1px solid var(--line);display:block}
+label{display:block;font-size:12.5px;color:var(--dim);margin-top:6px}input,select,textarea{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+textarea{min-height:70px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px}
+#drop{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--dim)}
+#st{font-size:13px;font-weight:600}
+.disc{font-size:12px;color:var(--dim);padding:0 16px 20px;max-width:1300px;margin:0 auto}
+</style>
+</head>
+<body>
+<header><b>🛰 Flight Intelligence</b><span class="small" id="dbv"></span><span style="flex:1"></span>
+  <select id="flt" style="width:auto"><option value="all">全部 All</option><option value="draft">待审核 Draft</option><option value="approved">已审核 Approved</option><option value="expired">过期 Expired</option></select>
+  <input id="q" placeholder="搜索 Search" style="width:150px">
+  <button class="btn" id="b-new">＋ 手动添加</button><button class="btn pri" id="b-save">☁️ 保存到云端</button><a class="btn" href="./" style="text-decoration:none">✕</a></header>
+<main>
+  <section>
+    <div class="card"><div id="drop">📤 上传资料（PDF、Word、Excel、图片、KML / GeoJSON / GPX / CSV 坐标文件）<br><span class="small">AI 自动提取区域、FIR、坐标、高度、生效时间、提醒距离、注意事项 —— 全部是「待审核」，你核对后点 ✓ 审核通过才会在 Panel 上提醒</span><br><br>
+      <input type="file" id="f" multiple accept=".pdf,.doc,.docx,.xlsx,.xls,.csv,.txt,.kml,.geojson,.json,.gpx,.png,.jpg,.jpeg,.webp,image/*,application/pdf" style="width:auto"></div>
+      <div id="st"></div></div>
+    <div id="list"></div>
+  </section>
+  <section>
+    <canvas id="mapc"></canvas>
+    <div class="small" style="margin:4px 2px 10px">地图：蓝色 = 选中的区域，橙色虚线 = FIR 边界（离线数据库）。点列表里的一条来检查坐标。</div>
+    <div class="card" id="ed" style="display:none"></div>
+  </section>
+</main>
+<div class="disc">⚠️ 仅供辅助了解情况，不能替代官方航行情报（AIP / NOTAM）、公司运行程序及 ATC 指令。资料存在你自己的私有云端（不公开）。未审核或过期的数据不会作为提醒依据。<br>
+Awareness aid only — official AIS, company procedures and ATC instructions prevail. Unreviewed or expired items are never used for alerts.</div>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const API = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
+const lsGet = k => { try { return localStorage.getItem('fa.' + k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem('fa.' + k, v); } catch (e) {} };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const API_URL = () => lsGet('clock') || API;
+function key() { let k = lsGet('key'); if (!k) { k = prompt('口令（和飞行助手里填的一样）· Password'); if (k) lsSet('key', k.trim()); } return lsGet('key'); }
+const post = body => fetch(API_URL() + '?k=' + encodeURIComponent(key() || ''), { method: 'POST', body: JSON.stringify(body) }).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch (e) { return { ok: false, error: t.slice(0, 160) }; } });
+const st = m => { $('st').innerHTML = m; };
+const TYPES = ['RESTRICTED', 'DANGER', 'PROHIBITED', 'MILITARY', 'CONFLICT', 'GNSS', 'CPDLC', 'ENTRY', 'HANDOVER', 'PROCEDURE', 'OTHER'];
+const uid = () => 'fi' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// ---------- 本地数据库（离线可看） ----------
+let DB = { v: 0, t: 0, items: [] }; try { DB = JSON.parse(lsGet('fidb') || 'null') || DB; } catch (e) {}
+let DIRTY = {}; try { DIRTY = JSON.parse(lsGet('fidirty') || '{}'); } catch (e) {}   // 还没传到云端的改动：{id: item | null(删除)}
+let SEL = null;
+const saveLocal = () => { lsSet('fidb', JSON.stringify(DB)); lsSet('fidirty', JSON.stringify(DIRTY)); };
+const expired = x => x.to && Date.parse(x.to) < Date.now();
+const validity = x => { if (x.status !== 'approved') return ['draft', '待审核 · 不用于提醒']; if (expired(x)) return ['expired', '已过期 · 不用于提醒']; if (x.from && Date.parse(x.from) > Date.now()) return ['future', '还没生效（' + x.from.slice(0, 16) + 'Z）']; return ['valid', '有效 · 用于提醒']; };
+async function pull() {
+  if (!navigator.onLine) { st('📵 离线：显示本机保存的数据库'); render(); return; }
+  st('⏳ 读取云端数据库…'); const j = await post({ action: 'figet' });
+  if (!j.ok) { st('⚠️ ' + esc(j.error || '读不到') + (/action|缺少/.test(j.error || '') ? ' · 后台还是旧版（每小时自动更新一次）' : '')); render(); return; }
+  DB = j.db || DB; Object.keys(DIRTY).forEach(id => { const i = DB.items.findIndex(x => x.id === id); if (DIRTY[id] === null) { if (i >= 0) DB.items.splice(i, 1); } else if (i >= 0) DB.items[i] = DIRTY[id]; else DB.items.push(DIRTY[id]); });
+  saveLocal(); st('✅ 云端数据库 v' + DB.v + ' · ' + DB.items.length + ' 条' + (Object.keys(DIRTY).length ? ' · 本机还有 ' + Object.keys(DIRTY).length + ' 条改动没保存' : '')); render();
+}
+async function push() {
+  const ids = Object.keys(DIRTY); if (!ids.length) { st('没有要保存的改动'); return; }
+  if (!navigator.onLine) { st('📵 离线：改动存在本机，有网时再点保存'); return; }
+  st('⏳ 保存 ' + ids.length + ' 条…');
+  const j = await post({ action: 'fiput', items: ids.filter(i => DIRTY[i]).map(i => DIRTY[i]), del: ids.filter(i => DIRTY[i] === null) });
+  if (!j.ok) { st('⚠️ 保存失败：' + esc(j.error || '')); return; }
+  DB = j.db; DIRTY = {}; saveLocal(); st('✅ 已保存 · 数据库 v' + DB.v + '（手机、iPad 有网时自动下载）'); render();
+}
+function change(x) { DIRTY[x.id] = x; const i = DB.items.findIndex(y => y.id === x.id); if (i >= 0) DB.items[i] = x; else DB.items.push(x); saveLocal(); render(); }
+function remove(id) { DIRTY[id] = null; DB.items = DB.items.filter(x => x.id !== id); if (SEL === id) SEL = null; saveLocal(); render(); }
+
+// ---------- 坐标：文字 ↔ 数字 ----------
+// 支持：25.4 55.3 / 252400N 0551800E / 2524N05518E / 25°24'00"N 055°18'00"E
+function parseCoords(t) {
+  const out = [], s = String(t || '').toUpperCase().replace(/[°º'’"”]/g, ' ');
+  const re = /(\d{2})\s?(\d{2})\s?(\d{2}(?:\.\d+)?)?\s?([NS])[\s,\/-]*(\d{3})\s?(\d{2})\s?(\d{2}(?:\.\d+)?)?\s?([EW])/g; let m, any = false;
+  while ((m = re.exec(s))) { any = true; const la = (+m[1] + +m[2] / 60 + (+m[3] || 0) / 3600) * (m[4] === 'S' ? -1 : 1), lo = (+m[5] + +m[6] / 60 + (+m[7] || 0) / 3600) * (m[8] === 'W' ? -1 : 1); out.push([+la.toFixed(4), +lo.toFixed(4)]); }
+  if (any) return out;
+  s.split(/\n|;/).forEach(l => { const n = l.match(/-?\d+(?:\.\d+)?/g); if (n && n.length >= 2 && Math.abs(+n[0]) <= 90 && Math.abs(+n[1]) <= 180) out.push([+(+n[0]).toFixed(4), +(+n[1]).toFixed(4)]); });
+  return out;
+}
+const fmtC = p => (p || []).map(q => q[0].toFixed(4) + ' ' + q[1].toFixed(4)).join('\n');
+
+// ---------- 读文件 ----------
+async function zipEntries(u8) {   // 极简 zip 读取（docx / xlsx / kmz）
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); let e = u8.length - 22; while (e > 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const out = {};
+  for (let i = 0; i < n; i++) { const meth = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+    out[name] = async () => { const ln = dv.getUint16(off + 26, true), lx = dv.getUint16(off + 28, true), d = u8.subarray(off + 30 + ln + lx, off + 30 + ln + lx + csz);
+      if (meth === 0) return new TextDecoder().decode(d); return new TextDecoder().decode(await new Response(new Blob([d]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()); }; }
+  return out;
+}
+const xmlText = x => x.replace(/<\/w:p>|<\/a:p>|<\/row>/g, '\n').replace(/<\/c>|<\/w:tc>/g, '\t').replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+async function xlsxText(z) {
+  const ss = z['xl/sharedStrings.xml'] ? (await z['xl/sharedStrings.xml']()).split(/<si>/).slice(1).map(s => xmlText(s.replace(/<\/si>[\s\S]*/, '')).replace(/\n/g, ' ')) : [];
+  let out = ''; for (const k of Object.keys(z).filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort()) { const x = await z[k](); out += '### ' + k.replace(/.*\//, '') + '\n';
+    x.split(/<row[ >]/).slice(1).forEach(r => { const cells = []; r.replace(/<c ([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, (m, a, b) => { const v = /<v>([\s\S]*?)<\/v>/.exec(b || ''), is = /<t[^>]*>([\s\S]*?)<\/t>/.exec(b || ''); cells.push(/t="s"/.test(a) && v ? ss[+v[1]] || '' : v ? v[1] : is ? is[1] : ''); return ''; }); out += cells.join('\t') + '\n'; }); }
+  return out;
+}
+function geoItems(name, txt) {   // KML / GeoJSON / GPX：直接变成区域（坐标来自文件本身）
+  const items = [], mk = (nm, poly, extra) => items.push(Object.assign(blank(), { name: nm || name, poly, quote: '坐标来自文件 ' + name, src: { file: name } }, extra || {}));
+  if (/^\s*\{/.test(txt)) { const g = JSON.parse(txt); (g.features || [g]).forEach(f => { const gm = f.geometry || f, pr = f.properties || {}; let rings = gm.type === 'Polygon' ? [gm.coordinates[0]] : gm.type === 'MultiPolygon' ? gm.coordinates.map(p => p[0]) : gm.type === 'LineString' ? [gm.coordinates] : gm.type === 'Point' ? null : [];
+      if (gm.type === 'Point') { mk(pr.name, [], { circle: { lat: gm.coordinates[1], lon: gm.coordinates[0], nm: 10 } }); return; }
+      (rings || []).forEach(r => mk(pr.name || pr.NAME, r.map(c => [+c[1].toFixed(4), +c[0].toFixed(4)]))); }); return items; }
+  const d = new DOMParser().parseFromString(txt, 'text/xml');
+  d.querySelectorAll('Placemark').forEach(p => { const nm = (p.querySelector('name') || {}).textContent, c = (p.querySelector('coordinates') || {}).textContent; if (!c) return;
+    mk(nm, c.trim().split(/\s+/).map(t => t.split(',')).filter(a => a.length >= 2).map(a => [+(+a[1]).toFixed(4), +(+a[0]).toFixed(4)])); });
+  const pts = [...d.querySelectorAll('rtept,trkpt,wpt')]; if (pts.length) mk(name, pts.map(p => [+(+p.getAttribute('lat')).toFixed(4), +(+p.getAttribute('lon')).toFixed(4)]));
+  return items;
+}
+const blank = () => ({ id: uid(), name: '', fir: '', firName: '', type: 'OTHER', poly: [], firOnly: false, circle: null, lower: 0, upper: 99999, from: '', to: '', sched: '', alertNm: 50, alertMin: 10, level: 'caution', msg: '', msgEn: '', notes: '', quote: '', src: {}, status: 'draft', ver: 0 });
+const b64of = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
+async function readFile(f) {
+  const u8 = new Uint8Array(await f.arrayBuffer()), ext = (f.name.split('.').pop() || '').toLowerCase();
+  let req = null;
+  if (/^(kml|geojson|gpx)$/.test(ext) || (ext === 'json' && /"coordinates"/.test(new TextDecoder().decode(u8.subarray(0, 4000))))) { const L = geoItems(f.name, new TextDecoder().decode(u8)); L.forEach(change); return L.length; }
+  if (ext === 'docx') { const z = await zipEntries(u8); req = { text: xmlText(await z['word/document.xml']()) }; }
+  else if (ext === 'xlsx') req = { text: await xlsxText(await zipEntries(u8)) };
+  else if (/^(csv|txt)$/.test(ext)) req = { text: new TextDecoder().decode(u8) };
+  else if (ext === 'pdf' || /^image\//.test(f.type) || /^(png|jpe?g|webp)$/.test(ext)) { if (u8.length > 15e6) throw new Error('文件太大（最多 15 MB）'); req = { mime: ext === 'pdf' ? 'application/pdf' : (f.type || 'image/' + ext.replace('jpg', 'jpeg')), b64: b64of(u8) }; }
+  else throw new Error('不支持这种文件（.doc / .xls 老格式请另存为 .docx / .xlsx）');
+  req.action = 'fiextract'; req.name = f.name;
+  const j = await post(req); if (!j.ok) throw new Error(j.error || 'AI');
+  (j.items || []).forEach(x => { const it = Object.assign(blank(), x, { id: uid(), status: 'draft', src: { file: f.name, page: x.page || 0, ai: j.model || '' } });
+    it.poly = Array.isArray(x.poly) ? x.poly.filter(p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])) : []; delete it.page; change(it); });
+  return (j.items || []).length;
+}
+$('f').onchange = async () => { const fs = [...$('f').files]; $('f').value = ''; if (!key()) return;
+  for (const f of fs) { st('⏳ ' + esc(f.name) + '：' + (/\.(kml|geojson|gpx)$/i.test(f.name) ? '读取坐标…' : 'AI 正在提取（10–60 秒）…'));
+    try { const n = await readFile(f); st('✅ ' + esc(f.name) + '：提取到 ' + n + ' 条（待审核）。逐条核对后点 ✓ 审核通过，再点「☁️ 保存到云端」'); }
+    catch (e) { st('❌ ' + esc(f.name) + '：' + esc(e.message)); } }
+  $('flt').value = 'draft'; render(); };
+
+// ---------- 列表 ----------
+function render() {
+  $('dbv').textContent = 'v' + (DB.v || 0) + ' · ' + DB.items.length + ' 条' + (Object.keys(DIRTY).length ? ' · ' + Object.keys(DIRTY).length + ' 条未保存' : '');
+  const f = $('flt').value, q = $('q').value.trim().toLowerCase();
+  const L = DB.items.filter(x => f === 'all' || (f === 'draft' ? x.status !== 'approved' : f === 'expired' ? expired(x) : x.status === 'approved' && !expired(x)))
+    .filter(x => !q || JSON.stringify(x).toLowerCase().indexOf(q) >= 0).sort((a, b) => (a.fir || '').localeCompare(b.fir || '') || a.name.localeCompare(b.name));
+  $('list').innerHTML = L.map(x => { const v = validity(x);
+    return '<div class="card it' + (SEL === x.id ? ' sel' : '') + '" data-id="' + esc(x.id) + '"><span class="chip ' + esc(x.level) + '">' + esc(x.level) + '</span><span class="chip">' + esc(x.type) + '</span>' + (x.fir ? '<span class="chip">' + esc(x.fir) + '</span>' : '') + '<b>' + esc(x.name) + '</b>'
+      + (DIRTY[x.id] ? ' <span class="small">· 未保存</span>' : '') + '<div style="margin-top:3px">' + esc(x.msg || x.msgEn || '') + '</div><div class="small">' + (x.lower || x.upper ? fl(x.lower) + '–' + fl(x.upper) + ' · ' : '') + (x.poly && x.poly.length ? x.poly.length + ' 个坐标点' : x.circle ? '圆 ' + x.circle.nm + ' NM' : x.firOnly ? '整个 FIR' : '⚠️ 没有坐标') + ' · 提前 ' + (x.alertNm || 0) + ' NM / ' + (x.alertMin || 0) + ' 分钟 · '
+      + '<span class="' + (v[0] === 'valid' ? 'ok' : v[0] === 'draft' ? 'caution' : 'warning') + '">' + v[1] + '</span>' + (x.src && x.src.file ? ' · 📄 ' + esc(x.src.file) + (x.src.page ? ' p' + x.src.page : '') : '') + (x.ver ? ' · ver ' + x.ver : '') + '</div></div>'; }).join('') || '<div class="card small">还没有数据。上传资料，或点「＋ 手动添加」。</div>';
+  drawMap();
+}
+const fl = v => v >= 99999 ? 'UNL' : !v ? 'SFC' : v >= 10000 ? 'FL' + Math.round(v / 100) : v + 'ft';
+$('list').onclick = e => { const c = e.target.closest('[data-id]'); if (!c) return; SEL = c.dataset.id; edit(DB.items.find(x => x.id === SEL)); render(); };
+$('flt').onchange = render; $('q').oninput = render;
+$('b-new').onclick = () => { const x = blank(); x.name = '新区域'; change(x); SEL = x.id; edit(x); render(); };
+$('b-save').onclick = push;
+
+// ---------- 编辑 / 审核 ----------
+function edit(x) {
+  if (!x) { $('ed').style.display = 'none'; return; }
+  const inp = (k, lab, t) => '<label>' + lab + '<input data-k="' + k + '" value="' + esc(x[k] == null ? '' : x[k]) + '"' + (t ? ' type="' + t + '"' : '') + '></label>';
+  $('ed').style.display = 'block';
+  $('ed').innerHTML = '<b>✎ 编辑 / 审核</b> <span class="small">' + esc(x.id) + (x.rev ? ' · 审核于 ' + new Date(x.rev.at).toISOString().slice(0, 16).replace('T', ' ') + 'Z' : '') + '</span>'
+    + inp('name', '名称 Name') + '<div class="g3">' + inp('fir', 'FIR 代码（如 VABF）') + inp('firName', 'FIR 名称') + '<label>类型 Type<select data-k="type">' + TYPES.map(t => '<option' + (t === x.type ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></label></div>'
+    + '<label>坐标 / 边界（每行一个点：25.40 55.30 或 252400N0551800E）<textarea data-k="poly">' + esc(fmtC(x.poly)) + '</textarea></label>'
+    + '<div class="g3"><label><input type="checkbox" data-k="firOnly"' + (x.firOnly ? ' checked' : '') + ' style="width:auto"> 整个 FIR（用 FIR 边界）</label>' + inp('circleT', '或圆：纬度 经度 半径NM') + '<span></span></div>'
+    + '<div class="g2">' + inp('lower', '下限 ft（0 = SFC）', 'number') + inp('upper', '上限 ft（99999 = UNL）', 'number') + inp('from', '生效 UTC（2026-11-20T00:00）') + inp('to', '失效 UTC（空 = 长期）') + inp('alertNm', '提前提醒距离 NM', 'number') + inp('alertMin', '提前提醒时间 分钟', 'number') + '</div>'
+    + inp('sched', '时间表（如 DAILY 0400-1200）') + '<label>等级 Level<select data-k="level">' + ['info', 'caution', 'warning'].map(t => '<option' + (t === x.level ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></label>'
+    + inp('msg', '提醒（中文，Panel 上显示）') + inp('msgEn', 'Reminder (English)') + '<label>注意事项 Notes<textarea data-k="notes">' + esc(x.notes) + '</textarea></label>'
+    + '<label>原文依据 Source quote<textarea data-k="quote">' + esc(x.quote) + '</textarea></label><div class="small">来源：' + esc((x.src && x.src.file) || '手动') + (x.src && x.src.page ? ' 第 ' + x.src.page + ' 页' : '') + (x.src && x.src.ai ? ' · AI ' + esc(x.src.ai) : '') + '</div><br>'
+    + '<button class="btn" id="e-ok">💾 存改动（变回待审核）</button> <button class="btn pri" id="e-ap">✓ 审核通过</button> <button class="btn red" id="e-del">🗑 删除</button>';
+  const ci = $('ed').querySelector('[data-k=circleT]'); ci.value = x.circle ? x.circle.lat + ' ' + x.circle.lon + ' ' + x.circle.nm : '';
+  const collect = () => { const y = JSON.parse(JSON.stringify(x));
+    $('ed').querySelectorAll('[data-k]').forEach(el => { const k = el.dataset.k; if (k === 'poly') y.poly = parseCoords(el.value); else if (k === 'firOnly') y.firOnly = el.checked; else if (k === 'circleT') { const n = el.value.match(/-?\d+(?:\.\d+)?/g); y.circle = n && n.length >= 3 ? { lat: +n[0], lon: +n[1], nm: +n[2] } : null; }
+      else if (/^(lower|upper|alertNm|alertMin)$/.test(k)) y[k] = +el.value || 0; else y[k] = el.value.trim(); });
+    y.fir = y.fir.toUpperCase(); if (y.from && !/Z$/.test(y.from)) y.from = y.from.length === 16 ? y.from + ':00Z' : y.from; if (y.to && !/Z$/.test(y.to)) y.to = y.to.length === 16 ? y.to + ':00Z' : y.to; return y; };
+  $('ed').oninput = () => { const y = collect(); drawMap(y); };
+  $('e-ok').onclick = () => { const y = collect(); y.status = 'draft'; delete y.rev; change(y); edit(y); };
+  $('e-ap').onclick = () => { const y = collect(), err = [];
+    if (!y.name) err.push('没有名称'); if (!(y.poly.length >= 3 || y.circle || (y.firOnly && y.fir))) err.push('没有区域：要 3 个以上坐标、一个圆，或勾「整个 FIR」并填 FIR 代码');
+    if (y.to && Date.parse(y.to) < Date.now()) err.push('已经过期'); if (!y.msg && !y.msgEn) err.push('没有提醒内容');
+    if (err.length) { alert('还不能审核通过：\n· ' + err.join('\n· ')); return; }
+    if (!confirm('确认你已经核对过原文（坐标、高度、时间）？\n审核通过后，这一条会在 Panel 上作为提醒使用（仅供辅助）。')) return;
+    y.status = 'approved'; y.rev = { by: 'me', at: Date.now() }; change(y); edit(y); };
+  $('e-del').onclick = () => { if (confirm('删除「' + x.name + '」？')) { remove(x.id); $('ed').style.display = 'none'; } };
+}
+
+// ---------- 地图（离线：陆地 + FIR 边界） ----------
+let LAND = null, FIRB = null;
+fetch('../panel/land.json').then(r => r.json()).then(j => { LAND = j; drawMap(); }).catch(() => {});
+fetch('fir.json').then(r => r.json()).then(j => { FIRB = j.f; drawMap(); }).catch(() => {});
+function geomOf(x) { if (!x) return null; if (x.poly && x.poly.length) return x.poly; if (x.circle) { const c = x.circle, p = []; for (let a = 0; a < 360; a += 15) p.push([c.lat + c.nm / 60 * Math.cos(a * Math.PI / 180), c.lon + c.nm / 60 * Math.sin(a * Math.PI / 180) / Math.cos(c.lat * Math.PI / 180)]); return p; }
+  if (x.firOnly && FIRB) { const f = FIRB.find(f => f.id === x.fir); if (f) { const p = [], a = f.r[0]; for (let k = 0; k < a.length; k += 2) p.push([a[k + 1], a[k]]); return p; } } return null; }
+function drawMap(live) {
+  const cv = $('mapc'), W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#e6f1fb'; g.fillRect(0, 0, W, H);
+  const x = live || DB.items.find(y => y.id === SEL), G = geomOf(x);
+  let c = [25, 55], span = 40; if (G && G.length) { let a = 90, b = -90, d = 999, e = -999; G.forEach(p => { a = Math.min(a, p[0]); b = Math.max(b, p[0]); d = Math.min(d, p[1]); e = Math.max(e, p[1]); }); c = [(a + b) / 2, (d + e) / 2]; span = Math.max(1, (b - a) * 1.6, (e - d) * Math.cos(c[0] * Math.PI / 180) * 1.6 * H / W); }
+  const k = Math.cos(c[0] * Math.PI / 180), s = H / span, xy = (la, lo) => [W / 2 + (lo - c[1]) * k * s, H / 2 - (la - c[0]) * s];
+  const ring = (pts, close) => { g.beginPath(); pts.forEach((p, i) => { const q = xy(p[0], p[1]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); if (close) g.closePath(); };
+  if (LAND) { const sc = LAND.s || 20; g.fillStyle = '#f3ecd9'; g.strokeStyle = '#a8946a'; g.lineWidth = .7; LAND.land.forEach(r => { g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.closePath(); g.fill(); g.stroke(); }); }
+  if (FIRB) { g.strokeStyle = 'rgba(224,112,0,.7)'; g.setLineDash([4, 3]); g.lineWidth = 1; g.font = '11px sans-serif'; g.fillStyle = '#c25a00';
+    FIRB.forEach(f => { if (Math.abs(f.r[0][1] - c[0]) > span * 2) return; f.r.forEach(a => { g.beginPath(); for (let j = 0; j < a.length; j += 2) { const q = xy(a[j + 1], a[j]); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.stroke(); }); }); g.setLineDash([]); }
+  if (G) { g.fillStyle = 'rgba(10,91,216,.18)'; g.strokeStyle = '#0a5bd8'; g.lineWidth = 2.5; ring(G, true); g.fill(); g.stroke(); g.fillStyle = '#0a5bd8'; G.forEach((p, i) => { const q = xy(p[0], p[1]); g.fillRect(q[0] - 3, q[1] - 3, 6, 6); if (G.length < 30) g.fillText(String(i + 1), q[0] + 4, q[1] - 4); });
+    g.font = 'bold 13px sans-serif'; g.fillText(x.name, 8, 18); }
+  else { g.fillStyle = '#555'; g.font = '13px sans-serif'; g.fillText(x ? '这一条没有坐标' : '点列表里的一条，检查坐标', 8, 18); }
+}
+window.addEventListener('resize', () => drawMap());
+render(); pull();
+</script>
+</body>
+</html>

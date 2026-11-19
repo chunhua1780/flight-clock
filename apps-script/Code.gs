@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-18b';
+const BACKEND_VER = '2026-11-19a';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -109,6 +109,12 @@ function postJson_(text) {
   if (j.action === 'wac') return JSON.stringify(WAC_GZ ? { ok: true, d: Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(WAC_GZ), 'application/x-gzip')).getDataAsString('UTF-8') } : { ok: false, error: 'no data' });
   if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
   if (j.action === 'relay') return JSON.stringify(relay_(true));
+  // 检查邮箱：后台看得到哪些像 OFP 的附件、排班上有哪些航段（排查「副屏读不到 OFP」）
+  if (j.action === 'maildiag') return JSON.stringify(mailDiag_(j));
+  // Flight Intelligence：上传资料 → AI 提取区域 / 提醒；数据库存在你的私有仓库 flight-box/fidata（不公开）
+  if (j.action === 'fiextract') return JSON.stringify(fiExtract_(j));
+  if (j.action === 'figet') return JSON.stringify(fiGet_());
+  if (j.action === 'fiput') return JSON.stringify(fiPut_(j));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -150,6 +156,7 @@ function doGet(e) {
   try {
     if (p.action === 'photo') return out_(photo_(p));
     if (p.action === 'ofpcheck') return out_(ofpCheck_());
+    if (p.action === 'maildiag') return (OFP_POST_KEY && p.k === OFP_POST_KEY) ? out_(mailDiag_(p)) : out_({ ok: false, error: '要带口令：?action=maildiag&k=口令' });
     if (p.action === 'track') {
       const leg = p.o && p.d && p.std ? { origin: p.o, dest: p.d, std: +p.std, sta: +p.sta || 0 } : null;
       return out_(track_(p.cs, leg));
@@ -1307,4 +1314,84 @@ function ofpMeta_(leg) {
     try { c.put(ck, JSON.stringify(r), 3600); } catch (e) {}
     return r;
   } catch (e) { return null; }
+}
+
+
+// ======== 邮箱诊断：只列「像 OFP」的附件（文件名 / 邮件标题里有 OFP、LIDO、EK 航班号、Lido 文件名格式），其他附件只报数量 ========
+function mailDiag_(j) {
+  const days = Math.min(14, Math.max(1, +j.days || 4)), LIDO = /EK\.?\s?(\d{3,4})\.(\d{2})([A-Za-z]{3})(\d{4})\.([A-Z]{3})\.([A-Z]{3})/, LIKE = /OFP|LIDO|FLIGHT\s?PLAN|\bEK\s?\d{3,4}\b|\bUAE\s?\d/i;
+  const ofp = [], now = Date.now(); let other = 0, threads = 0;
+  try {
+    GmailApp.search('has:attachment newer_than:' + days + 'd', 0, 50).forEach(function (th) { threads++;
+      th.getMessages().forEach(function (m) {
+        if (now - m.getDate().getTime() > days * 864e5) return;
+        m.getAttachments({ includeInlineImages: false }).forEach(function (a, i) {
+          const name = a.getName() || '', subj = String(m.getSubject() || '');
+          const lido = LIDO.test(name), like = LIKE.test(name + ' ' + subj);
+          if (!lido && !like) { other++; return; }
+          ofp.push({ name: name, subject: subj.slice(0, 100), at: m.getDate().toISOString(), mb: Math.round(a.getSize() / 1e4) / 100, type: a.getContentType(),
+            lidoName: lido, pdf: /pdf/i.test(a.getContentType()) || /\.pdf$/i.test(name), tooBig: a.getSize() > 15e6,
+            panelReads: (lido || like) && a.getSize() <= 15e6 && (/\.(pdf|docx?|rtf|txt|odt)$/i.test(name) || /pdf|word|rtf|text\/plain|opendocument/i.test(a.getContentType())) });
+        });
+      });
+    });
+  } catch (e) { return { ok: false, error: 'Gmail: ' + String(e).slice(0, 200) }; }
+  const legs = [];
+  try { events_(new Date(now - 2 * 864e5), new Date(now + 4 * 864e5)).forEach(function (ev) { legsOf_(ev).forEach(function (l) { legs.push({ flight: 'EK' + l.digits, route: l.origin + '-' + l.dest, std: new Date(l.std).toISOString(), title: String(ev.getTitle ? ev.getTitle() : '').slice(0, 60) }); }); }); } catch (e) { legs.push({ error: String(e).slice(0, 120) }); }
+  let cloud = []; try { cloud = cloudIdx_().idx.filter(function (x) { return x.meta && x.meta.std > now - 3 * 864e5; }).map(function (x) { return { k: x.k, std: new Date(x.meta.std).toISOString(), route: (x.meta.dep || '') + '-' + (x.meta.arr || ''), brief: !!x.brief }; }); } catch (e) {}
+  return { ok: true, v: BACKEND_VER, days: days, threads: threads, ofpAttachments: ofp, otherAttachments: other, rosterLegs: legs, cloudOfps: cloud };
+}
+
+// ======== Flight Intelligence 数据库 ========
+// 每条：id, name, fir, type, poly[[lat,lon]], firOnly, lower, upper, from, to, alertNm, alertMin, level, msg, msgEn, notes, quote, src{file,page}, ver, status(draft/approved), rev{by,at}, upd
+function geminiParts_(parts, json) {
+  const props = PropertiesService.getScriptProperties(), key = props.getProperty('GEMINI_KEY') || GEMINI_KEY_INLINE;
+  if (!key) return { ok: false, error: 'no GEMINI_KEY' };
+  const models = [props.getProperty('GEMINI_MODEL') || 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+  let last = '';
+  for (let m = 0; m < models.length; m++) {
+    const body = { contents: [{ role: 'user', parts: parts }], generationConfig: { temperature: 0 } };
+    if (json) body.generationConfig.responseMimeType = 'application/json';
+    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent', { method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true, payload: JSON.stringify(body) });
+    if (r.getResponseCode() !== 200) { last = models[m] + ' ' + r.getResponseCode() + ' ' + r.getContentText().slice(0, 160); continue; }
+    const d = JSON.parse(r.getContentText()), c = d.candidates && d.candidates[0];
+    const out = c && c.content && c.content.parts ? c.content.parts.map(function (p) { return p.text || ''; }).join('').trim() : '';
+    if (out) return { ok: true, out: out, model: models[m] };
+    last = models[m] + ' empty';
+  }
+  return { ok: false, error: last };
+}
+const FI_PROMPT_ = 'You are helping an airline pilot build a personal awareness database (NOT for operational use) from an uploaded document about airspace, FIRs, restricted / danger areas, conflict zones, CPDLC logon requirements, entry procedures (e.g. IFPS / flight-plan requirements, permits) and handover points.\n'
+  + 'Extract every distinct area or reminder. Return JSON {"items":[{"name":"area or reminder name as written","fir":"ICAO 4-letter FIR code if stated or certain, else empty","firName":"FIR name","type":"one of RESTRICTED, DANGER, PROHIBITED, MILITARY, CONFLICT, GNSS, CPDLC, ENTRY, HANDOVER, PROCEDURE, OTHER","poly":[[lat,lon],...],"firOnly":true if the reminder applies to the whole FIR (no own coordinates),"circle":{"lat":0,"lon":0,"nm":0} or null,"lower":feet number (SFC/GND = 0),"upper":feet number (UNL = 99999),"from":"ISO 8601 UTC or empty","to":"ISO 8601 UTC or empty (PERM = empty)","sched":"daily schedule text if any","alertNm":suggested reminder distance before entry in NM,"alertMin":suggested reminder time before entry in minutes,"level":"info | caution | warning","msg":"short action reminder in Simplified Chinese, max 40 characters, e.g. 进入前 10 分钟登录 CPDLC VABF","msgEn":"same in English, max 15 words","notes":"other important restrictions or requirements, English, max 60 words","quote":"verbatim source text this item is based on, max 300 characters","page":page number or 0}]}\n'
+  + 'RULES: Never invent coordinates, codes, levels or times. Coordinates only if they appear in the document (convert DDMMSS N/S E/W or similar to decimal degrees, south and west negative, keep polygon order). If a value is not in the document leave it empty / 0 / null. FL350 = 35000 ft. Use level "warning" only for conflict zones, prohibited areas or mandatory actions with safety impact. Every item must have a quote copied from the document.';
+function fiExtract_(j) {
+  const parts = [{ text: FI_PROMPT_ + '\nFile name: ' + String(j.name || '').slice(0, 120) }];
+  if (j.b64 && j.mime) parts.push({ inline_data: { mime_type: String(j.mime), data: String(j.b64) } });
+  if (j.text) parts.push({ text: 'DOCUMENT TEXT:\n' + String(j.text).slice(0, 400000) });
+  if (parts.length < 2) return { ok: false, error: 'no content' };
+  const g = geminiParts_(parts, true); if (!g.ok) return g;
+  try { const d = JSON.parse(g.out); return { ok: true, items: d.items || [], model: g.model }; } catch (e) { return { ok: false, error: 'bad JSON from AI', raw: g.out.slice(0, 300) }; }
+}
+function fiLoad_() {
+  const cur = gh_('get', 'fidata/db.json'); let db = { v: 0, t: 0, items: [] }, sha = null;
+  if (cur && cur.code === 200 && cur.j) { sha = cur.j.sha; try { db = JSON.parse(Utilities.newBlob(Utilities.base64Decode(cur.j.content)).getDataAsString('UTF-8')); } catch (e) {} }
+  else if (!cur) throw new Error('no GitHub token');
+  return { db: db, sha: sha };
+}
+function fiGet_() { try { return { ok: true, db: fiLoad_().db }; } catch (e) { return { ok: false, error: String(e).slice(0, 160) }; } }
+function fiPut_(j) {
+  for (let tries = 0; tries < 3; tries++) {
+    let c; try { c = fiLoad_(); } catch (e) { return { ok: false, error: String(e).slice(0, 160) }; }
+    const db = c.db, now = Date.now(), by = {}; db.items.forEach(function (x) { by[x.id] = x; });
+    (j.items || []).forEach(function (x) { if (!x || !x.id) return; const o = by[x.id];
+      if (o && JSON.stringify(Object.assign({}, o, { ver: 0, upd: 0 })) === JSON.stringify(Object.assign({}, x, { ver: 0, upd: 0 }))) return;
+      x.ver = (o ? (o.ver || 1) : 0) + 1; x.upd = now; by[x.id] = x; });
+    (j.del || []).forEach(function (id) { delete by[id]; });
+    db.items = Object.keys(by).map(function (k) { return by[k]; }); db.v = (db.v || 0) + 1; db.t = now;
+    const body = { message: 'fi v' + db.v, content: Utilities.base64Encode(JSON.stringify(db), Utilities.Charset.UTF_8) }; if (c.sha) body.sha = c.sha;
+    const r = gh_('put', 'fidata/db.json', body);
+    if (r && (r.code === 200 || r.code === 201)) return { ok: true, db: db };
+    if (!r || r.code !== 409) return { ok: false, error: 'GitHub ' + (r ? r.code : '?') };
+  }
+  return { ok: false, error: 'busy, try again' };
 }
