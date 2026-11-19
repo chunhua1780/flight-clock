@@ -81,7 +81,8 @@ function fiGeom(x) {   // rings as [lon,lat] arrays
   if (FIG[x.id]) return FIG[x.id]; let R = null;
   if (x.poly && x.poly.length >= 3) R = [x.poly.map(p => [p[1], p[0]])];
   else if (x.circle && x.circle.nm) { const c = x.circle, p = []; for (let a = 0; a < 360; a += 10) p.push([c.lon + c.nm / 60 * Math.sin(a * NMr) / Math.cos(c.lat * NMr), c.lat + c.nm / 60 * Math.cos(a * NMr)]); R = [p]; }
-  else if (x.firOnly) R = firRings(x.fir);
+  else if (x.firOnly) R = x.firs && x.firs.length ? [].concat.apply([], x.firs.map(c => firRings(c) || [])) : firRings(x.fir);   // firs：几个管制区合成一块（例如整个中国空域）
+  if (R && !R.length) R = null;
   if (R) { const bb = [180, 90, -180, -90]; R.forEach(r => r.forEach(([a, b]) => { bb[0] = Math.min(bb[0], a); bb[1] = Math.min(bb[1], b); bb[2] = Math.max(bb[2], a); bb[3] = Math.max(bb[3], b); })); FIG[x.id] = { R, bb }; }
   return R ? FIG[x.id] : null;
 }
@@ -167,7 +168,7 @@ function fiDrawMap(g, xy, hot, W, H) {
   // 上传的航路点（放大到 600 海里以内才画，灰色小三角）
   if (W && ZOOM <= 600 && WPTL.length) { const vis = []; for (const w of WPTL) { const q = xy(w.lat, w.lon); if (q[0] > -10 && q[0] < W + 10 && q[1] > -10 && q[1] < H + 10) { vis.push([q, w.name]); if (vis.length > 400) break; } }
     g.fillStyle = '#888'; g.font = '10px sans-serif'; vis.forEach(([q, n]) => { g.beginPath(); g.moveTo(q[0], q[1] - 4); g.lineTo(q[0] + 3.5, q[1] + 2.5); g.lineTo(q[0] - 3.5, q[1] + 2.5); g.closePath(); g.fill(); if (vis.length < 120) g.fillText(n, q[0] + 5, q[1] + 3); }); }
-  FIDB.items.forEach(x => { if (!fiUsable(x, t)) return; const G = fiGeom(x); if (!G || ((x.firOnly || BOUNDARY.test(x.type)) && !hot[x.id])) return;
+  FIDB.items.forEach(x => { if (!fiUsable(x, t)) return; const G = fiGeom(x); if (!G || ((x.firOnly || BOUNDARY.test(x.type)) && !hot[x.id]) || G.bb[2] - G.bb[0] > 300) return;   // 环绕地球的纬度带（极区）不画
     const h = hot[x.id], big = x.firOnly || BOUNDARY.test(x.type); g.strokeStyle = h ? '#d00000' : '#7a3db8'; g.fillStyle = big ? 'rgba(0,0,0,0)' : h ? 'rgba(208,0,0,.10)' : 'rgba(122,61,184,.08)'; g.lineWidth = big ? 1.3 : h ? 2.5 : 1.6; g.setLineDash(big ? [8, 5] : h ? [] : [5, 3]);   // 整个 FIR 的提醒：只画细虚线边界，不铺颜色
     G.R.forEach(r => { g.beginPath(); r.forEach((p, i) => { const q = xy(p[1], p[0]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); g.fill(); g.stroke(); });
     g.setLineDash([]); const q = xy(G.R[0][0][1], G.R[0][0][0]); g.fillStyle = h ? '#d00000' : '#7a3db8'; g.font = 'bold 11px sans-serif'; g.fillText(x.name.slice(0, 22), q[0] + 3, q[1] - 3); });
@@ -183,24 +184,58 @@ function fiNotams(loc, t) { return ((FIDB && FIDB.items) || []).filter(x => x.ki
 const PH_NOW = {};
 const GNSS_RE = /\b(GNSS|GPS|RAIM)\b/, GNSS_BAD = /INTERFERENCE|JAMM|SPOOF|UNRELIAB|U\/S|NOT AVBL|OUTAGE|DEGRAD|UNAVBL|DISRUPT/;
 function gnssAt(L, icao, t) { return ((L.nt && L.nt[icao]) || []).some(n => GNSS_RE.test(n[1]) && GNSS_BAD.test(n[1]) && !(n[3] && n[3] < t - 60 * MIN) && !(n[2] && n[2] > t + 60 * MIN)); }
+// 条件：起飞 / 目的地机场（全名或前缀，例如 K = 美国）、航路经过的管制区
+const icaoIn = (c, list) => !!c && (list || []).some(p => c.indexOf(p) === 0);
+function procMatch(T, L) {
+  if (!T || typeof T !== 'object') return false;
+  if (T.dep && !icaoIn(L.dep, T.dep)) return false; if (T.arr && !icaoIn(L.arr, T.arr)) return false;
+  if (T.arrExclude && icaoIn(L.arr, T.arrExclude)) return false; if (T.depExclude && icaoIn(L.dep, T.depExclude)) return false;
+  if (T.route && !(L.fi || []).some(f => icaoIn(f[1], T.route) || icaoIn(FIRALIAS[f[1]] || '', T.route))) return false;
+  return !!(T.dep || T.arr || T.route);
+}
+// 程序类：按条件和阶段出现。阶段：dep 起飞前（before = STD 前多少分钟开始）、toc 起飞后 1 小时内、dest 落地前（before 分钟，默认 100）
 function procAlerts(L, S, off, now) {
   const out = []; if (!FIDB || !FIDB.items) return out;
   FIDB.items.forEach(x => {
-    if (x.kind !== 'proc' || !fiUsable(x, now) || !fiActiveAt(x, now)) return;
+    if (x.kind !== 'proc' || x.trigger === 'timeline' || !fiUsable(x, now) || !fiActiveAt(x, now)) return;
     let key = null, lab = '';
     if (x.trigger === 'gnss') {
       const depG = gnssAt(L, L.dep, off), arrG = gnssAt(L, L.arr, off + L.tr * MIN);
       if (depG && (S.ph === 0 || S.el < 15)) { key = 'dep'; lab = XS('起飞机场 GPS 干扰', 'DEP GPS SI'); }
       else if (depG && S.ph === 1 && S.el < 60) { key = 'toc'; lab = XS('TOC 后恢复 GPS', 'At TOC'); }
       else if (arrG && S.ph === 1 && S.el >= L.tr - 100) { key = 'dest'; lab = XS('目的地 GPS 干扰 · TOD 前', 'DEST GPS SI · before TOD'); }
-    } else if (x.trigger && x.trigger.dep && x.trigger.dep.indexOf(L.dep) >= 0 && S.ph === 0) { key = 'dep'; lab = XS('起飞前', 'Before departure'); }
-    else if (x.trigger && x.trigger.arr && x.trigger.arr.indexOf(L.arr) >= 0 && S.ph === 1 && S.el >= L.tr - 100) { key = 'dest'; lab = XS('到达前', 'Before arrival'); }
+    } else if (procMatch(x.trigger, L)) {
+      const P = x.phases || [], toStd = (L.std - now) / MIN;
+      const d = P.find(q => q.key === 'dep'), t = P.find(q => q.key === 'toc'), a = P.find(q => q.key === 'dest' || q.key === 'arr');
+      if (d && S.ph === 0 && toStd <= (d.before || 9999)) { key = 'dep'; lab = XS('起飞前', 'Before departure'); }
+      else if (t && S.ph === 1 && S.el < 60) { key = 'toc'; lab = XS('起飞后', 'After take-off'); }
+      else if (a && S.ph === 1 && L.tr - S.el <= (a.before || 100)) { key = a.key; lab = XS('落地前 ', 'Before landing ') + dur(L.tr - S.el); }
+    }
     if (!key) return; PH_NOW[x.id] = key;
     const p = (x.phases || []).find(q => q.key === key);
-    out.push({ x: Object.assign({}, x, { id: x.id, msg: (p ? p.zh + '：' : '') + x.msg, msgEn: (p ? p.en + ': ' : '') + x.msgEn }), state: 'proc', label: lab, min: 0, nm: 0 });
+    out.push({ x: Object.assign({}, x, { id: x.id, msg: (p ? p.zh + '：' : '') + x.msg, msgEn: (p ? p.en + ': ' : '') + x.msgEn, actions: p ? p.steps : x.actions }), state: 'proc', label: lab, min: 0, nm: 0 });
   });
   return out;
 }
+// ---------- 起飞前时间轴（按 STD 倒数）：到点闪出要做的事 ----------
+function tlItems(L) {
+  const T = FIDB && FIDB.items && FIDB.items.find(x => x.kind === 'proc' && x.trigger === 'timeline' && x.status === 'approved'); if (!T) return [];
+  const base = /^OM(DB|DW)$/.test(L.dep), ulr = (L.tr || 0) >= 14 * 60;
+  return (T.steps || []).filter(s => !s.base || (s.base === 'base' ? base : s.base === 'ulr' ? !base && ulr : !base && !ulr))
+    .map(s => ({ t: L.std - s.min * MIN, min: s.min, zh: s.zh, en: s.en, alert: s.alert !== false, id: T.id + '.' + s.min + '.' + (s.en || s.zh).slice(0, 12) })).sort((a, b) => a.t - b.t);
+}
+// 到点后 6 分钟内、还没确认的：弹出（卡片闪）
+function tlAlerts(L, S, now) {
+  if (S.ph !== 0) return []; return tlItems(L).filter(s => s.alert && now >= s.t && now < s.t + 6 * MIN).map(s => {
+    const x = { id: 'tl:' + s.id, kind: 'tl', name: '⏱ STD−' + s.min + ' · ' + (LANG === 'en' ? s.en : s.zh), level: 'caution', msg: s.zh, msgEn: s.en, actions: [{ zh: s.zh, en: s.en }], ver: 1 };
+    PSEUDO[x.id] = x; return { x, state: 'proc', label: hmZ(s.t) + 'Z', min: 0, nm: 0 }; });
+}
+function tlHtml(L, now) { const I = tlItems(L); if (!I.length) return '';
+  const nx = I.find(s => s.t > now);
+  return '<h3>⏱ ' + X('起飞前时间轴', 'Pre-departure timeline') + ' · STD ' + hmZ(L.std) + 'Z</h3><div class="tl">' + I.map(s => '<div class="tli' + (s.t <= now ? ' done' : '') + (s === nx ? ' nx' : '') + '"><b>' + hmZ(s.t) + 'Z</b><i>−' + s.min + '</i><span>' + esc(LANG === 'en' ? s.en : s.zh) + (LANG === 'both' && s.en && s.zh ? ' · ' + esc(s.en) : '') + (s.alert ? '' : ' <small>(' + XS('不弹提醒', 'no alert') + ')</small>') + '</span></div>').join('') + '</div>'; }
+// 航路经过的特殊管制区：起飞前就要准备的（MEL、设备、频率……）
+function routePrep(L) { if (!FIDB || !FIDB.items) return [];
+  return FIDB.items.filter(x => (x.preflight || []).length && fiUsable(x, Date.now()) && (L.fi || []).some(f => f[1] === x.fir || (FIRALIAS[f[1]] || '') === x.fir)); }
 
 // ---------- 国家通告：途经国家的空域应急程序（WAC，公司资料：有网时用口令从后台取一次，存在手机上） ----------
 const PSEUDO = {};

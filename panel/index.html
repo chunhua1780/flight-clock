@@ -157,6 +157,9 @@ html.eink #alc.flash{border-width:5px}
 /* 老 WebView（Android 4.4）不认识 grid / gap / min() 的地方 */
 html.eink .row{display:block}html.eink .row .c{display:inline-block;margin-right:8px}html.eink .row .l{display:inline;margin-right:3px}html.eink .row .v{display:inline}
 html.eink #menu.open{display:block}html.eink #menu .btn{display:inline-block;width:47%;margin:2px 1%}html.eink #menu{width:330px;max-width:94vw}html.eink #set{width:360px;max-width:94vw}
+.tl{border-left:3px solid #000;margin:4px 0 8px 6px}.tli{position:relative;padding:3px 0 3px 12px;font-size:14px;line-height:1.3}.tli b{font-variant-numeric:tabular-nums;margin-right:6px}.tli i{font-style:normal;color:#666;margin-right:6px;font-size:12px}
+.tli.done{color:#999}.tli.nx{background:#eaf7ee;font-weight:800}.tli.nx:before{content:"▶";position:absolute;left:-9px;color:#0a8a3a}.tli small{color:#888}
+html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 </style>
 </head>
 <body>
@@ -168,7 +171,7 @@ html.eink #menu.open{display:block}html.eink #menu .btn{display:inline-block;wid
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="sheet"></div>
 <div id="set">
@@ -184,6 +187,7 @@ html.eink #menu.open{display:block}html.eink #menu .btn{display:inline-block;wid
 <script src="wx.js"></script>
 <script src="intel.js"></script>
 <script src="lb.js"></script>
+<script src="pkg.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id), MIN = 6e4, HOUR = 36e5;
@@ -267,7 +271,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190849';
+const PAGEV = '202611190857';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -364,6 +368,8 @@ function summarize(o) {
     cs: f.cs || '', std: t.std, tx: t.taxi || 0, tr: t.trip || 0, fl: (+(String(t.crzFl || '').replace(/\D/g, '')) || 350) * 100, n: N.map(w => X[w.id] ? [w.id, w.t, Math.round(X[w.id][0] * 1000) / 1000, Math.round(X[w.id][1] * 1000) / 1000] : [w.id, w.t]), fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] }, ap: [f.dep, f.arr].concat((o.alternates || []).map(a => a.icao)), nt: {} };
   // 全部通告（每个机场、每个管制区）：编号、原文、生效时间 —— 点开能看全文、译文、地图上的区域
   Object.keys(o.notams || {}).forEach(k => { leg.nt[k] = o.notams[k].map(n => [n.id, n.text, n.from, n.to]); });
+  leg.wx = {}; Object.keys(o.airports || {}).forEach(k => { const a = o.airports[k] || {}; leg.wx[k] = { m: (a.metar || []).slice(-1)[0] || '', t: (a.taf || []).slice(-1)[0] || '' }; });   // 天气原文（简报包用）
+  leg.alt = (o.alternates || []).map(a => a.icao); leg.fuel = { tof: (F.tof && F.tof.fuel) || 0, trip: (F.trip && F.trip.fuel) || 0 };
   const withC = N.filter(w => X[w.id]), step = Math.max(1, Math.ceil(withC.length / 12));
   withC.forEach((w, i) => { if (i % step === 0 || i === withC.length - 1) leg.c.push([w.t, Math.round(X[w.id][0] * 10) / 10, Math.round(X[w.id][1] * 10) / 10]); });
   // 重量
@@ -594,6 +600,9 @@ function blinkSoon() { let n = 0; const iv = setInterval(() => { BLINK = !BLINK;
 // ---------- 起飞前：起飞警告板 ----------
 function board(L, now, off, on) {
   let h = '<h3>🛫 ' + X('起飞前', 'Before departure') + ' · ' + esc(L.ai) + ' · ' + X('还有 ', 'in ') + dur((off - now) / MIN) + '</h3>';
+  h += tlHtml(L, now);   // 时间轴：STD 前多少分钟做什么
+  const rp = routePrep(L); if (rp.length) h += '<h3>🧭 ' + X('航路经过的特殊空域：起飞前准备', 'Special airspace on the route: before departure') + '</h3>' + rp.map(x => '<div class="it' + (x.level === 'warning' ? ' red' : '') + '" data-fi="' + esc(x.id) + '"><b>' + esc(x.fir) + ' · ' + esc(x.name) + '</b>' + actList({ actions: x.preflight }) + '</div>').join('');
+  h += '<div class="ok"><span class="btn" id="b-pkg2">📑 ' + X('打开整份简报包', 'Open the briefing package') + '</span></div>';
   h += (L.R.dep.length ? L.R.dep.map(item).join('') : '<div class="ok">✓ ' + X('起飞没有特别提醒', 'No departure warnings') + '</div>');
   if (L.w) { const tm = L.w.towL - L.w.tow, lm = L.w.lwL - L.w.ldw;
     h += '<div class="bw"' + (tm < 2000 ? ' style="color:var(--red)"' : '') + '>TOW ' + T(L.w.tow) + ' / ' + T(L.w.towL) + ' t · ' + X('余量 ', 'margin ') + T(tm) + ' t' + (tm < 0 ? ' ⛔ ' + X('超重', 'OVER') : '') + '</div>'
@@ -653,7 +662,7 @@ function draw() {
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
   if (pre) board(L, now, off, on);
   // 地图
-  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
+  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(tlAlerts(L, LS, now), procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
   const drawMapNow = () => { if (!L.noOfp && !pre) { drawMap(L, el, ph, LS, HOT); einkPix($('map')); } else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
   // 右边：航路点时间线（下一个点绿色圆圈，移交点橙色圆圈并写下一个管制区；不用红线）
   if (!L.noOfp) {
@@ -709,6 +718,7 @@ function draw() {
   list.forEach(x => { si += '<div class="si ofp' + (x.lv === 'red' ? ' warning' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-nid="' + esc(x.id) + '"' : '') + '>⚠ ' + esc(LANG === 'en' ? x.en : x.zh) + '</div>'; });
   if ($('sinfo').innerHTML !== si) $('sinfo').innerHTML = si;
   drawMapNow();
+  try { pkgAuto(L, now); } catch (e) {}   // 坐车去机场时（STD 前 150 分钟内）自动生成简报包 PDF
   alertSound(L, FA);
 }
 
@@ -735,6 +745,7 @@ $('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $(
   else ls('pin', t.dataset.k); draw(); };
 $('b-demo').onclick = () => demo();
 $('b-log').onclick = () => openLog();
+$('b-pkg').onclick = () => openPkg();
 $('b-eink').onclick = () => { try { localStorage.setItem('pnl.eink', EINK ? '0' : '1'); } catch (e) {} location.reload(); };
 $('b-fi').onclick = async () => { ls('fit', '0'); MSG = '⏳ ' + X('下载区域提醒数据库…', 'Downloading Flight Intelligence…'); draw(); await fiSync();
   const n = FIDB && FIDB.items ? FIDB.items.length : 0, ok = n ? FIDB.items.filter(x => fiUsable(x, Date.now())).length : 0;
@@ -744,7 +755,7 @@ $('b-gps').onclick = () => { try { AndroidPanel.askGps(); } catch (e) {} };
 $('b-pick').onclick = () => pickOfp();
 $('b-upd').onclick = () => { try { if (window.AndroidPanel && AndroidPanel.checkNow) { AndroidPanel.checkNow(); MSG = '⏳ ' + X('正在检查新版本…（有新的会自动换上并显示「已更新」）', 'Checking for updates…'); } else { MSG = X('网页版：刷新页面就是最新', 'Web version: reload to update'); location.reload(); } } catch (e) {} draw(); };
 $('newb').onclick = e => { const b = e.target.closest('[data-k]'); if (b) { ls('pin', b.dataset.k); draw(); } $('newb').style.display = 'none'; }; $('demob').onclick = () => demo();
-$('board').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
+$('board').onclick = e => { if (e.target.closest('#b-pkg2')) { openPkg(); return; } const f = e.target.closest('[data-fi]'); if (f) { fiDetail(f.dataset.fi); return; } const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
 $('warn').onclick = () => { ls('alclosed', ''); draw(); };
 $('wpop').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); else $('wpop').style.display = 'none'; };
 $('wpl').onclick = e => { if (e.target.closest('[data-more]')) { ls('wpall', ls('wpall') === '1' ? '0' : '1'); draw(); return; } const t = e.target.closest('[data-fir]'); if (t) { openNotams(t.dataset.fir); return; }

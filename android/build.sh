@@ -3,7 +3,7 @@
 set -e
 SDK=${ANDROID_HOME:-/opt/android-sdk}; BT=$SDK/build-tools/35.0.0; JAR=$SDK/platforms/android-34/android.jar
 cd "$(dirname "$0")"; rm -rf out && mkdir -p out/res out/classes out/assets/panel/vendor
-cp ../panel/index.html ../panel/manifest.json ../panel/land.json ../panel/apt.json ../panel/intel.js ../panel/lb.js ../panel/fir.json ../panel/files.json ../assist/ofp.js ../assist/wx.js out/assets/panel/ && cp ../panel/vendor/pdf.min.js ../panel/vendor/pdf.worker.min.js out/assets/panel/vendor/
+cp ../panel/index.html ../panel/manifest.json ../panel/land.json ../panel/apt.json ../panel/intel.js ../panel/lb.js ../panel/pkg.js ../panel/fir.json ../panel/files.json ../assist/ofp.js ../assist/wx.js out/assets/panel/ && cp ../panel/vendor/pdf.min.js ../panel/vendor/pdf.worker.min.js out/assets/panel/vendor/
 MAN=AndroidManifest.xml; MINSDK=26; RENAME=
 if [ "$VARIANT" = eink ]; then rm -rf out/assets/panel && mkdir -p out/assets/panel && cp -r ../panel-eink/. out/assets/panel/ && echo eink > out/assets/variant.txt; MAN=AndroidManifest-eink.xml; MINSDK=19; RENAME="--rename-manifest-package net.flightpanel.eink"; fi
 $BT/aapt2 compile --dir res -o out/res.zip

@@ -13,7 +13,7 @@ fs.rmSync(OUT, { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'v
 ['manifest.json', 'land.json', 'apt.json', 'fir.json'].forEach(f => fs.copyFileSync(path.join(SRC, f), path.join(OUT, f)));
 ['pdf.min.js', 'pdf.worker.min.js'].forEach(f => fs.copyFileSync(path.join(SRC, 'vendor', f), path.join(OUT, 'vendor', f)));
 // 转写的
-const js = { 'intel.js': path.join(SRC, 'intel.js'), 'lb.js': path.join(SRC, 'lb.js'), 'ofp.js': path.join(ROOT, 'assist', 'ofp.js'), 'wx.js': path.join(ROOT, 'assist', 'wx.js') };
+const js = { 'intel.js': path.join(SRC, 'intel.js'), 'lb.js': path.join(SRC, 'lb.js'), 'pkg.js': path.join(SRC, 'pkg.js'), 'ofp.js': path.join(ROOT, 'assist', 'ofp.js'), 'wx.js': path.join(ROOT, 'assist', 'wx.js') };
 Object.keys(js).forEach(f => fs.writeFileSync(path.join(OUT, f), es5(fs.readFileSync(js[f], 'utf8'))));
 // 补丁：Element.closest / matches、TextDecoder（只要 UTF-8）
 const extra = `
@@ -32,5 +32,5 @@ html = html.replace('<script src="vendor/pdf.min.js"></script>', '<script src="l
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 // 自动更新清单（版本号跟普通版一样）
 const v = JSON.parse(fs.readFileSync(path.join(SRC, 'files.json'), 'utf8')).v;
-fs.writeFileSync(path.join(OUT, 'files.json'), JSON.stringify({ v, files: ['index.html', 'legacy.js', 'manifest.json', 'ofp.js', 'wx.js', 'land.json', 'apt.json', 'intel.js', 'lb.js', 'fir.json', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'] }) + '\n');
+fs.writeFileSync(path.join(OUT, 'files.json'), JSON.stringify({ v, files: ['index.html', 'legacy.js', 'manifest.json', 'ofp.js', 'wx.js', 'land.json', 'apt.json', 'intel.js', 'lb.js', 'pkg.js', 'fir.json', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js'] }) + '\n');
 console.log('panel-eink v=' + v, fs.readdirSync(OUT).join(' '));

@@ -482,7 +482,7 @@ div.en,.wl .en{display:block;margin-left:0}
       <button class="btn sm" data-tab="all" data-i="OFP 天气|OFP WX"></button>
     </div>
     <div id="list"></div>
-    <div class="dbtns" id="dbt"><a href="#" id="b-tools" class="dtog"><span style="font-size:16px">☰</span><span class="dt" data-i="演示 · 解读 · Brief · 记录本 · 应急 · 题库 · RMATE · 区域 · Panel|Demo · Decode · Brief · Logbook · Contingency · Interview · RMATE · Intel · Panel"></span><b>▴</b></a><div class="dmenu"><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-wac" class="db" onclick="event.preventDefault();WAC.route()"><i>🌐</i><span data-i="应急程序|Contingency"></span></a><a href="#" id="b-iv" class="db" onclick="event.preventDefault();IVDB.open()"><i>📚</i><span data-i="面试题库|Interview"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a><a href="data.html" class="db"><i>📤</i><span data-i="数据上传（电脑）|Data upload"></span></a><a href="fi.html" class="db"><i>🛰</i><span data-i="区域提醒数据库|Flight Intelligence"></span></a><a href="../panel/" class="db"><i>🖥</i><span data-i="Panel（横屏驾驶舱）|Panel (cockpit view)"></span></a></div></div><div class="disc" onclick="this.classList.toggle('full')"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
+    <div class="dbtns" id="dbt"><a href="#" id="b-tools" class="dtog"><span style="font-size:16px">☰</span><span class="dt" data-i="演示 · 解读 · Brief · 记录本 · 应急 · 题库 · RMATE · 区域 · Panel|Demo · Decode · Brief · Logbook · Contingency · Interview · RMATE · Intel · Panel"></span><b>▴</b></a><div class="dmenu"><a href="#" id="b-demo" class="db"><i>▶</i><span data-i="演示|Demo"></span></a><a href="#" id="b-dec" class="db"><i>📄</i><span data-i="OFP 解读|OFP decode"></span></a><a href="#" id="b-brief" class="db"><i>📋</i><span>Today Brief</span></a><a href="#" id="b-lb" class="db"><i>📒</i><span data-i="飞行记录本|Logbook"></span></a><a href="#" id="b-wac" class="db" onclick="event.preventDefault();WAC.route()"><i>🌐</i><span data-i="应急程序|Contingency"></span></a><a href="#" id="b-iv" class="db" onclick="event.preventDefault();IVDB.open()"><i>📚</i><span data-i="面试题库|Interview"></span></a><a href="#" id="b-nnc" class="db"><i>🚨</i><span data-i="非正常 RMATE|RMATE"></span></a><a href="#" class="db" onclick="event.preventDefault();openPkgPdf()"><i>📑</i><span data-i="简报包 PDF|Brief PDF"></span></a><a href="data.html" class="db"><i>📤</i><span data-i="数据上传（电脑）|Data upload"></span></a><a href="fi.html" class="db"><i>🛰</i><span data-i="区域提醒数据库|Flight Intelligence"></span></a><a href="../panel/" class="db"><i>🖥</i><span data-i="Panel（横屏驾驶舱）|Panel (cockpit view)"></span></a></div></div><div class="disc" onclick="this.classList.toggle('full')"><span data-i="仅供辅助了解情况，不作为运行依据 · 以公司批准的 EFB / 签派 / ATC 为准 · 天气和 NOTAM 来自 OFP 包，时间均为 UTC|Awareness aid only, not for operational use · Company-approved EFB / dispatch / ATC prevail · WX and NOTAM from the OFP package, all times UTC"></span></div>
   </div>
 </div>
 
@@ -1656,9 +1656,19 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v85';
+const APPV = 'v86';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
+// 简报包 PDF：手机 Panel（或这里）生成后存在云端；这里下载打开（存一份在本机，离线也能打开）
+async function openPkgPdf() {
+  if (!S.ofp) { toast(th('先载入 OFP', 'Load an OFP first')); return; }
+  const k = (S.ofp.flight.no + S.ofp.flight.date).replace(/[^\w.-]/g, '');
+  const show = b64 => { const u = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); window.open(URL.createObjectURL(new Blob([u], { type: 'application/pdf' })), '_blank'); };
+  if (!navigator.onLine) { const c = lsGet('pkgpdf.' + k); if (c) show(c); else toast(th('离线，本机还没有这班的简报包', 'Offline — no package saved')); return; }
+  toast('⏳ ' + th('下载简报包…', 'Downloading…'), 4000);
+  try { const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'pkgget', k }) }); const j = JSON.parse(await r.text());
+    if (!j.ok) { toast(th('云端还没有这班的简报包：在手机 Panel 上点 ☰ → 📑 简报包 → ☁️ PDF（STD 前 150 分钟内会自动生成）', 'No package yet: Panel ☰ → Brief pack → PDF'), 7000); return; }
+    lsSet('pkgpdf.' + k, j.b64); show(j.b64); } catch (e) { toast('⚠️ ' + e.message); } }
 function planPayload() {
   const o = S.ofp, f = o.flight, P = S.pts || [];
   const pts = P.slice(1, -1).map(q => [q.pos[0], q.pos[1], q.t, q.dist]);

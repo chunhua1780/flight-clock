@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-20a';
+const BACKEND_VER = '2026-11-20b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -117,6 +117,9 @@ function postJson_(text) {
   if (j.action === 'fiextract') return JSON.stringify(fiExtract_(j));
   if (j.action === 'figet') return JSON.stringify(fiGet_());
   if (j.action === 'fiput') return JSON.stringify(fiPut_(j));
+  // 简报包：设备把整理好的网页交来，这里转成 PDF 存到私有云端（iPad / 电脑下载）
+  if (j.action === 'pkgpdf') return JSON.stringify(pkgPdf_(j));
+  if (j.action === 'pkgget') return JSON.stringify(pkgGet_(j));
   if (!j.digits || !j.date || !j.depIata || !j.arrIata) return '❌ 缺少航班信息';
   const props = PropertiesService.getScriptProperties();
   const key = 'plan_' + String(j.digits).replace(/^0+/, '') + j.depIata + j.arrIata + j.date;
@@ -1436,4 +1439,19 @@ function fiPut_(j) {
     if (!r || r.code !== 409) return { ok: false, error: 'GitHub ' + (r ? r.code : '?') };
   }
   return { ok: false, error: 'busy, try again' };
+}
+
+// ======== 简报包 PDF ========
+function pkgPdf_(j) {
+  const k = String(j.k || '').replace(/[^\w.-]/g, ''); if (!k || !j.html) return { ok: false, error: 'no data' };
+  const pdf = HtmlService.createHtmlOutput(String(j.html)).getAs('application/pdf');
+  const r = ghPut_('ofpdata/' + k + '.pkg.pdf', Utilities.base64Encode(pdf.getBytes()), 'pkg ' + k);
+  if (!r || (r.code !== 200 && r.code !== 201)) return { ok: false, error: 'GitHub ' + (r && r.code) };
+  cloudIdxSave_(cloudIdx_(), { k: k, pkg: Date.now() });
+  return { ok: true, size: pdf.getBytes().length, b64: j.ret ? Utilities.base64Encode(pdf.getBytes()) : undefined };
+}
+function pkgGet_(j) {
+  const k = String(j.k || '').replace(/[^\w.-]/g, ''), g = gh_('get', 'ofpdata/' + k + '.pkg.pdf');
+  if (!g || g.code !== 200 || !g.j) return { ok: false, error: 'not found' };
+  return { ok: true, b64: g.j.content && g.j.encoding === 'base64' ? String(g.j.content).replace(/\s/g, '') : Utilities.base64Encode(Utilities.newBlob(ghRawText_('ofpdata/' + k + '.pkg.pdf')).getBytes()) };
 }
