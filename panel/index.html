@@ -166,6 +166,7 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 .btn.sg{padding:4px 9px;font-size:13px}.btn.sg.on{background:#000;color:#fff}
 #top{position:relative}#ovw{display:none;position:absolute;left:8px;bottom:2px;z-index:3;color:var(--red);font-weight:900;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
 @media (orientation:landscape) and (min-width:700px){#ovw{font-size:32px}}
+.zfwb{border:2.5px solid #000;border-radius:12px;padding:6px 9px;margin:4px 0 8px}.zfwb b{font-size:16px}.zfwb input{width:110px;font-size:22px;font-weight:900;padding:3px 6px;border:2px solid #000;border-radius:8px;font-variant-numeric:tabular-nums}.zfwb .btn{padding:3px 12px;font-size:18px}.zfwb .bw{margin:3px 0;font-size:16px;font-weight:800}
 </style>
 </head>
 <body>
@@ -177,7 +178,7 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-zfw">⚖ <span data-i="无油重量 ZFW|Zero fuel weight"></span></span><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="sheet"></div>
 <div id="set">
@@ -277,7 +278,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190909';
+const PAGEV = '202611190911';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -546,10 +547,20 @@ const item = x => '<div class="it ' + (x.lv === 'red' ? 'red' : '') + '"' + (x.i
 const tile = (l, v, s, id) => '<div class="c"' + (id ? ' id="' + id + '"' : '') + '><div class="l">' + l + '</div><div class="v">' + v + (s ? ' <span class="s">' + s + '</span>' : '') + '</div></div>';
 // 实际无油重量（自己输入；没输入就用 OFP 计划）
 const zfwOf = L => +(ls('zfw.' + L.k) || 0);
+// 旧的航段没存计划 ZFW / 起飞油：从 TOW、LDW、落地油推出来（LDW − 落地油 = ZFW，TOW − ZFW = 起飞油）
+function wFix(L) { const w = L && L.w; if (!w) return null; if (!w.z && w.ldw && w.lf != null) { w.z = w.ldw - w.lf; w.tof = w.tow - w.z; } return w.tof ? w : null; }
+function setZfw(L, v) { const n = parseFloat(String(v).replace(/,/g, '')); ls('zfw.' + L.k, isFinite(n) && n > 0 ? String(Math.round(n < 1000 ? n * 1000 : n)) : ''); draw(); }
+// 无油重量输入框 + 按「无油重量 + 计划燃油」算出来的起飞 / 落地重量
+function zfwBox(L) { const w = wFix(L); if (!w) return '';
+  const za = zfwOf(L), z = za || w.z, tow = z + w.tof, ldw = z + w.lf, tm = w.towL - tow, lm = w.lwL - ldw;
+  const ln = (lab, v, lim, m) => '<div class="bw"' + (m < 100 ? ' style="color:var(--red)"' : '') + '>' + lab + ' ' + T(v) + ' / ' + T(lim) + ' t · ' + (m < 100 ? '⛔ ' + XS('超重 ', 'OVER ') + T(Math.max(0, -m)) + ' t' : XS('余量 ', 'margin ') + T(m) + ' t') + '</div>';
+  return '<div class="zfwb"><b>⚖ ' + XS('无油重量 ZFW', 'Zero fuel weight') + '</b> <input id="zfwin" inputmode="decimal" placeholder="' + T(w.z) + '" value="' + (za ? T(za) : '') + '"> t <span class="btn" id="zfwok">✓</span>'
+    + '<div class="tm">' + (za ? XS('实际（你输入的）', 'actual (entered)') : XS('还没输入，现在按计划 ', 'not entered — using plan ') + T(w.z) + ' t') + ' · ' + XS('计划起飞油 ', 'plan T/O fuel ') + T(w.tof) + ' · ' + XS('落地油 ', 'LDG fuel ') + T(w.lf) + ' t</div>'
+    + ln('TOW', tow, w.towL, tm) + ln('LDW', ldw, w.lwL, lm) + '</div>'; }
 // 起飞前：起飞重量 > 最大起飞重量−100 kg → 最大起飞油量；落地前 4 小时（起飞前也显示）：落地重量 > 最大落地重量−100 kg → 最大无油重
 function ovwShow(L, ph, el) {
-  const w = L.w, o = $('ovw'); let h = '';
-  if (w && w.tof && ph !== 2) {
+  const w = wFix(L), o = $('ovw'); let h = '';
+  if (w && ph !== 2) {
     const z = zfwOf(L) || w.z, tow = z + w.tof, ldw = z + w.lf;
     if (ph === 0 && tow > w.towL - 100) h += '<div>' + T(w.towL - 100 - z) + '</div>';   // 起飞前：不超重的最大起飞油量（吨）
     else if (ph === 1 && L.tr - el <= 240 && ldw > w.lwL - 100) h += '<div>' + T(w.lwL - 100 - z) + '</div>';   // 落地前 4 小时：不超重的最大落地油量（吨）
@@ -618,14 +629,12 @@ function blinkSoon() { let n = 0; const iv = setInterval(() => { BLINK = !BLINK;
 // ---------- 起飞前：起飞警告板 ----------
 function board(L, now, off, on) {
   let h = '<h3>🛫 ' + X('起飞前', 'Before departure') + ' · ' + esc(L.ai) + ' · ' + X('还有 ', 'in ') + dur((off - now) / MIN) + '</h3>';
+  h += zfwBox(L);   // 无油重量：输入后马上算起飞 / 落地重量
   h += tlHtml(L, now);   // 时间轴：STD 前多少分钟做什么
   const rp = routePrep(L); if (rp.length) h += '<h3>🧭 ' + X('航路经过的特殊空域：起飞前准备', 'Special airspace on the route: before departure') + '</h3>' + rp.map(x => '<div class="it' + (x.level === 'warning' ? ' red' : '') + '" data-fi="' + esc(x.id) + '"><b>' + esc(x.fir) + ' · ' + esc(x.name) + '</b>' + actList({ actions: x.preflight }) + '</div>').join('');
   h += '<div class="ok"><span class="btn" id="b-pkg2">📑 ' + X('打开整份简报包', 'Open the briefing package') + '</span></div>';
   h += (L.R.dep.length ? L.R.dep.map(item).join('') : '<div class="ok">✓ ' + X('起飞没有特别提醒', 'No departure warnings') + '</div>');
-  if (L.w) { const tm = L.w.towL - L.w.tow, lm = L.w.lwL - L.w.ldw;
-    h += '<div class="bw"' + (tm < 2000 ? ' style="color:var(--red)"' : '') + '>TOW ' + T(L.w.tow) + ' / ' + T(L.w.towL) + ' t · ' + X('余量 ', 'margin ') + T(tm) + ' t' + (tm < 0 ? ' ⛔ ' + X('超重', 'OVER') : '') + '</div>'
-      + '<div class="bw"' + (lm < 2000 ? ' style="color:var(--red)"' : '') + '>LDW ' + T(L.w.ldw) + ' / ' + T(L.w.lwL) + ' t · ' + X('余量 ', 'margin ') + T(lm) + ' t' + (lm < 0 ? ' ⛔ ' + X('超重', 'OVER') : '') + '</div>'
-      + '<div class="bw">' + X('落地油 ', 'LDG fuel ') + T(L.w.lf) + ' t · ETA ' + hmZ(on) + 'Z</div>'; }
+
   const enr = L.R.enr.length, arr = L.R.arr.length;
   h += '<h3>' + X('后面的提醒（起飞后到时候自动出现）', 'Later (appear automatically in flight)') + '</h3><div class="ok">✈️ ' + X('航路 ', 'En route ') + enr + ' · 🛬 ' + X('落地 ', 'Arrival ') + arr + '</div>' + (arr ? L.R.arr.map(item).join('') : '');
   h += '<div class="ok" style="margin-top:8px">' + X('起飞后（填 ATD 或到计划起飞时间）自动换成地图', 'The map appears after take-off (ATD or planned time)') + '</div>';
@@ -674,7 +683,7 @@ function draw() {
   const FI = L.fi || [], fx = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el));
   let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
     + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
-    + (L.w && L.w.tof ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
+    + (wFix(L) ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
   ovwShow(L, ph, el);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
@@ -765,6 +774,7 @@ $('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $(
 $('b-demo').onclick = () => demo();
 $('b-log').onclick = () => openLog();
 $('b-pkg').onclick = () => openPkg();
+$('b-zfw').onclick = () => { const L = CUR; if (!L || !wFix(L)) { MSG = XS('这个航班没有 OFP 重量数据', 'No OFP weights for this flight'); draw(); return; } const v = prompt(XS('实际无油重量 ZFW（吨，例如 245.3；留空 = 用计划 ', 'Actual ZFW (t; empty = plan ') + T(L.w.z) + '）', zfwOf(L) ? T(zfwOf(L)) : ''); if (v !== null) setZfw(L, v); };
 $('b-eink').onclick = () => { try { localStorage.setItem('pnl.eink', EINK ? '0' : '1'); } catch (e) {} location.reload(); };
 $('b-fi').onclick = async () => { ls('fit', '0'); MSG = '⏳ ' + X('下载区域提醒数据库…', 'Downloading Flight Intelligence…'); draw(); await fiSync();
   const n = FIDB && FIDB.items ? FIDB.items.length : 0, ok = n ? FIDB.items.filter(x => fiUsable(x, Date.now())).length : 0;
@@ -774,7 +784,9 @@ $('b-gps').onclick = () => { try { AndroidPanel.askGps(); } catch (e) {} };
 $('b-pick').onclick = () => pickOfp();
 $('b-upd').onclick = () => { try { if (window.AndroidPanel && AndroidPanel.checkNow) { AndroidPanel.checkNow(); MSG = '⏳ ' + X('正在检查新版本…（有新的会自动换上并显示「已更新」）', 'Checking for updates…'); } else { MSG = X('网页版：刷新页面就是最新', 'Web version: reload to update'); location.reload(); } } catch (e) {} draw(); };
 $('newb').onclick = e => { const b = e.target.closest('[data-k]'); if (b) { ls('pin', b.dataset.k); draw(); } $('newb').style.display = 'none'; }; $('demob').onclick = () => demo();
-$('board').onclick = e => { if (e.target.closest('#b-pkg2')) { openPkg(); return; } const f = e.target.closest('[data-fi]'); if (f) { fiDetail(f.dataset.fi); return; } const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
+$('board').addEventListener('change', e => { if (e.target.id === 'zfwin' && CUR) setZfw(CUR, e.target.value); });
+$('board').addEventListener('keydown', e => { if (e.target.id === 'zfwin' && e.key === 'Enter' && CUR) setZfw(CUR, e.target.value); });
+$('board').onclick = e => { if (e.target.closest('#zfwok')) { setZfw(CUR, $('zfwin').value); return; } if (e.target.closest('#b-pkg2')) { openPkg(); return; } const f = e.target.closest('[data-fi]'); if (f) { fiDetail(f.dataset.fi); return; } const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
 $('warn').onclick = () => { ls('alclosed', ''); draw(); };
 $('wpop').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); else $('wpop').style.display = 'none'; };
 $('wpl').onclick = e => { if (e.target.closest('[data-more]')) { ls('wpall', ls('wpall') === '1' ? '0' : '1'); draw(); return; } const t = e.target.closest('[data-fir]'); if (t) { openNotams(t.dataset.fir); return; }
@@ -794,8 +806,7 @@ $('zin').onclick = () => { ZOOM = Math.max(150, ZOOM / 1.6); ls('zoom', String(M
 $('zout').onclick = () => { ZOOM = Math.min(4000, ZOOM * 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
 $('row').addEventListener('click', e => {
   const L = CUR; if (!L) return;
-  if (e.target.closest('#c-zfw')) { const v = prompt(XS('实际无油重量 ZFW（吨，例如 245.3；或公斤 245300；留空 = 用计划）', 'Actual ZFW (t, e.g. 245.3, or kg; empty = plan)'), zfwOf(L) ? T(zfwOf(L)) : ''); if (v === null) return;
-    const n = parseFloat(v.replace(/,/g, '')); ls('zfw.' + L.k, isFinite(n) && n > 0 ? String(Math.round(n < 1000 ? n * 1000 : n)) : ''); draw(); return; }
+  if (e.target.closest('#c-zfw')) { $('b-zfw').click(); return; }
   if (e.target.closest('#c-fir')) { const FI = L.fi || [], el = (Date.now() - offOf(L)) / MIN, fx = FI.find(f => f[3] > Math.max(0, el)); if (fx) openNotams(FIRALIAS[fx[1]] || fx[1]); return; }
   if (e.target.closest('#c-wp') && L.n) {
     const off = offOf(L), el = (Date.now() - off) / MIN, last = L.n.filter(w => w[1] <= el).slice(-1)[0] || L.n[1] || L.n[0];
