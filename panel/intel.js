@@ -152,7 +152,7 @@ function alertHtml(L, list) {
 }
 function fiDetail(id) {
   if (PSEUDO[id] && PSEUDO[id].wac) return wacDetail(PSEUDO[id]);
-  const x = FIDB && FIDB.items.find(y => y.id === id); if (!x) return;
+  const x = PSEUDO[id] || (FIDB && FIDB.items.find(y => y.id === id)); if (!x) return;
   $('sheet').innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">🛰 ' + esc(x.name) + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>'
     + '<div class="nt' + (x.level === 'warning' ? ' red' : '') + '"><div class="zh">' + esc(x.msg || '') + '</div><div>' + esc(x.msgEn || '') + '</div><div class="tm">' + esc(x.type) + ' · ' + esc(x.fir || '') + ' ' + esc(x.firName || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)
     + ' · ' + X('生效 ', 'from ') + esc(x.from ? x.from.slice(0, 16).replace('T', ' ') + 'Z' : '—') + ' ' + X('到 ', 'to ') + esc(x.to ? x.to.slice(0, 16).replace('T', ' ') + 'Z' : 'PERM') + (x.sched ? ' · ' + esc(x.sched) : '') + '</div>'
@@ -266,4 +266,56 @@ function wacDetail(x) { const c = x.wac;
     + (c.t || []).map(t => '<div class="nt"><b>' + esc(t.h) + '</b>' + (t.x ? '<div class="en" style="white-space:pre-wrap;font-family:inherit;font-size:13.5px;color:#000">' + esc(t.x) + '</div>' : '<div class="tm">' + XS('（没有内容，查 CRAR ', '(no text, see CRAR ') + esc(c.crar || '') + '）</div>') + '</div>').join('')
     + '<div class="ok" style="font-size:12px">Worldwide Airspace Contingency Flashcards · CRAR ' + esc(c.crar || '') + ' · ' + X('仅供辅助，以公司资料为准', 'awareness only') + '</div>';
   $('sheet').style.display = 'block'; $('sheet').scrollTop = 0; $('sh-x').onclick = () => { $('sheet').style.display = 'none'; draw(); };
+}
+
+// ================= 提醒规则（reminders）：在哪里 / 什么时候 + 一步一步要做的事 =================
+// 规则：{ kind:'rule', where:{fir|firs|poly|circle|dep|arr|route|any}, lower, upper, steps:[{when, min, nm, show, zh, en}] }
+// when：区域类 before_entry / on_entry / after_entry / every / before_exit / on_exit
+//       航班类 before_std / after_takeoff / top_of_climb / before_tod / before_landing / after_landing
+const RULE_AREA = /^(before_entry|on_entry|after_entry|every|before_exit|on_exit)$/;
+const RULE_PH = { before_std: '起飞前', after_takeoff: '起飞后', top_of_climb: '爬升顶点', before_tod: '下降前', before_landing: '落地前', after_landing: '落地后', before_entry: '进入前', on_entry: '进入时', after_entry: '进入后', every: '区内每', before_exit: '离开前', on_exit: '离开时' };
+const RULE_PH_EN = { before_std: 'before STD', after_takeoff: 'after T/O', top_of_climb: 'at TOC', before_tod: 'before TOD', before_landing: 'before landing', after_landing: 'after landing', before_entry: 'before entry', on_entry: 'on entry', after_entry: 'after entry', every: 'every', before_exit: 'before exit', on_exit: 'on exit' };
+let RULEG = {};
+// 这条航线什么时候进、出这个区域（航路分钟；按高度过滤）。同一个航段只算一次
+function ruleSpan(L, x) {
+  const ck = L.k + '|' + x.id + '|' + (x.ver || 0); if (RULEG[ck] !== undefined) return RULEG[ck];
+  const G = fiGeom(Object.assign({ firOnly: !!(x.fir || (x.firs || []).length) }, x)); let r = null;
+  if (G) { const lo = (+x.lower || 0) - 1000, hi = (x.upper ? +x.upper : 99999) + 1000, N = (L.n || []).filter(w => w.length >= 4), cum = cumNm(N); let a = null, b = null;
+    const spans = [];   // 一条航线可能几次进出同一个区域：每一次都算
+    for (let m = 0; m <= L.tr; m++) { const p = (wpos(L, m) || {}).p, al = altAt(L, 1, m), inn = p && inGeom(G, p[0], p[1]) && al >= lo && al <= hi;
+      if (inn && a === null) a = m; if (!inn && a !== null) { spans.push([a, m]); a = null; } }
+    if (a !== null) spans.push([a, L.tr]);
+    if (spans.length) r = { spans, cum, N }; }
+  RULEG[ck] = r; return r;
+}
+function ruleAlerts(L, S, off, now) {
+  const out = []; if (!FIDB || !FIDB.items || L.noOfp) return out; const on = off + L.tr * MIN, tod = on - 30 * MIN, toc = off + 20 * MIN;
+  FIDB.items.forEach(x => {
+    if (x.kind !== 'rule' || !fiUsable(x, now) || !(x.steps || []).length) return;
+    const W = x.where || {}, areaR = W.fir || (W.firs || []).length || (W.poly || []).length >= 3 || W.circle;
+    if ((W.dep || W.arr || W.route) && !procMatch({ dep: W.dep, arr: W.arr, route: W.route, arrExclude: W.arrExclude, depExclude: W.depExclude }, L)) return;
+    const sp0 = areaR ? ruleSpan(L, { id: x.id, ver: x.ver, fir: W.fir, firs: W.firs, poly: W.poly, circle: W.circle, lower: x.lower, upper: x.upper }) : null;
+    if (areaR && !sp0) return;   // 这条航线不经过这个区域
+    (sp0 ? sp0.spans : [null]).forEach((ab, si) => { const sp = ab ? { a: ab[0], b: ab[1], cum: sp0.cum, N: sp0.N } : null;
+    x.steps.forEach((st, i) => { if (si > 0 && !RULE_AREA.test(st.when)) return;   // 航班类步骤只算一次
+      let T = null, show = (st.show || 15) * MIN, tag = '';
+      const m = +st.min || 0;
+      if (RULE_AREA.test(st.when)) { if (!sp) return; const tA = off + sp.a * MIN, tB = off + sp.b * MIN;
+        if (st.when === 'before_entry') { if (st.nm) { const dA = alongNm(sp.N, sp.cum, sp.a); let mm = sp.a; while (mm > 0 && dA - alongNm(sp.N, sp.cum, mm) < st.nm) mm--; T = off + mm * MIN; } else T = tA - m * MIN; }
+        else if (st.when === 'on_entry') T = tA; else if (st.when === 'after_entry') T = tA + m * MIN;
+        else if (st.when === 'every') { if (now < tA || now > tB || !m) return; const k = Math.floor((now - tA) / (m * MIN)); T = tA + k * m * MIN; show = m * MIN; tag = '.' + k; }
+        else if (st.when === 'before_exit') T = tB - m * MIN; else if (st.when === 'on_exit') T = tB;
+      } else {
+        if (st.when === 'before_std') T = L.std - m * MIN; else if (st.when === 'after_takeoff') T = off + m * MIN; else if (st.when === 'top_of_climb') T = toc + m * MIN;
+        else if (st.when === 'before_tod') T = tod - m * MIN; else if (st.when === 'before_landing') T = on - m * MIN; else if (st.when === 'after_landing') T = on + m * MIN; else return;
+        if (/^(after_takeoff|top_of_climb|before_tod|before_landing)$/.test(st.when) && S.ph !== 1) return;   // 空中才有的：要真的起飞了
+      }
+      if (T === null || now < T || now >= T + show) return;
+      const lab = XS(RULE_PH[st.when] || st.when, RULE_PH_EN[st.when] || st.when) + (st.when === 'every' ? ' ' + m + ' min' : st.nm ? ' ' + st.nm + ' NM' : m ? ' ' + m + ' min' : '');
+      const id = 'rule:' + x.id + '.' + i + (si ? '.s' + si : '') + tag, y = { id, kind: 'rule', name: x.name + ' · ' + lab, level: st.level || x.level || 'caution', fir: W.fir || '', msg: st.zh || st.en, msgEn: st.en || st.zh, actions: (st.do || []).length ? st.do : [{ zh: st.zh, en: st.en }], notes: x.notes, quote: x.quote, src: x.src, ver: x.ver || 1, rev: x.rev };
+      PSEUDO[id] = y; out.push({ x: y, state: 'proc', label: hmZ(T) + 'Z', min: 0, nm: 0 });
+    });
+    });
+  });
+  return out;
 }

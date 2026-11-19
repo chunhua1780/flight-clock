@@ -278,7 +278,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611191015';
+const PAGEV = '202611191459';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -690,7 +690,7 @@ function draw() {
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
   if (pre) board(L, now, off, on);
   // 地图
-  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(tlAlerts(L, LS, now), procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
+  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(tlAlerts(L, LS, now), ruleAlerts(L, LS, off, now), procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
   const drawMapNow = () => { if (!L.noOfp && !pre) { drawMap(L, el, ph, LS, HOT); einkPix($('map')); } else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
   // 右边：航路点时间线（下一个点绿色圆圈，移交点橙色圆圈并写下一个管制区；不用红线）
   if (!L.noOfp) {
