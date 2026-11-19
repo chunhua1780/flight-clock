@@ -297,7 +297,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611191547';
+const PAGEV = '202611191554';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -331,7 +331,7 @@ async function update(quiet) {
     LEGS = LEGS.filter(l => (l.std > now - 3 * 864e5 && l.std < now + 3 * 864e5) || l.k === ls('pin')).sort((a, b) => a.std - b.std);   // 保留 3 天：往返两段都在，还能演示
     ls('legs', JSON.stringify(LEGS)); ls('upd', String(now));
     MSG = got ? '✅ ' + X('收到 ' + got + ' 份 OFP', got + ' OFP(s) received') : '✅ ' + X('已是最新', 'Up to date');
-    if (NEWL.length) newBanner();
+    if (NEWL.length) { NEWL.forEach(l => { try { if (!pkgAiGet(l)) pkgAiRun(l).catch(() => {}); } catch (e) {} }); newBanner(); }   // 新航班：马上让 AI 整理简报要点（别的设备整理过就直接下载）
     if (BAD.length) { MSG += ' · ⚠️ ' + X('有 ' + BAD.length + ' 个附件没读出 OFP', BAD.length + ' attachment(s) not readable'); console.warn(BAD); BAD = []; }
   } catch (e) { MSG = '⚠️ ' + e.message; }
   busy = false; draw();
@@ -615,7 +615,7 @@ async function pickOfp(days) {
   try { const j = await withTimeout(postK({ action: 'ofpmail', days }), 90000); if (j && j.ok) { if (j.gh && j.gh.tok) { ls('ghtok', j.gh.tok); ls('ghrepo', j.gh.repo || ''); }
       (j.files || []).filter(f => LIDO.test(f.name || '') || /OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|BRIEF|EK\s?-?\d{3,4}|UAE\s?\d/i.test((f.name || '') + ' ' + (f.subject || '')) || days >= 30).forEach(f => rows.push({ src: 'mail', id: f.id, t: f.t, name: f.name + ' · ' + X('收到 ', 'received ') + dmZ(f.t) + ' · ' + ((f.size || 0) / 1e6).toFixed(1) + ' MB' })); }
     else errs.push(X('邮箱：', 'Mail: ') + ((j && j.error) || '?')); } catch (e) { errs.push(X('邮箱：', 'Mail: ') + e.message); }
-  try { const r = await ghRaw('ofpdata/index.json'); if (r) (await r.json()).filter(x => x.meta && x.meta.std > Date.now() - days * 864e5).forEach(x => rows.push({ src: 'cloud', id: x.k, t: x.meta.std, name: (x.meta.no || x.k) + ' ' + (x.meta.depI || x.meta.dep || '') + '→' + (x.meta.arrI || x.meta.arr || '') + ' ' + dmZ(x.meta.std) })); else errs.push(X('云端：', 'Cloud: ') + (GH().tok ? X('读不到（GitHub）', 'not reachable') : X('还没有同步码（先在有网时点一次 🔄 更新）', 'no sync key yet'))); } catch (e) { errs.push(X('云端：', 'Cloud: ') + e.message); }
+  try { const r = await ghRaw('ofpdata/index.json'); if (r) (await r.json()).filter(x => x.meta && x.len && x.meta.std > Date.now() - days * 864e5).forEach(x => rows.push({ src: 'cloud', id: x.k, t: x.meta.std, name: (x.meta.no || x.k) + ' ' + (x.meta.depI || x.meta.dep || '') + '→' + (x.meta.arrI || x.meta.arr || '') + ' ' + dmZ(x.meta.std) })); else errs.push(X('云端：', 'Cloud: ') + (GH().tok ? X('读不到（GitHub）', 'not reachable') : X('还没有同步码（先在有网时点一次 🔄 更新）', 'no sync key yet'))); } catch (e) { errs.push(X('云端：', 'Cloud: ') + e.message); }
   rows.sort((a, b) => b.t - a.t);
   $('pk-list').innerHTML = rows.map((r, i) => '<div class="nt" data-i="' + i + '" style="cursor:pointer"><b>' + (r.src === 'cloud' ? '☁️ ' : '📧 ') + esc(r.name) + '</b>' + (LEGS.some(l => l.fid && l.fid.indexOf(r.id) >= 0) ? ' <span class="tm">✓ ' + X('手机里已有', 'on phone') + '</span>' : '') + '</div>').join('') || '<div class="ok">' + X('云端和邮箱里都没找到 OFP', 'No OFP in cloud or mail') + '</div>';
   log(errs.length ? '⚠️ ' + errs.map(esc).join('<br>⚠️ ') : X('点一个来下载、读取（会存在手机里，离线可用）', 'Tap one to download and read it (stored on the phone)'));

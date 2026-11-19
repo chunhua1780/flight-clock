@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-20q';
+const BACKEND_VER = '2026-11-20s';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -177,7 +177,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN && p.token !== TOKEN) return out_({ ok: false, error: 'unauthorized' });
   // 查后台版本和自动更新情况（不需要口令，不含任何私人资料）
-  if (p.action === 'ver') { let u = null; try { u = JSON.parse(PropertiesService.getScriptProperties().getProperty('upd_last') || 'null'); } catch (x) {} return out_({ ok: true, v: BACKEND_VER, loader: globalThis.__LOADER || 0, lastCheck: globalThis.__LOADER ? null : u }); }
+  if (p.action === 'ver') { let u = null; try { u = JSON.parse(PropertiesService.getScriptProperties().getProperty('upd_last') || 'null'); } catch (x) {} let ao = null; try { ao = JSON.parse(PropertiesService.getScriptProperties().getProperty('aofp_last') || 'null'); } catch (x) {} return out_({ ok: true, v: BACKEND_VER, loader: globalThis.__LOADER || 0, lastCheck: globalThis.__LOADER ? null : u, mailOfp: ao }); }
   try {
     if (p.action === 'photo') return out_(photo_(p));
     if (p.action === 'ofpcheck') return out_(ofpCheck_());
@@ -435,6 +435,7 @@ function poll() {
   const now = Date.now();
   try { autoUpdate_(); } catch (e) {}   // 每小时看一次 GitHub 上有没有新版本
   try { rwWatch_(); } catch (e) {}   // 飞行助手要的机场：看实际起降方向
+  try { autoOfp_(); } catch (e) {}   // 邮箱里新到的 OFP：AI 直接从 PDF 读出全部通告，排队翻译（不用等设备）
   try { trWork_(); } catch (e) {}   // 新 OFP 的通告：后台翻译 + 一句话要点
   // 日历 10 分钟读一次就够（每分钟都读太浪费额度）
   const cache = CacheService.getScriptCache();
@@ -1534,7 +1535,7 @@ function stPut_(j) {
   try {
     const path = 'ofpdata/' + k + '.st.json', g = gh_('get', path); let st = { u: {} };
     if (g && g.code === 200 && g.j) { try { st = JSON.parse(Utilities.newBlob(Utilities.base64Decode(g.j.content)).getDataAsString('UTF-8')); } catch (e) {} } if (!st.u) st.u = {};
-    const t = +j.t || Date.now(); let ch = false;
+    const t = j.t != null && isFinite(+j.t) ? +j.t : Date.now(); let ch = false;
     Object.keys(j.set).forEach(function (f) { if (!/^(atd|zfw|cs|ato)$/.test(f)) return; if ((st.u[f] || 0) <= t) { st[f] = j.set[f]; st.u[f] = t; ch = true; } });
     if (ch) { ghPut_(path, Utilities.base64Encode(JSON.stringify(st), Utilities.Charset.UTF_8), 'st ' + k); cloudIdxSave_(cloudIdx_(), { k: k, st: Date.now() });
       // 家里的时钟：把 ATD 写进它用的飞行计划
@@ -1542,4 +1543,43 @@ function stPut_(j) {
         let p = {}; try { p = JSON.parse(pr.getProperty(pk) || '{}'); } catch (e) {} Object.assign(p, { digits: dg, date: m.date, depIata: m.depI, arrIata: m.arrI, reg: p.reg || m.reg || null, trip: p.trip || m.trip || null, atd: st.atd || null, t: Date.now() }); pr.setProperty(pk, JSON.stringify(p)); } } catch (e) {} } }
     return { ok: true, st: st };
   } finally { lock.releaseLock(); }
+}
+
+// ======== 邮箱新到的 OFP：后台自己处理（每 5 分钟看一次邮箱；一份 OFP 只处理一次） ========
+// AI 从 PDF 里读出航班信息和全部 NOTAM（原文照抄），交给翻译队列；手机 / iPad 有网就下载译文和一句话要点
+const AOFP_LIDO_ = /EK\.?\s?(\d{3,4})\.(\d{2})([A-Za-z]{3})(\d{4})\.([A-Z]{3})\.([A-Z]{3})/;
+function autoOfp_() {
+  const pr = PropertiesService.getScriptProperties(), now = Date.now();
+  if (now - (+pr.getProperty('aofp_t') || 0) < 5 * 60e3 || now - (+pr.getProperty('aofp_busy') || 0) < 6 * 60e3) return;
+  pr.setProperty('aofp_t', String(now));
+  let done = []; try { done = JSON.parse(pr.getProperty('aofp_done') || '[]'); } catch (e) {}
+  const cand = [];
+  GmailApp.search('has:attachment filename:pdf newer_than:1d', 0, 15).forEach(function (th) { th.getMessages().forEach(function (m) {
+    if (now - m.getDate().getTime() > 12 * 3600e3) return;
+    m.getAttachments({ includeInlineImages: false }).forEach(function (a, i) { const name = a.getName() || '', id = m.getId() + ':' + i, L = AOFP_LIDO_.exec(name);
+      if (done.indexOf(id) >= 0 || a.getSize() > 15e6 || a.getSize() < 2e5) return;
+      if (L) cand.push({ id: id, a: a, k: ('EK' + L[1] + L[2] + L[3].toUpperCase()).replace(/[^\w.-]/g, ''), no: 'EK' + L[1], date: L[2] + L[3].toUpperCase(), dep: L[5], arr: L[6] });
+      else if (/OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|BRIEF|EK\s?-?\d{3,4}|UAE\s?\d/i.test(name + ' ' + (m.getSubject() || ''))) cand.push({ id: id, a: a, k: '' });   /* 文件名不是 Lido 格式：航班号、日期让 AI 从 PDF 里读 */
+    }); }); });
+  if (!cand.length) return;
+  const x = cand[0]; pr.setProperty('aofp_busy', String(now));
+  try {
+    let have = x.k ? cloudIdx_().idx.find(function (e) { return e.k === x.k; }) : null;
+    if (!(have && have.tr)) {   // 云端还没有这一班的译文：AI 读 PDF
+      const prompt = 'This PDF is an Emirates LIDO operational flight plan (OFP) briefing package. Extract EVERY NOTAM in it (departure, destination, alternates, en-route airports and FIRs). '
+        + 'If this PDF is NOT an operational flight plan, return {"not_ofp":true}. Copy each NOTAM text exactly as printed (do not translate, shorten or correct it). Return JSON {"flight":"e.g. EK0368","date":"DDMMM e.g. 20NOV","dep":"IATA","arr":"IATA","std_utc":"YYYY-MM-DDTHH:MMZ or empty","notams":[{"id":"NOTAM number exactly as printed, e.g. A1234/26","loc":"4-letter ICAO the NOTAM belongs to","text":"full NOTAM text"}]}.';
+      const body = { contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'application/pdf', data: Utilities.base64Encode(x.a.getBytes()) } }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', maxOutputTokens: 65000 } };
+      const g = gemCall_(body, ['gemini-flash-lite-latest']); let d = null; try { d = JSON.parse(g.out); } catch (e) {}
+      if (d && !x.k && d.flight && d.date) { x.no = String(d.flight).toUpperCase().replace(/\s/g, ''); x.date = String(d.date).toUpperCase(); x.dep = d.dep || ''; x.arr = d.arr || ''; x.k = (x.no + x.date).replace(/[^\w.-]/g, ''); }
+      if (!x.k) d = null;
+      const nt = d && Array.isArray(d.notams) ? d.notams.filter(function (n) { return n && n.id && n.text && String(n.text).length > 10; }).map(function (n) { return [String(n.id).trim(), String(n.text)]; }) : [];
+      if (nt.length && !have) have = cloudIdx_().idx.find(function (e) { return e.k === x.k; });
+      if (nt.length) { trQueue_(x.k, nt);
+        const std = d.std_utc ? Date.parse(d.std_utc) : 0;
+        if (!have) cloudIdxSave_(cloudIdx_(), { k: x.k, meta: { no: x.no, date: x.date, depI: x.dep, arrI: x.arr, std: isFinite(std) ? std : 0 }, t: Date.now(), mailAi: nt.length });
+        else cloudIdxSave_(cloudIdx_(), { k: x.k, mailAi: nt.length }); }
+      pr.setProperty('aofp_last', JSON.stringify({ t: now, k: x.k, notams: nt.length, err: g.ok ? '' : g.error }).slice(0, 500));
+    }
+    done.push(x.id); pr.setProperty('aofp_done', JSON.stringify(done.slice(-60)));
+  } finally { pr.setProperty('aofp_busy', '0'); }
 }

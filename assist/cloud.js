@@ -49,6 +49,9 @@
       try { if (S.ofp && !S.demo) { const k = keyOf(S.ofp), x = idx.find(e => e.k === k);
         if (x && x.st && +(lsGet('stn.' + k) || 0) < x.st) { const r3 = await gh('ofpdata/' + k + '.st.json'); if (r3) { const st = await r3.json(); lsSet('stn.' + k, String(x.st));
           if (st.u && (st.u.atd || 0) > +(lsGet('stu.atd.' + k) || 0)) { lsSet('stu.atd.' + k, String(st.u.atd)); if ((st.atd || null) !== (S.atd || null) && typeof setATD === 'function') { setATD(st.atd || null, true); toast('☁️ ' + th('ATD 已按其它设备更新：', 'ATD updated from another device: ') + (st.atd ? hmZ(st.atd) + 'Z' : '—'), 4000); } } } } } } catch (e) {}
+      // 接下来两天所有航班的通告译文 + 一句话要点（后台 AI 已经翻好的）：都下载存在 iPad 上，离线可看
+      try { for (const x of idx) { const m = x.meta || {}; if (!x.tr || (m.std && (m.std < now - 864e5 || m.std > now + 48 * 36e5))) continue; if (+(lsGet('cloudtr.' + x.k) || 0) >= x.tr) continue;
+        const r2 = await gh('ofpdata/' + x.k + '.tr.json'); if (r2) { const mm = await r2.json(); if (typeof TR === 'object') { Object.assign(TR, mm); lsSet('tr', JSON.stringify(TR)); } lsSet('cloudtr.' + x.k, String(x.tr)); } } } catch (e) {}
       // 当前这份 OFP 的通告译文（云端已经翻好的）：合进来，就不用再翻
       try { if (S.ofp) { const k = keyOf(S.ofp), x = idx.find(e => e.k === k);
         if (x && x.tr && +(lsGet('cloudtr.' + k) || 0) < x.tr) { const r2 = await gh('ofpdata/' + k + '.tr.json'); if (r2) { const m = await r2.json(); if (typeof TR === 'object') { Object.assign(TR, m); lsSet('tr', JSON.stringify(TR)); } lsSet('cloudtr.' + k, String(x.tr)); } } } } catch (e) {}
