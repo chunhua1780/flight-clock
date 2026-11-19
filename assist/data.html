@@ -163,6 +163,17 @@ function build(kind, o, where, th, E, W) {
     const lv = String(o.level || 'caution').toLowerCase(); if (!/^(info|caution|warning)$/.test(lv)) return err('level 只能是 info / caution / warning');
     const an = num(o.alert_nm, 50), am = num(o.alert_min, 10); if (isNaN(an) || isNaN(am)) return err('alert_nm / alert_min 要写数字');
     return Object.assign(it, { from: f, to: t, sched: o.schedule || '', lower: lo, upper: hi, level: lv, alertNm: an, alertMin: am, msg: o.message_zh || '', msgEn: o.message_en || '', notes: o.notes || o.remarks || '', quote: o.source ? '来源：' + o.source : '' }); };
+  if (kind === 'proc') { const id = normName(o.id || o.name); if (!id) return err('程序没有 id');
+    if (!o.name) return err('程序没有 name'); if (!o.message_zh && !o.message_en) return err('程序没有 message_zh / message_en');
+    let tr = o.trigger; if (tr !== 'gnss') { if (!tr || typeof tr !== 'object' || !(Array.isArray(tr.dep) || Array.isArray(tr.arr))) return err('trigger 只能是 "gnss" 或 {"dep":["OMDB"]} / {"arr":["VIDP"]}');
+      tr = { dep: (tr.dep || []).map(normName), arr: (tr.arr || []).map(normName) }; if (tr.dep.concat(tr.arr).some(c => !/^[A-Z]{4}$/.test(c))) return err('trigger 里的机场要写 4 个字母 ICAO'); }
+    const ph = Array.isArray(o.phases) ? o.phases : []; if (!ph.length) return err('程序没有 phases');
+    for (const q of ph) { if (!/^(dep|toc|dest|arr)$/.test(q.key || '')) return err('phases.key 只能是 dep / toc / dest / arr'); if (!Array.isArray(q.steps) || !q.steps.length) return err('phase ' + q.key + ' 没有 steps'); }
+    const f = timeOf(o.from_utc), t = timeOf(o.to_utc); if (f === null || t === null) return err('时间看不懂');
+    const lv = String(o.level || 'caution').toLowerCase(); if (!/^(info|caution|warning)$/.test(lv)) return err('level 只能是 info / caution / warning');
+    return Object.assign(base, { id: 'p:' + id, kind: 'proc', name: o.name, type: 'PROCEDURE', fir: '', level: lv, msg: o.message_zh || '', msgEn: o.message_en || '', trigger: tr,
+      phases: ph.map(q => ({ key: q.key === 'arr' ? 'dest' : q.key, zh: q.title_zh || '', en: q.title_en || '', steps: q.steps.map(x => ({ zh: x.zh || x.text_zh || '', en: x.en || x.text_en || '' })) })),
+      notes: o.notes || '', quote: o.source ? '来源：' + o.source : '', from: f, to: t }); }
   if (kind === 'wpt') { const id = normName(o.ident || o.name); if (!id) return err('没有 ident'); if (!/^[A-Z0-9]{2,7}$/.test(id)) return err('ident 格式不对：' + id);
     const la = coord1(o.lat, 'lat'), lo = coord1(o.lon, 'lon'); if (!isFinite(la) || Math.abs(la) > 90) return err('纬度不对：' + o.lat); if (!isFinite(lo) || Math.abs(lo) > 180) return err('经度不对：' + o.lon);
     return Object.assign(base, { id: 'w:' + id + ':' + Math.round(la) + ':' + Math.round(lo), kind: 'wpt', name: id, lat: +la.toFixed(5), lon: +lo.toFixed(5), wtype: normName(o.type || 'WPT'), airways: o.airways || '', fir: normName(o.fir), country: o.country || '', notes: o.remarks || '' }); }
@@ -185,9 +196,9 @@ async function handle(files) {
   if (!key()) return; PEND = []; ERRS = []; WARNS = []; const seen = {};
   for (const f of files) { const ext = f.name.split('.').pop().toLowerCase(), u8 = new Uint8Array(await f.arrayBuffer()); let groups = [];
     try {
-      if (ext === 'json') { const j = JSON.parse(new TextDecoder().decode(u8)); const add = (k, a) => { if (Array.isArray(a)) groups.push({ name: f.name + ' · ' + k, kind: k === 'waypoints' ? 'wpt' : k === 'notams' ? 'notam' : 'area', objs: a.map((o, i) => Object.assign({ _row: i + 1 }, o)) }); };
+      if (ext === 'json') { const j = JSON.parse(new TextDecoder().decode(u8)); const add = (k, a) => { if (Array.isArray(a)) groups.push({ name: f.name + ' · ' + k, kind: k === 'waypoints' ? 'wpt' : k === 'notams' ? 'notam' : k === 'procedures' ? 'proc' : 'area', objs: a.map((o, i) => Object.assign({ _row: i + 1 }, o)) }); };
         if (Array.isArray(j)) { ['wpt', 'area', 'notam'].forEach(k => { const a = j.filter(o => (o.kind || 'area') === k || (k === 'wpt' && o.kind === 'waypoint')); if (a.length) groups.push({ name: f.name, kind: k, objs: a.map((o, i) => Object.assign({ _row: i + 1 }, o)) }); }); }
-        else { add('waypoints', j.waypoints); add('areas', j.areas || j.danger_areas || j.restricted_areas); add('notams', j.notams); add('firs', j.firs && j.firs.map(o => Object.assign({ type: 'FIR' }, o))); }
+        else { add('waypoints', j.waypoints); add('areas', j.areas || j.danger_areas || j.restricted_areas); add('notams', j.notams); add('firs', j.firs && j.firs.map(o => Object.assign({ type: 'FIR' }, o))); add('procedures', j.procedures); }
         if (!groups.length) ERRS.push(f.name + '：这个 JSON 不是上传格式（要有 waypoints / areas / notams 这几栏，见下面的「数据格式标准」）。自己整理的资料可以发给 Claude 转换。'); }
       else if (ext === 'xlsx') (await xlsxSheets(u8)).forEach(sh => { const objs = objects(sh.rows); if (objs.length) groups.push({ name: f.name + ' · ' + sh.name, kind: kindOf(sh.name, objs), th: typeHint(sh.name), objs }); });
       else if (ext === 'csv' || ext === 'txt') { const objs = objects(csvRows(new TextDecoder().decode(u8))); groups.push({ name: f.name, kind: kindOf(f.name, objs), th: typeHint(f.name), objs }); }
@@ -204,14 +215,14 @@ const same = (a, b) => { const s = x => JSON.stringify(Object.assign({}, x, { ve
 function compare() { const by = {}; DB.items.forEach(x => by[x.id] = x); CMP = { add: [], upd: [], same: [] };
   PEND.forEach(x => { const o = by[x.id]; if (!o) CMP.add.push(x); else if (same(Object.assign({}, x, { rev: 0 }), Object.assign({}, o, { rev: 0 }))) CMP.same.push(x); else CMP.upd.push(x); }); }
 function render() {
-  const c = k => PEND.filter(x => x.kind === k).length;
-  $('sum').innerHTML = PEND.length || ERRS.length ? '<span class="stat">航路点 ' + c('wpt') + '</span><span class="stat">区域 ' + c('area') + '</span><span class="stat">NOTAM ' + c('notam') + '</span><br>'
+  const c = k => PEND.filter(x => x.kind === k).length, cp = c('proc');
+  $('sum').innerHTML = PEND.length || ERRS.length ? '<span class="stat">航路点 ' + c('wpt') + '</span><span class="stat">区域 ' + c('area') + '</span><span class="stat">NOTAM ' + c('notam') + '</span>' + (cp ? '<span class="stat">程序 ' + cp + '</span>' : '') + '<br>'
     + '<span class="stat ok">新增 ' + CMP.add.length + '</span><span class="stat">更新 ' + CMP.upd.length + '</span><span class="stat small">没变化（跳过） ' + CMP.same.length + '</span><span class="stat err">有错（不导入） ' + ERRS.length + '</span>' : '没有读到数据。';
   $('errs').innerHTML = (ERRS.length ? '<h3 class="err">❌ 错误（这些行不会导入，改好再传）</h3><div class="small err">' + ERRS.slice(0, 200).map(esc).join('<br>') + (ERRS.length > 200 ? '<br>… 还有 ' + (ERRS.length - 200) + ' 条' : '') + '</div>' : '')
     + (WARNS.length ? '<h3 class="wrn">⚠️ 提醒</h3><div class="small wrn">' + WARNS.slice(0, 100).map(esc).join('<br>') + '</div>' : '');
   const show = CMP.add.concat(CMP.upd); $('tbl').style.display = show.length ? 'block' : 'none';
   $('tbl').innerHTML = '<table><tr><th></th><th>类型</th><th>名称</th><th>位置 / 范围</th><th>有效期</th><th>高度</th></tr>' + show.slice(0, 500).map(x => '<tr><td>' + (CMP.add.indexOf(x) >= 0 ? '<span class="ok">新</span>' : '更新') + '</td><td>' + esc(x.kind === 'wpt' ? x.wtype : x.type) + '</td><td>' + esc(x.name) + '</td><td class="small">'
-    + (x.kind === 'wpt' ? x.lat + ', ' + x.lon : x.poly ? x.poly.length + ' 点' : x.circle ? '圆 ' + x.circle.nm + ' NM' : x.firOnly ? '整个 ' + esc(x.fir) : '—') + '</td><td class="small">' + esc((x.from || '') + (x.from || x.to ? ' → ' : '') + (x.to || (x.kind === 'wpt' ? '' : 'PERM'))) + '</td><td class="small">' + (x.kind === 'wpt' ? '' : fl(x.lower) + '–' + fl(x.upper)) + '</td></tr>').join('') + '</table>';
+    + (x.kind === 'wpt' ? x.lat + ', ' + x.lon : x.kind === 'proc' ? (x.phases || []).length + ' 个阶段' : x.poly ? x.poly.length + ' 点' : x.circle ? '圆 ' + x.circle.nm + ' NM' : x.firOnly ? '整个 ' + esc(x.fir) : '—') + '</td><td class="small">' + esc((x.from || '') + (x.from || x.to ? ' → ' : '') + (x.to || (x.kind === 'wpt' ? '' : 'PERM'))) + '</td><td class="small">' + (x.kind === 'wpt' ? '' : fl(x.lower) + '–' + fl(x.upper)) + '</td></tr>').join('') + '</table>';
   $('go').disabled = !show.length; $('go').textContent = '☁️ 导入 ' + show.length + ' 条并同步到手机 / iPad'; drawMap();
 }
 const fl = v => v >= 99999 ? 'UNL' : !v ? 'SFC' : v >= 10000 ? 'FL' + Math.round(v / 100) : v + 'ft';

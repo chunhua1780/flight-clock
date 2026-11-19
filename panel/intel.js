@@ -181,6 +181,7 @@ function procAlerts(L, S, off, now) {
       else if (depG && S.ph === 1 && S.el < 60) { key = 'toc'; lab = XS('TOC 后恢复 GPS', 'At TOC'); }
       else if (arrG && S.ph === 1 && S.el >= L.tr - 100) { key = 'dest'; lab = XS('目的地 GPS 干扰 · TOD 前', 'DEST GPS SI · before TOD'); }
     } else if (x.trigger && x.trigger.dep && x.trigger.dep.indexOf(L.dep) >= 0 && S.ph === 0) { key = 'dep'; lab = XS('起飞前', 'Before departure'); }
+    else if (x.trigger && x.trigger.arr && x.trigger.arr.indexOf(L.arr) >= 0 && S.ph === 1 && S.el >= L.tr - 100) { key = 'dest'; lab = XS('到达前', 'Before arrival'); }
     if (!key) return; PH_NOW[x.id] = key;
     const p = (x.phases || []).find(q => q.key === key);
     out.push({ x: Object.assign({}, x, { id: x.id, msg: (p ? p.zh + '：' : '') + x.msg, msgEn: (p ? p.en + ': ' : '') + x.msgEn }), state: 'proc', label: lab, min: 0, nm: 0 });
