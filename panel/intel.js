@@ -131,19 +131,23 @@ function alertSound(L, list) {
 }
 const fmtMin = m => m == null ? '' : m < 1 ? XS('现在', 'now') : m < 60 ? Math.round(m) + ' min' : Math.floor(m / 60) + 'h' + String(Math.round(m % 60)).padStart(2, '0');
 const flLab = v => v >= 99999 ? 'UNL' : !v ? 'SFC' : v >= 10000 ? 'FL' + Math.round(v / 100) : v + 'ft';
+// 「要做的事」清单（通讯：CPDLC 登录、RCL、联系频率……）
+function actList(x) { const A = x.actions || []; if (!A.length) return '';
+  return '<ol class="acts">' + A.map(t => '<li>' + esc(LANG === 'en' ? (t.en || t.zh) : (t.zh || t.en)) + (LANG === 'both' && t.en && t.zh ? '<small>' + esc(t.en) + '</small>' : '') + '</li>').join('') + '</ol>'; }
 function alertHtml(L, list) {
   return list.map(a => { const x = a.x, ok = acked(L, a), txt = LANG === 'en' ? (x.msgEn || x.msg) : (x.msg || x.msgEn);
-    const when = a.state === 'proc' ? a.label : a.state === 'in' ? XS('已在区内', 'INSIDE') : a.state === 'near' ? Math.round(a.nm) + ' NM' : fmtMin(a.min) + ' · ' + Math.round(a.nm) + ' NM';
+    const when = a.state === 'proc' ? a.label : x.kind === 'wac' ? fmtMin(a.min) : a.state === 'in' ? XS('已在区内', 'INSIDE') : a.state === 'near' ? Math.round(a.nm) + ' NM' : fmtMin(a.min) + ' · ' + Math.round(a.nm) + ' NM';
     return '<div class="al ' + esc(x.level) + (ok ? ' ack' : '') + '" data-ak="' + esc(ackKey(L, a)) + '" data-id="' + esc(x.id) + '"><b>' + (x.level === 'warning' ? '⛔ ' : x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + esc(x.name) + '</b> <span class="aw">' + esc(when) + '</span>'
-      + (ok ? '' : '<div class="at">' + esc(txt || '') + (LANG === 'both' && x.msgEn && x.msg ? '<small>' + esc(x.msgEn) + '</small>' : '') + '</div><div class="am">' + esc((x.fir || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)) + ' <span class="ack-b">✓ ' + XS('确认', 'ACK') + '</span></div>') + '</div>'; }).join('');
+      + (ok ? '' : '<div class="at">' + esc(txt || '') + (LANG === 'both' && x.msgEn && x.msg ? '<small>' + esc(x.msgEn) + '</small>' : '') + '</div>' + actList(x) + '<div class="am">' + esc(x.kind === 'wac' ? XS('点开看全文', 'tap for details') : (x.fir || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)) + ' <span class="ack-b">✓ ' + XS('确认', 'ACK') + '</span></div>') + '</div>'; }).join('');
 }
 function fiDetail(id) {
+  if (PSEUDO[id] && PSEUDO[id].wac) return wacDetail(PSEUDO[id]);
   const x = FIDB && FIDB.items.find(y => y.id === id); if (!x) return;
   $('sheet').innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">🛰 ' + esc(x.name) + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>'
     + '<div class="nt' + (x.level === 'warning' ? ' red' : '') + '"><div class="zh">' + esc(x.msg || '') + '</div><div>' + esc(x.msgEn || '') + '</div><div class="tm">' + esc(x.type) + ' · ' + esc(x.fir || '') + ' ' + esc(x.firName || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)
     + ' · ' + X('生效 ', 'from ') + esc(x.from ? x.from.slice(0, 16).replace('T', ' ') + 'Z' : '—') + ' ' + X('到 ', 'to ') + esc(x.to ? x.to.slice(0, 16).replace('T', ' ') + 'Z' : 'PERM') + (x.sched ? ' · ' + esc(x.sched) : '') + '</div>'
     + (x.phases ? x.phases.map(p => '<div style="margin-top:8px;font-weight:900' + (PH_NOW[x.id] === p.key ? ';color:var(--red)' : '') + '">' + (PH_NOW[x.id] === p.key ? '▶ ' : '') + esc(LANG === 'en' ? p.en : p.zh) + '</div><ol style="margin:3px 0 0 18px;padding:0">' + p.steps.map(t => '<li style="margin:3px 0">' + esc(LANG === 'en' ? t.en : t.zh) + (LANG === 'both' ? '<div class="en">' + esc(t.en) + '</div>' : '') + '</li>').join('') + '</ol>').join('') : '')
-    + (x.notes ? '<div style="margin-top:6px">' + esc(x.notes) + '</div>' : '') + (x.quote ? '<div class="en">“' + esc(x.quote) + '”</div>' : '')
+    + actList(x) + (x.notes ? '<div style="margin-top:6px">' + esc(x.notes) + '</div>' : '') + (x.quote ? '<div class="en">“' + esc(x.quote) + '”</div>' : '')
     + '<div class="tm" style="margin-top:6px">📄 ' + esc((x.src && x.src.file) || X('手动', 'manual')) + ' · ver ' + (x.ver || 1) + ' · ' + X('审核 ', 'reviewed ') + (x.rev ? new Date(x.rev.at).toISOString().slice(0, 10) : '—') + ' · DB v' + (FIDB.v || 0) + '</div></div>'
     + '<div class="ok" style="font-size:12px">' + X('仅供辅助，不能替代官方航行情报、公司程序及 ATC 指令', 'Awareness aid only — official AIS, company procedures and ATC prevail') + '</div>';
   $('sheet').style.display = 'block'; $('sh-x').onclick = () => { $('sheet').style.display = 'none'; draw(); };
@@ -155,7 +159,7 @@ function fiDrawMap(g, xy, hot, W, H) {
   if (W && ZOOM <= 600 && WPTL.length) { const vis = []; for (const w of WPTL) { const q = xy(w.lat, w.lon); if (q[0] > -10 && q[0] < W + 10 && q[1] > -10 && q[1] < H + 10) { vis.push([q, w.name]); if (vis.length > 400) break; } }
     g.fillStyle = '#888'; g.font = '10px sans-serif'; vis.forEach(([q, n]) => { g.beginPath(); g.moveTo(q[0], q[1] - 4); g.lineTo(q[0] + 3.5, q[1] + 2.5); g.lineTo(q[0] - 3.5, q[1] + 2.5); g.closePath(); g.fill(); if (vis.length < 120) g.fillText(n, q[0] + 5, q[1] + 3); }); }
   FIDB.items.forEach(x => { if (!fiUsable(x, t)) return; const G = fiGeom(x); if (!G || ((x.firOnly || BOUNDARY.test(x.type)) && !hot[x.id])) return;
-    const h = hot[x.id]; g.strokeStyle = h ? '#d00000' : '#7a3db8'; g.fillStyle = h ? 'rgba(208,0,0,.10)' : 'rgba(122,61,184,.08)'; g.lineWidth = h ? 2.5 : 1.6; g.setLineDash(h ? [] : [5, 3]);
+    const h = hot[x.id], big = x.firOnly || BOUNDARY.test(x.type); g.strokeStyle = h ? '#d00000' : '#7a3db8'; g.fillStyle = big ? 'rgba(0,0,0,0)' : h ? 'rgba(208,0,0,.10)' : 'rgba(122,61,184,.08)'; g.lineWidth = big ? 1.3 : h ? 2.5 : 1.6; g.setLineDash(big ? [8, 5] : h ? [] : [5, 3]);   // 整个 FIR 的提醒：只画细虚线边界，不铺颜色
     G.R.forEach(r => { g.beginPath(); r.forEach((p, i) => { const q = xy(p[1], p[0]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); g.fill(); g.stroke(); });
     g.setLineDash([]); const q = xy(G.R[0][0][1], G.R[0][0][0]); g.fillStyle = h ? '#d00000' : '#7a3db8'; g.font = 'bold 11px sans-serif'; g.fillText(x.name.slice(0, 22), q[0] + 3, q[1] - 3); });
 }
@@ -187,4 +191,35 @@ function procAlerts(L, S, off, now) {
     out.push({ x: Object.assign({}, x, { id: x.id, msg: (p ? p.zh + '：' : '') + x.msg, msgEn: (p ? p.en + ': ' : '') + x.msgEn }), state: 'proc', label: lab, min: 0, nm: 0 });
   });
   return out;
+}
+
+// ---------- 国家通告：途经国家的空域应急程序（WAC，公司资料：有网时用口令从后台取一次，存在手机上） ----------
+const PSEUDO = {};
+let WACD = null; try { WACD = JSON.parse(ls('wac') || 'null'); } catch (e) {}
+async function wacSync() {
+  if (!navigator.onLine || !ls('key') || (WACD && Date.now() - (WACD.got || 0) < 7 * 864e5)) return;
+  try { const j = await postK({ action: 'wac' }); if (j && j.ok && j.d) { WACD = typeof j.d === 'string' ? JSON.parse(j.d) : j.d; WACD.got = Date.now(); WPX = null; ls('wac', JSON.stringify(WACD)); } } catch (e) {}
+}
+let WPX = null;
+function wacExpand(list) { const out = []; let base = ''; list.forEach(p => String(p).split('/').forEach(tok => { const m = /\b([A-Z]{1,2})\b/.exec(tok.trim()); if (!m) return; const t = m[1];
+  if (t.length === 2) { out.push(t); base = t[0]; } else if (base && out.length) out.push(base + t); else { out.push(t); base = ''; } })); return out; }
+function wacCountry(code) { if (!WACD || !code) return [];
+  if (!WPX) { WPX = []; WACD.c.forEach(c => wacExpand(c.px).forEach(p => WPX.push([p, c]))); WPX.sort((a, b) => b[0].length - a[0].length); }
+  const hit = WPX.find(p => code.indexOf(p[0]) === 0); if (!hit) return []; return WPX.filter(p => p[0] === hit[0]).map(p => p[1]).filter((c, i, a) => a.indexOf(c) === i); }
+// 每个国家：进入它的第一个 FIR 前 25 分钟出现，一直留到进入后 10 分钟
+function wacAlerts(L, S, off) {
+  const out = []; if (!WACD || !L.fi || S.ph === 2) return out; const seen = {}, el = Math.max(0, S.el);
+  L.fi.forEach(f => { const code = FIRALIAS[f[1]] || f[1]; wacCountry(code).forEach(c => { if (seen[c.n]) return; seen[c.n] = 1;
+    const dt = f[3] - el; if (dt > 25 || dt < -10 || (S.ph === 0 && f[3] > 25)) return;
+    const tops = (c.t || []).filter(t => t.x), id = 'wac:' + c.n;
+    const x = { id, kind: 'wac', wac: c, name: '🌐 ' + c.n + XS(' 应急程序', ' contingency'), level: 'info', fir: code,
+      msg: tops.length ? tops.map(t => t.h).join(' · ') : 'CRAR ' + (c.crar || ''), msgEn: tops.length ? tops.map(t => t.h).join(' · ') : 'CRAR ' + (c.crar || ''), ver: 1 };
+    PSEUDO[id] = x; out.push({ x, state: 'ahead', min: Math.max(0, dt), nm: 0, label: '' }); }); });
+  return out;
+}
+function wacDetail(x) { const c = x.wac;
+  $('sheet').innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">' + esc(x.name) + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>'
+    + (c.t || []).map(t => '<div class="nt"><b>' + esc(t.h) + '</b>' + (t.x ? '<div class="en" style="white-space:pre-wrap;font-family:inherit;font-size:13.5px;color:#000">' + esc(t.x) + '</div>' : '<div class="tm">' + XS('（没有内容，查 CRAR ', '(no text, see CRAR ') + esc(c.crar || '') + '）</div>') + '</div>').join('')
+    + '<div class="ok" style="font-size:12px">Worldwide Airspace Contingency Flashcards · CRAR ' + esc(c.crar || '') + ' · ' + X('仅供辅助，以公司资料为准', 'awareness only') + '</div>';
+  $('sheet').style.display = 'block'; $('sheet').scrollTop = 0; $('sh-x').onclick = () => { $('sheet').style.display = 'none'; draw(); };
 }

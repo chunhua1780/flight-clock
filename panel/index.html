@@ -136,6 +136,27 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 #menu.open{display:grid}#menu .btn{margin:0;padding:6px 6px;font-size:12.5px;line-height:1.25;text-align:left;border-width:1.5px;border-radius:9px;white-space:normal}
 #set{top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(380px,calc(100vw - 24px));max-height:86vh;padding:12px 14px;font-size:13.5px;line-height:1.45;border:2px solid #000;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,.25)}
 #set input{font-size:15px;padding:6px 8px;margin:3px 0 9px}#set p{font-size:12px;margin:8px 0 0}#set .btn{padding:5px 14px}
+#alc.flash{animation:alf 1s steps(1) 15}@keyframes alf{0%{border-color:var(--red);box-shadow:0 0 0 4px var(--red)}50%{border-color:#000;box-shadow:none}}
+.acts{margin:4px 0 2px 18px;padding:0;font-weight:800;font-size:13px}.acts li{margin:2px 0}.acts small{display:block;font-weight:500;font-size:11px;color:#444}.al.warning .acts small{color:#fff}
+@media (max-width:380px) and (orientation:portrait){#side{width:31%}.bx{min-width:44px;font-size:12px;padding:1px 3px}.wp.nx .bx{font-size:13.5px}.wp .m{font-size:8.5px}.wp .m .t{font-size:10px}#sinfo{font-size:10px}}
+/* ===== 墨水屏：只有黑白，不闪烁、不用阴影 ===== */
+html.eink{--red:#000;--dim:#222}
+html.eink *{animation:none!important;transition:none!important;box-shadow:none!important;text-shadow:none!important}
+html.eink .fl .dd,html.eink #phx,html.eink .ph,html.eink #hov,html.eink #fhdr .fn{color:#000}
+html.eink .bx{border-color:#000}html.eink .wp.ho .bx{border:3px dashed #000}html.eink .hf,html.eink .wp .hl{color:#000}
+html.eink .h1{animation:none}html.eink .h2{display:none}
+html.eink .wp.nx{background:#fff}html.eink .wp.nx .bx{background:#000;color:#fff;border-color:#000}html.eink .wp.nx .hf{color:#fff}html.eink .wp.nx.ho .bx{box-shadow:none;outline:3px dashed #000;outline-offset:2px}
+html.eink .wp.nx .m .t{color:#000}html.eink .wp.past .bx{border-color:#999;color:#999}
+html.eink #alc{border-color:#000}html.eink #alc .ah{background:#000}html.eink .al{border-color:#000}
+html.eink .al.warning,html.eink .si.warning,html.eink .si.soon{background:#000;color:#fff}html.eink .al.caution,html.eink .si.caution{color:#000;border-left:6px solid #000}
+html.eink .si.ho,html.eink .si.ho span{color:#000}html.eink .si.ho{border-left:4px dashed #000}
+html.eink #firl{border-color:#000;color:#000;background:#fff}html.eink #gpsb.gps,html.eink #demob,html.eink #newb{background:#000;color:#fff;border-color:#000}
+html.eink #warn{background:#000}html.eink .it.red{color:#000;border-color:#000}html.eink .nt.red{border-color:#000}html.eink .mb{border-color:#000;color:#000}html.eink .mb.on{background:#000;color:#fff}
+html.eink .zb,html.eink .fab{background:#fff;border:2px solid #000}
+html.eink #alc.flash{border-width:5px}
+/* 老 WebView（Android 4.4）不认识 grid / gap / min() 的地方 */
+html.eink .row{display:block}html.eink .row .c{display:inline-block;margin-right:8px}html.eink .row .l{display:inline;margin-right:3px}html.eink .row .v{display:inline}
+html.eink #menu.open{display:block}html.eink #menu .btn{display:inline-block;width:47%;margin:2px 1%}html.eink #menu{width:330px;max-width:94vw}html.eink #set{width:360px;max-width:94vw}
 </style>
 </head>
 <body>
@@ -147,7 +168,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div>
   <div id="empty"></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
 <div id="sheet"></div>
 <div id="set">
@@ -166,6 +187,18 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 <script>
 'use strict';
 const $ = id => document.getElementById(id), MIN = 6e4, HOUR = 36e5;
+// 墨水屏（Yota 等）：只有黑白。墨水屏版 App 自动打开；普通版可以在 ☰ 里手动切换
+const EINK = (() => { try { if (window.AndroidPanel && AndroidPanel.eink && AndroidPanel.eink()) return true; } catch (e) {} try { return localStorage.getItem('pnl.eink') === '1'; } catch (e) { return false; } })();
+if (EINK) document.documentElement.className += ' eink';
+// 地图画完以后逐个像素换成黑白：海 → 白，陆地 → 浅灰，彩色（航线、警告、移交点）→ 黑（所有版本的 WebView 都能用）
+function einkPix(cv) {
+  if (!EINK || !cv.width) return; const g = cv.getContext('2d'); let im; try { im = g.getImageData(0, 0, cv.width, cv.height); } catch (e) { return; }
+  const d = im.data;
+  for (let i = 0; i < d.length; i += 4) { const r = d[i], gg = d[i + 1], b = d[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), lum = .3 * r + .59 * gg + .11 * b; let v;
+    if (mx - mn >= 60) v = lum > 225 ? 255 : 0; else if (lum > 215 && b > r + 6) v = 255; else if (lum > 205 && r > b + 10) v = 222; else v = lum > 240 ? 255 : lum > 185 ? 200 : lum > 120 ? 136 : 0;
+    d[i] = d[i + 1] = d[i + 2] = v; }
+  g.putImageData(im, 0, 0);
+}
 const API = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem('pnl.' + k); localStorage.setItem('pnl.' + k, v); } catch (e) { return null; } };
 const p2 = n => String(n).padStart(2, '0');
@@ -234,7 +267,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190803';
+const PAGEV = '202611190816';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -249,7 +282,8 @@ async function update(quiet) {
       const k = m[1] + m[2] + m[3].toUpperCase() + m[5]; if (!best[k] || (f.t || 0) > (best[k].t || 0)) best[k] = f; });
     // 云端（GitHub 私有仓库）有的直接下载原文：快，不用在手机上解析 PDF
     let got = 0; try { got += await cloudSync(now); } catch (e) {}
-    try { await fiSync(); } catch (e) {}   // Flight Intelligence 数据库（审核过的区域提醒）
+    try { await fiSync(); } catch (e) {}
+    try { await wacSync(); } catch (e) {}   // 途经国家的应急程序   // Flight Intelligence 数据库（审核过的区域提醒）
     const want = Object.keys(best).map(k => best[k]).filter(f => { const m = LIDO.exec(f.name || ''); return !(m && LEGS.some(l => /^cloud:/.test(l.fid || '') && l.sv === SV && last4(l.no) === last4(m[1]) && l.date === m[2] + m[3].toUpperCase())); });
     for (const f of want) {
       if (LEGS.some(l => l.fid === f.id && l.sv === SV)) continue;
@@ -497,7 +531,7 @@ function drawMap(L, el, ph, S, hot) {
    ===================================================================== */
 const item = x => '<div class="it ' + (x.lv === 'red' ? 'red' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-id="' + esc(x.id) + '"' : '') + '>' + (x.id ? '<span class="go">' + X('全文', 'Full') + (WX.area(ntText(x.loc, x.id)) ? ' 🗺' : '') + '</span>' : '') + (x.lv === 'red' ? '⛔ ' : '⚠︎ ') + esc(LANG === 'en' ? x.en : x.zh) + (LANG === 'both' ? '<small>' + esc(x.en) + '</small>' : '') + '</div>';
 const tile = (l, v, s, id) => '<div class="c"' + (id ? ' id="' + id + '"' : '') + '><div class="l">' + l + '</div><div class="v">' + v + (s ? ' <span class="s">' + s + '</span>' : '') + '</div></div>';
-let CUR = null, wplTouch = 0, HOV = null, ALSIG = '';
+let CUR = null, wplTouch = 0, HOV = null, ALSIG = '', FLASHED = {};
 let WARN = { list: [] }, WSIG = '', wTimer = null;
 // ---------- 演示：把这个航班快放一遍（大约 90 秒），看看哪里有问题 ----------
 // ---------- 📂 选择飞行计划：云端 / 邮箱 / 手机里的文件（自动推送不来时，自己拿） ----------
@@ -618,8 +652,8 @@ function draw() {
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
   if (pre) board(L, now, off, on);
   // 地图
-  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(procAlerts(L, LS, off, now)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
-  const drawMapNow = () => { if (!L.noOfp && !pre) drawMap(L, el, ph, LS, HOT); else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
+  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
+  const drawMapNow = () => { if (!L.noOfp && !pre) { drawMap(L, el, ph, LS, HOT); einkPix($('map')); } else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
   // 右边：航路点时间线（下一个点绿色圆圈，移交点橙色圆圈并写下一个管制区；不用红线）
   if (!L.noOfp) {
     const riskFir = new Set((L.R.enr || []).map(r => r[2].loc)), FIW = {}; FI.forEach(f => FIW[f[2]] = f);
@@ -657,6 +691,9 @@ function draw() {
   if (list.length) ax += '<div class="alh">' + esc(title) + ' · OFP</div>' + list.map(item).join('');
   if ($('alx').innerHTML !== ax) $('alx').innerHTML = ax;
   $('alt').textContent = '⚠ ' + XS('警告 ', 'Warnings ') + n;
+  // 新出现的「通讯 / 要做的事」提醒：卡片闪 15 秒，并且即使之前关掉也重新弹出
+  const fresh = live.filter(a => (a.x.actions || []).length && !FLASHED[ackKey(L, a)]);
+  if (fresh.length && !DEMO) { fresh.forEach(a => FLASHED[ackKey(L, a)] = 1); ls('alclosed', ''); $('alc').classList.add('flash'); clearTimeout(draw.ft); draw.ft = setTimeout(() => $('alc').classList.remove('flash'), 15000); }
   ALSIG = sig; const closed = ls('alclosed') === sig;
   $('alc').style.display = n && !closed ? 'block' : 'none';
   $('warn').style.display = n && closed ? 'block' : 'none'; $('warn').textContent = '⚠ ' + n;
@@ -667,7 +704,7 @@ function draw() {
     const Nc2 = (L.n || []).filter(w => w.length >= 4), cum2 = cumNm(Nc2), d0 = alongNm(Nc2, cum2, Math.max(0, el));
     FI.filter(f => f[3] > Math.max(0, el)).slice(0, 3).forEach((f, i) => si += '<div class="si ho' + (i === 0 && f[3] - el <= 10 ? ' soon' : '') + '" data-fir="' + esc(FIRALIAS[f[1]] || f[1]) + '">▸ <b>' + esc(f[1]) + '</b> ' + esc(f[0]) + '<span>' + dur(f[3] - Math.max(0, el)) + ' · ' + Math.round(alongNm(Nc2, cum2, f[3]) - d0) + 'nm · ' + esc(f[2]) + '</span></div>');
   }
-  FA.forEach(a => { const ok = acked(L, a); si += '<div class="si ' + esc(a.x.level) + (ok ? ' ack' : '') + '" data-id="' + esc(a.x.id) + '">' + (a.x.level === 'warning' ? '⛔ ' : a.x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + '<b>' + esc(a.x.name) + '</b><span>' + (a.state === 'proc' ? esc(a.label) : a.state === 'in' ? XS('区内', 'INSIDE') : fmtMin(a.min) + ' · ' + Math.round(a.nm) + 'nm') + '</span>' + (ok ? '' : '<span>' + esc((LANG === 'en' ? a.x.msgEn || a.x.msg : a.x.msg || a.x.msgEn) || '') + '</span>') + '</div>'; });
+  FA.forEach(a => { const ok = acked(L, a); si += '<div class="si ' + esc(a.x.level) + (ok ? ' ack' : '') + '" data-id="' + esc(a.x.id) + '">' + (a.x.level === 'warning' ? '⛔ ' : a.x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + '<b>' + esc(a.x.name) + '</b><span>' + (a.state === 'proc' ? esc(a.label) : a.x.kind === 'wac' ? fmtMin(a.min) : a.state === 'in' ? XS('区内', 'INSIDE') : fmtMin(a.min) + ' · ' + Math.round(a.nm) + 'nm') + '</span>' + (ok ? '' : '<span>' + esc((LANG === 'en' ? a.x.msgEn || a.x.msg : a.x.msg || a.x.msgEn) || '') + '</span>') + '</div>'; });
   list.forEach(x => { si += '<div class="si ofp' + (x.lv === 'red' ? ' warning' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-nid="' + esc(x.id) + '"' : '') + '>⚠ ' + esc(LANG === 'en' ? x.en : x.zh) + '</div>'; });
   if ($('sinfo').innerHTML !== si) $('sinfo').innerHTML = si;
   drawMapNow();
@@ -697,6 +734,7 @@ $('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $(
   else ls('pin', t.dataset.k); draw(); };
 $('b-demo').onclick = () => demo();
 $('b-log').onclick = () => openLog();
+$('b-eink').onclick = () => { try { localStorage.setItem('pnl.eink', EINK ? '0' : '1'); } catch (e) {} location.reload(); };
 $('b-fi').onclick = async () => { ls('fit', '0'); MSG = '⏳ ' + X('下载区域提醒数据库…', 'Downloading Flight Intelligence…'); draw(); await fiSync();
   const n = FIDB && FIDB.items ? FIDB.items.length : 0, ok = n ? FIDB.items.filter(x => fiUsable(x, Date.now())).length : 0;
   MSG = FIDB ? '🛰 DB v' + (FIDB.v || 0) + ' · ' + ok + '/' + n + X(' 条有效（已审核、在有效期内）', ' usable (reviewed, in date)') : '⚠️ ' + X('没拿到数据库（要联网、要口令）', 'No database (needs network + password)'); draw(); };

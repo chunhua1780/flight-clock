@@ -27,30 +27,41 @@ import java.util.zip.Inflater;
 public class MainActivity extends Activity {
   static final String HOST = "appassets.androidplatform.net", BASE = "https://" + HOST + "/";
   WebView web; PermissionRequest pending; ValueCallback<Uri[]> fileCb;
+  /** Android 6+ 才有运行时权限；老手机（墨水屏 Yota 等，Android 4.4 / 5）安装时就给了 */
+  static final boolean M = android.os.Build.VERSION.SDK_INT >= 23;
+  /** 版本：普通版 / 墨水屏版（assets/variant.txt），墨水屏版从 panel-eink 自动更新 */
+  String variant = "";
+  String UPD = "https://chunhua1780.github.io/flight-cloch/panel/";
+  void ask(String[] p, int code) { if (M) requestPermissions(p, code); }
+  WebResourceResponse serve(Uri u) {
+    if (u == null || !HOST.equals(u.getHost())) return null;
+    String p = u.getPath(); if (p == null || p.equals("/")) p = "/index.html";
+    try { java.io.File f = new java.io.File(webDir(), p.substring(1)); if (useWeb && f.isFile()) return new WebResourceResponse(mime(p), "utf-8", new java.io.FileInputStream(f)); } catch (Exception e) { }
+    try { return new WebResourceResponse(mime(p), "utf-8", getAssets().open("panel" + p)); }
+    catch (Exception e) { return android.os.Build.VERSION.SDK_INT >= 21 ? new WebResourceResponse("text/plain", "utf-8", 404, "Not found", null, null) : new WebResourceResponse("text/plain", "utf-8", new java.io.ByteArrayInputStream(new byte[0])); }
+  }
 
   @Override protected void onCreate(Bundle b) {
     super.onCreate(b);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    try { java.io.InputStream in = getAssets().open("variant.txt"); variant = new java.util.Scanner(in, "UTF-8").useDelimiter("\\A").next().trim(); in.close(); } catch (Exception e) { }
+    if ("eink".equals(variant)) UPD = "https://chunhua1780.github.io/flight-cloch/panel-eink/";
     refreshUseWeb();
     web = new WebView(this);
     WebSettings s = web.getSettings();
     s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true); s.setMediaPlaybackRequiresUserGesture(false);
     s.setAllowFileAccess(false); s.setGeolocationEnabled(true); s.setCacheMode(WebSettings.LOAD_NO_CACHE);
     web.setWebViewClient(new WebViewClient() {
-      @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
-        Uri u = r.getUrl(); if (!HOST.equals(u.getHost())) return null;
-        String p = u.getPath(); if (p == null || p.equals("/")) p = "/index.html";
-        // 先用自动更新下载的新版（files/web/…），没有再用 App 里自带的
-        try { java.io.File f = new java.io.File(webDir(), p.substring(1)); if (useWeb && f.isFile()) return new WebResourceResponse(mime(p), "utf-8", new java.io.FileInputStream(f)); } catch (Exception e) { }
-        try { return new WebResourceResponse(mime(p), "utf-8", getAssets().open("panel" + p)); }
-        catch (Exception e) { return new WebResourceResponse("text/plain", "utf-8", 404, "Not found", null, null); }
-      }
+      // 先用自动更新下载的新版（files/web/…），没有再用 App 里自带的
+      @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) { return serve(r.getUrl()); }
+      @Override public WebResourceResponse shouldInterceptRequest(WebView v, String url) { return serve(Uri.parse(url)); }   // Android 4.4
       @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return !HOST.equals(r.getUrl().getHost()); }
+      @Override public boolean shouldOverrideUrlLoading(WebView v, String url) { return !HOST.equals(Uri.parse(url).getHost()); }
     });
     web.setWebChromeClient(new WebChromeClient() {
       @Override public void onPermissionRequest(PermissionRequest r) {
         if (camOk()) { r.grant(r.getResources()); return; }
-        pending = r; requestPermissions(new String[] { Manifest.permission.CAMERA }, 1);
+        pending = r; ask(new String[] { Manifest.permission.CAMERA }, 1);
       }
       @Override public void onGeolocationPermissionsShowPrompt(String origin, android.webkit.GeolocationPermissions.Callback cb) { cb.invoke(origin, gpsOk(), false); }
       @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
@@ -63,13 +74,13 @@ public class MainActivity extends Activity {
     open(getIntent());
     checkUpdate(); new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() { public void run() { checkUpdate(); new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this, 6 * 3600 * 1000L); } }, 6 * 3600 * 1000L);
     // 一打开就要相机权限（扫码用），不要等到扫码时才问
-    if (!camOk() || !gpsOk()) requestPermissions(new String[] { Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, 1);
+    if (!camOk() || !gpsOk()) ask(new String[] { Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, 1);
     startGps();
   }
   /* ---------- 手机自己的 GPS（飞行模式下也能用，不要网络）：网页每分钟来取最新位置 ---------- */
   volatile String lastFix = "";
   boolean gpsOn = false;
-  boolean gpsOk() { return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED; }
+  boolean gpsOk() { return !M || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED; }
   void startGps() {
     if (gpsOn || !gpsOk()) return;
     try {
@@ -89,7 +100,6 @@ public class MainActivity extends Activity {
     } catch (Exception e) { }
   }
   /* ---------- 自动更新页面：比较网站上的 files.json 版本，新了就整套下载，换上，重新载入 ---------- */
-  static final String UPD = "https://chunhua1780.github.io/flight-cloch/panel/";
   volatile boolean useWeb = false;   // 下载的新版比 App 自带的新，才用下载的
   void refreshUseWeb() { String d = getSharedPreferences("upd", 0).getString("v", ""); useWeb = d.compareTo(bundledVer()) > 0 && webDir().isDirectory(); }
   java.io.File webDir() { return new java.io.File(getFilesDir(), "web"); }
@@ -124,7 +134,7 @@ public class MainActivity extends Activity {
     web.loadUrl(BASE + "index.html" + (f != null && f.length() > 2 ? "#" + f : ""));
   }
   @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); if (i.getData() != null) open(i); }
-  boolean camOk() { return checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED; }
+  boolean camOk() { return !M || checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED; }
   void openSettings() {
     Toast.makeText(this, "请在「权限」里打开「相机」 · Turn on Camera in Permissions", Toast.LENGTH_LONG).show();
     try { startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { }
@@ -150,13 +160,13 @@ public class MainActivity extends Activity {
     /** GPS：最近一次定位（JSON，空 = 还没有）；gpsOk = 有没有定位权限；askGps = 要权限 */
     @JavascriptInterface public String gps() { return lastFix; }
     @JavascriptInterface public boolean gpsOk() { return MainActivity.this.gpsOk(); }
-    @JavascriptInterface public void askGps() { runOnUiThread(new Runnable() { public void run() { if (gpsOk()) startGps(); else requestPermissions(new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, 3); } }); }
+    @JavascriptInterface public void askGps() { runOnUiThread(new Runnable() { public void run() { if (gpsOk()) startGps(); else ask(new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, 3); } }); }
     /** 0 = 关前光，0–1 = 亮度，-1 = 跟系统 */
     @JavascriptInterface public void setBrightness(final float v) {
       runOnUiThread(new Runnable() { public void run() {
         float x = v < 0 ? -1f : Math.min(0.3f, v);
         // 1) 系统亮度（有「修改系统设置」权限时）：0 才是真正关前光；只调窗口亮度时 0 会被当成「最低」，灯还微亮
-        if (x >= 0 && Settings.System.canWrite(MainActivity.this)) {
+        if (x >= 0 && (!M || Settings.System.canWrite(MainActivity.this))) {
           try { Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
                 Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, Math.round(x * 255)); } catch (Exception e) { }
         }
@@ -165,7 +175,9 @@ public class MainActivity extends Activity {
         lp.screenBrightness = x < 0 ? WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE : x; getWindow().setAttributes(lp);
       } });
     }
-    @JavascriptInterface public boolean canWrite() { return Settings.System.canWrite(MainActivity.this); }
+    @JavascriptInterface public boolean canWrite() { return !M || Settings.System.canWrite(MainActivity.this); }
+    /** 墨水屏版：只有黑白，页面换成黑白主题、不闪烁 */
+    @JavascriptInterface public boolean eink() { return "eink".equals(variant); }
     @JavascriptInterface public void askWrite() {
       runOnUiThread(new Runnable() { public void run() {
         Toast.makeText(MainActivity.this, "请打开「允许修改系统设置」，这样白天才能完全关掉背光", Toast.LENGTH_LONG).show();
@@ -184,7 +196,7 @@ public class MainActivity extends Activity {
       try { java.util.zip.GZIPInputStream z = new java.util.zip.GZIPInputStream(new java.io.ByteArrayInputStream(Base64.decode(b64, Base64.DEFAULT)));
         ByteArrayOutputStream o = new ByteArrayOutputStream(); byte[] buf = new byte[16384]; int n; while ((n = z.read(buf)) > 0) o.write(buf, 0, n); z.close(); return o.toString("UTF-8"); } catch (Exception e) { return ""; }
     }
-    @JavascriptInterface public String version() { return "4.2"; }
+    @JavascriptInterface public String version() { return "4.3" + ("eink".equals(variant) ? " e-ink" : ""); }
     /** 个人版：打包时放进去的口令（公开下载的版本里没有这个文件） */
     @JavascriptInterface public String presetKey() {
       try { java.io.InputStream in = getAssets().open("preset.txt"); byte[] b = new byte[512]; int n = in.read(b); in.close(); return n > 0 ? new String(b, 0, n, "UTF-8").trim() : ""; } catch (Exception e) { return ""; }
