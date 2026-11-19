@@ -223,7 +223,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611190613';
+const PAGEV = '202611190623';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -607,7 +607,7 @@ function draw() {
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
   if (pre) board(L, now, off, on);
   // 地图
-  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
+  const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(procAlerts(L, LS, off, now)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
   const drawMapNow = () => { if (!L.noOfp && !pre) drawMap(L, el, ph, LS, HOT); else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
   // 右边：航路点时间线（下一个点绿色圆圈，移交点橙色圆圈并写下一个管制区；不用红线）
   if (!L.noOfp) {
@@ -656,7 +656,7 @@ function draw() {
     const Nc2 = (L.n || []).filter(w => w.length >= 4), cum2 = cumNm(Nc2), d0 = alongNm(Nc2, cum2, Math.max(0, el));
     FI.filter(f => f[3] > Math.max(0, el)).slice(0, 3).forEach((f, i) => si += '<div class="si ho' + (i === 0 && f[3] - el <= 10 ? ' soon' : '') + '" data-fir="' + esc(FIRALIAS[f[1]] || f[1]) + '">▸ <b>' + esc(f[1]) + '</b> ' + esc(f[0]) + '<span>' + dur(f[3] - Math.max(0, el)) + ' · ' + Math.round(alongNm(Nc2, cum2, f[3]) - d0) + 'nm · ' + esc(f[2]) + '</span></div>');
   }
-  FA.forEach(a => { const ok = acked(L, a); si += '<div class="si ' + esc(a.x.level) + (ok ? ' ack' : '') + '" data-id="' + esc(a.x.id) + '">' + (a.x.level === 'warning' ? '⛔ ' : a.x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + '<b>' + esc(a.x.name) + '</b><span>' + (a.state === 'in' ? XS('区内', 'INSIDE') : fmtMin(a.min) + ' · ' + Math.round(a.nm) + 'nm') + '</span>' + (ok ? '' : '<span>' + esc((LANG === 'en' ? a.x.msgEn || a.x.msg : a.x.msg || a.x.msgEn) || '') + '</span>') + '</div>'; });
+  FA.forEach(a => { const ok = acked(L, a); si += '<div class="si ' + esc(a.x.level) + (ok ? ' ack' : '') + '" data-id="' + esc(a.x.id) + '">' + (a.x.level === 'warning' ? '⛔ ' : a.x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + '<b>' + esc(a.x.name) + '</b><span>' + (a.state === 'proc' ? esc(a.label) : a.state === 'in' ? XS('区内', 'INSIDE') : fmtMin(a.min) + ' · ' + Math.round(a.nm) + 'nm') + '</span>' + (ok ? '' : '<span>' + esc((LANG === 'en' ? a.x.msgEn || a.x.msg : a.x.msg || a.x.msgEn) || '') + '</span>') + '</div>'; });
   list.forEach(x => { si += '<div class="si ofp' + (x.lv === 'red' ? ' warning' : '') + '"' + (x.id ? ' data-loc="' + esc(x.loc || '') + '" data-nid="' + esc(x.id) + '"' : '') + '>⚠ ' + esc(LANG === 'en' ? x.en : x.zh) + '</div>'; });
   if ($('sinfo').innerHTML !== si) $('sinfo').innerHTML = si;
   drawMapNow();

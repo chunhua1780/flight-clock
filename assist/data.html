@@ -187,7 +187,8 @@ async function handle(files) {
     try {
       if (ext === 'json') { const j = JSON.parse(new TextDecoder().decode(u8)); const add = (k, a) => { if (Array.isArray(a)) groups.push({ name: f.name + ' · ' + k, kind: k === 'waypoints' ? 'wpt' : k === 'notams' ? 'notam' : 'area', objs: a.map((o, i) => Object.assign({ _row: i + 1 }, o)) }); };
         if (Array.isArray(j)) { ['wpt', 'area', 'notam'].forEach(k => { const a = j.filter(o => (o.kind || 'area') === k || (k === 'wpt' && o.kind === 'waypoint')); if (a.length) groups.push({ name: f.name, kind: k, objs: a.map((o, i) => Object.assign({ _row: i + 1 }, o)) }); }); }
-        else { add('waypoints', j.waypoints); add('areas', j.areas || j.danger_areas || j.restricted_areas); add('notams', j.notams); add('firs', j.firs && j.firs.map(o => Object.assign({ type: 'FIR' }, o))); } }
+        else { add('waypoints', j.waypoints); add('areas', j.areas || j.danger_areas || j.restricted_areas); add('notams', j.notams); add('firs', j.firs && j.firs.map(o => Object.assign({ type: 'FIR' }, o))); }
+        if (!groups.length) ERRS.push(f.name + '：这个 JSON 不是上传格式（要有 waypoints / areas / notams 这几栏，见下面的「数据格式标准」）。自己整理的资料可以发给 Claude 转换。'); }
       else if (ext === 'xlsx') (await xlsxSheets(u8)).forEach(sh => { const objs = objects(sh.rows); if (objs.length) groups.push({ name: f.name + ' · ' + sh.name, kind: kindOf(sh.name, objs), th: typeHint(sh.name), objs }); });
       else if (ext === 'csv' || ext === 'txt') { const objs = objects(csvRows(new TextDecoder().decode(u8))); groups.push({ name: f.name, kind: kindOf(f.name, objs), th: typeHint(f.name), objs }); }
       else ERRS.push(f.name + '：不支持（用 JSON / CSV / .xlsx；老的 .xls 请另存为 .xlsx）');

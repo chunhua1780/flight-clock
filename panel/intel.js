@@ -133,7 +133,7 @@ const fmtMin = m => m == null ? '' : m < 1 ? XS('现在', 'now') : m < 60 ? Math
 const flLab = v => v >= 99999 ? 'UNL' : !v ? 'SFC' : v >= 10000 ? 'FL' + Math.round(v / 100) : v + 'ft';
 function alertHtml(L, list) {
   return list.map(a => { const x = a.x, ok = acked(L, a), txt = LANG === 'en' ? (x.msgEn || x.msg) : (x.msg || x.msgEn);
-    const when = a.state === 'in' ? XS('已在区内', 'INSIDE') : a.state === 'near' ? Math.round(a.nm) + ' NM' : fmtMin(a.min) + ' · ' + Math.round(a.nm) + ' NM';
+    const when = a.state === 'proc' ? a.label : a.state === 'in' ? XS('已在区内', 'INSIDE') : a.state === 'near' ? Math.round(a.nm) + ' NM' : fmtMin(a.min) + ' · ' + Math.round(a.nm) + ' NM';
     return '<div class="al ' + esc(x.level) + (ok ? ' ack' : '') + '" data-ak="' + esc(ackKey(L, a)) + '" data-id="' + esc(x.id) + '"><b>' + (x.level === 'warning' ? '⛔ ' : x.level === 'caution' ? '⚠︎ ' : 'ⓘ ') + esc(x.name) + '</b> <span class="aw">' + esc(when) + '</span>'
       + (ok ? '' : '<div class="at">' + esc(txt || '') + (LANG === 'both' && x.msgEn && x.msg ? '<small>' + esc(x.msgEn) + '</small>' : '') + '</div><div class="am">' + esc((x.fir || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)) + ' <span class="ack-b">✓ ' + XS('确认', 'ACK') + '</span></div>') + '</div>'; }).join('');
 }
@@ -142,6 +142,7 @@ function fiDetail(id) {
   $('sheet').innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">🛰 ' + esc(x.name) + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>'
     + '<div class="nt' + (x.level === 'warning' ? ' red' : '') + '"><div class="zh">' + esc(x.msg || '') + '</div><div>' + esc(x.msgEn || '') + '</div><div class="tm">' + esc(x.type) + ' · ' + esc(x.fir || '') + ' ' + esc(x.firName || '') + ' · ' + flLab(+x.lower || 0) + '–' + flLab(x.upper ? +x.upper : 99999)
     + ' · ' + X('生效 ', 'from ') + esc(x.from ? x.from.slice(0, 16).replace('T', ' ') + 'Z' : '—') + ' ' + X('到 ', 'to ') + esc(x.to ? x.to.slice(0, 16).replace('T', ' ') + 'Z' : 'PERM') + (x.sched ? ' · ' + esc(x.sched) : '') + '</div>'
+    + (x.phases ? x.phases.map(p => '<div style="margin-top:8px;font-weight:900' + (PH_NOW[x.id] === p.key ? ';color:var(--red)' : '') + '">' + (PH_NOW[x.id] === p.key ? '▶ ' : '') + esc(LANG === 'en' ? p.en : p.zh) + '</div><ol style="margin:3px 0 0 18px;padding:0">' + p.steps.map(t => '<li style="margin:3px 0">' + esc(LANG === 'en' ? t.en : t.zh) + (LANG === 'both' ? '<div class="en">' + esc(t.en) + '</div>' : '') + '</li>').join('') + '</ol>').join('') : '')
     + (x.notes ? '<div style="margin-top:6px">' + esc(x.notes) + '</div>' : '') + (x.quote ? '<div class="en">“' + esc(x.quote) + '”</div>' : '')
     + '<div class="tm" style="margin-top:6px">📄 ' + esc((x.src && x.src.file) || X('手动', 'manual')) + ' · ver ' + (x.ver || 1) + ' · ' + X('审核 ', 'reviewed ') + (x.rev ? new Date(x.rev.at).toISOString().slice(0, 10) : '—') + ' · DB v' + (FIDB.v || 0) + '</div></div>'
     + '<div class="ok" style="font-size:12px">' + X('仅供辅助，不能替代官方航行情报、公司程序及 ATC 指令', 'Awareness aid only — official AIS, company procedures and ATC prevail') + '</div>';
@@ -164,3 +165,25 @@ fiIndex();
 function wptFill(N, FX) { let prev = null; N.forEach(w => { if (FX[w.id]) { prev = FX[w.id]; return; } const p = wptFix(w.id, prev); if (p && (!prev || gcNm(p, prev) < 600)) { FX[w.id] = p; prev = p; } }); return FX; }
 // 上传的 NOTAM（这个机场 / FIR 的）
 function fiNotams(loc, t) { return ((FIDB && FIDB.items) || []).filter(x => x.kind === 'notam' && x.loc === loc && fiUsable(x, t)); }
+
+// 程序类（没有区域，按条件出现）：GPS SI —— 起飞 / 目的地机场有 GPS 干扰 NOTAM 时，按阶段提醒；机场类 —— 从这些机场起飞时提醒
+const PH_NOW = {};
+const GNSS_RE = /\b(GNSS|GPS|RAIM)\b/, GNSS_BAD = /INTERFERENCE|JAMM|SPOOF|UNRELIAB|U\/S|NOT AVBL|OUTAGE|DEGRAD|UNAVBL|DISRUPT/;
+function gnssAt(L, icao, t) { return ((L.nt && L.nt[icao]) || []).some(n => GNSS_RE.test(n[1]) && GNSS_BAD.test(n[1]) && !(n[3] && n[3] < t - 60 * MIN) && !(n[2] && n[2] > t + 60 * MIN)); }
+function procAlerts(L, S, off, now) {
+  const out = []; if (!FIDB || !FIDB.items) return out;
+  FIDB.items.forEach(x => {
+    if (x.kind !== 'proc' || !fiUsable(x, now) || !fiActiveAt(x, now)) return;
+    let key = null, lab = '';
+    if (x.trigger === 'gnss') {
+      const depG = gnssAt(L, L.dep, off), arrG = gnssAt(L, L.arr, off + L.tr * MIN);
+      if (depG && (S.ph === 0 || S.el < 15)) { key = 'dep'; lab = XS('起飞机场 GPS 干扰', 'DEP GPS SI'); }
+      else if (depG && S.ph === 1 && S.el < 60) { key = 'toc'; lab = XS('TOC 后恢复 GPS', 'At TOC'); }
+      else if (arrG && S.ph === 1 && S.el >= L.tr - 100) { key = 'dest'; lab = XS('目的地 GPS 干扰 · TOD 前', 'DEST GPS SI · before TOD'); }
+    } else if (x.trigger && x.trigger.dep && x.trigger.dep.indexOf(L.dep) >= 0 && S.ph === 0) { key = 'dep'; lab = XS('起飞前', 'Before departure'); }
+    if (!key) return; PH_NOW[x.id] = key;
+    const p = (x.phases || []).find(q => q.key === key);
+    out.push({ x: Object.assign({}, x, { id: x.id, msg: (p ? p.zh + '：' : '') + x.msg, msgEn: (p ? p.en + ': ' : '') + x.msgEn }), state: 'proc', label: lab, min: 0, nm: 0 });
+  });
+  return out;
+}
