@@ -190,6 +190,7 @@ html.cbold #lyp{border-color:#0f2c56}html.cbold #lyp .btn.on{background:#0f2c56;
 html.eink .ct{background:#fff!important;color:#000!important;border-color:#000!important}html.eink .ct.cEA,html.eink .ct.cD{background:#000!important;color:#fff!important}html.eink .wd.red{background:#000}html.eink .wd.amber{background:#999}html.eink .wd.green{background:#fff}
 html.cbold #altl{border-top-color:#0f2c56}html.cbold #altl .ah{background:#0f2c56}
 .apx h3{margin:4px 0 6px;font-size:20px}.apx .r3{font-size:17px;font-weight:800;margin:6px 0;line-height:1.4}.apx .r3 small{display:block;font-size:13px;font-weight:600;color:#444}.apx .nt3{border-left:5px solid #e07000;padding:3px 8px;margin:5px 0;font-size:16px;font-weight:700}.apx .nt3.red{border-color:#d00000;color:#b00000}
+#sheet > div:first-child .btn{padding:4px 7px;font-size:13px;margin:1px}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -374,7 +375,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611202205';
+const PAGEV = '202611202218';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -443,6 +444,9 @@ async function cloudSync(now) {
   // 云端生成的完整版简报（GitHub 自动任务，和 iPad 上的一样）
   for (const x of idx) { if (!x.full || +(ls('fulln.' + x.k) || 0) >= x.full) continue; if (!LEGS.some(l => l.k.replace(/[^\w.-]/g, '') === x.k)) continue;
     try { const t = await ghRaw('ofpdata/' + x.k + '.full.html'); if (t) { ls('full.' + x.k, await t.text()); ls('fulln.' + x.k, String(x.full)); } } catch (e) {} }
+  // 云端用最新 METAR / TAF 做的简报（每小时刷新）
+  for (const x of idx) { if (!x.sbn || +(ls('sbwn.' + x.k) || 0) >= x.sbn) continue; if (!LEGS.some(l => l.k.replace(/[^\w.-]/g, '') === x.k)) continue;
+    try { const a = await ghRaw('ofpdata/' + x.k + '.sbn.html'), b = await ghRaw('ofpdata/' + x.k + '.fulln.html'); if (a) ls('sbw.' + x.k, await a.text()); if (b) ls('fullw.' + x.k, await b.text()); if (a) ls('sbwn.' + x.k, String(x.sbn)); } catch (e) {} }
   // 云端已经翻好的通告译文（AI 整段翻译）
   for (const x of idx) { if (!x.tr || +(ls('trn.' + x.k) || 0) >= x.tr) continue; const lg = LEGS.find(l => l.k.replace(/[^\w.-]/g, '') === x.k); if (!lg) continue;
     try { const t = await ghRaw('ofpdata/' + x.k + '.tr.json'); if (t) { ls('tr.' + x.k, JSON.stringify(await t.json())); ls('trn.' + x.k, String(x.tr)); } } catch (e) {} }
@@ -474,7 +478,7 @@ function summarize(o) {
   const apRisk = (icao, at, role) => {
     const a = o.airports[icao] || {}, out = [];
     const M = a.metar && a.metar.length ? WX.metar(a.metar[a.metar.length - 1], ref) : null, Tf = a.taf && a.taf.length ? WX.taf(a.taf[a.taf.length - 1], ref) : null;
-    const w = (M || Tf) ? WX.at(Tf, M, at) : null, rate = w ? WX.rate(w) : 'none';
+    const w = (M || Tf) ? WX.atWin(Tf, M, at) : null, rate = w ? WX.rate(w) : 'none';
     if (rate === 'red' || rate === 'amber') out.push({ lv: rate, zh: role[0] + ' ' + icao + ' 天气：' + WX.say(w, 'zh').join('；'), en: role[1] + ' ' + icao + ' weather: ' + WX.say(w, 'en').join('; ') });
     WX.notams(o.notams[icao], at).filter(n => n.lv !== 'info').slice(0, 5).forEach(n => out.push({ lv: n.lv, zh: role[0] + ' ' + icao + '：' + n.zh, en: role[1] + ' ' + icao + ': ' + n.en, loc: icao, id: n.ids[0] }));
     return out;
@@ -924,15 +928,16 @@ function sbReflow(html) {
   });
   return '<div class="rf">' + out.join('') + '</div>';
 }
-function openShort(full) { const L = CUR; if (!L || L.noOfp) return; const kk = String(L.k).replace(/[^\w.-]/g, ''), hs = ls('sb.' + kk), hf = ls('full.' + kk); if (full === undefined) full = openShort.full && !!hf; openShort.full = full; const h = full ? hf : hs, sh = $('sheet');
+function openShort(full) { const L = CUR; if (!L || L.noOfp) return; const kk = String(L.k).replace(/[^\w.-]/g, ''), net = ls('wxsrc') !== 'ofp', hsw = ls('sbw.' + kk), hfw = ls('fullw.' + kk), hs = (net && hsw) || ls('sb.' + kk), hf = (net && hfw) || ls('full.' + kk); if (full === undefined) full = openShort.full && !!hf; openShort.full = full; const h = full ? hf : hs, sh = $('sheet'), useNet = net && !!(full ? hfw : hsw);
   let orig = false; try { orig = ls('sbo') === '1'; } catch (e) {}
-  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px">📋 ' + (full ? XS('完整版', 'Full brief') : XS('简洁版', 'Short brief')) + '</b><span style="flex:1"></span>' + (hf ? '<span class="btn" id="sb-m">' + (full ? XS('📋 简洁', '📋 Short') : XS('📄 完整', '📄 Full')) + '</span>' : '') + (h ? '<span class="btn" id="sb-z">' + (orig ? XS('📱 手机版', '📱 Phone') : XS('🔍 原版', '🔍 Original')) + '</span>' : '') + '<span class="btn" id="sb-c">👥 ' + XS('机组简报', 'Crew brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px">📋 ' + (full ? XS('完整版', 'Full brief') : XS('简洁版', 'Short brief')) + '</b><span style="flex:1"></span>' + ((hsw || hfw) ? '<span class="btn" id="sb-w">' + (useNet ? XS('🌦 最新', '🌦 Latest') : XS('🌦 OFP', '🌦 OFP')) + '</span>' : '') + (hf ? '<span class="btn" id="sb-m">' + (full ? XS('📋 简洁', '📋 Short') : XS('📄 完整', '📄 Full')) + '</span>' : '') + (h ? '<span class="btn" id="sb-z">' + (orig ? XS('📱 手机版', '📱 Phone') : XS('🔍 原版', '🔍 Original')) + '</span>' : '') + '<span class="btn" id="sb-c">👥 ' + XS('机组简报', 'Crew brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
     + (!h ? '<div class="ok">' + XS('还没有：OFP 传到云端后约 2 分钟自动生成（手机或 iPad 收到 OFP 都会传）；有网时点 ☰ → 🔄 更新。', 'Not yet — generated in the cloud about 2 minutes after the OFP is uploaded; tap ☰ → 🔄 Update when online.') + '</div>'
       : orig ? '<iframe id="sb-f" style="width:100%;height:calc(100vh - 60px);border:1px solid #999;background:#fff"></iframe>' : (() => { try { return sbReflow(h); } catch (e) { return '<div class="ok">⚠️ ' + esc(e.message) + '</div>'; } })());
   sh.style.display = 'block'; sh.scrollTop = 0;
   if (h && orig) { $('sb-f').onload = () => { try { const d = $('sb-f').contentDocument, w = d.documentElement.scrollWidth, W = $('sb-f').clientWidth; if (w > W + 4) d.body.style.zoom = (W / w).toFixed(3); } catch (e) {} }; $('sb-f').srcdoc = h; }
   if (h) $('sb-z').onclick = () => { ls('sbo', orig ? '0' : '1'); openShort(full); };
   if (hf) $('sb-m').onclick = () => openShort(!full);
+  if (hsw || hfw) $('sb-w').onclick = () => { ls('wxsrc', net ? 'ofp' : 'net'); openShort(full); };   // 天气：最新 METAR / TAF ⇄ OFP 里的
   $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('sb-c').onclick = () => openCrew(); }
 // 机组简报（STD−83 分钟）：给乘务组的简单卡片 —— 去程、回程各自的飞行时间、高度、到达天气
 const CB_MIN = 83;
@@ -940,8 +945,8 @@ const flTxt = l => (l.fls && l.fls.length ? l.fls : l.fl ? [String(Math.round(l.
 // 到达时的天气，说给乘务组听：好 / 有雨 / 雷雨 / 雾霾沙尘 + 温度（只用手机里存的 METAR / TAF）
 function cabinWx(src, icao, at) {
   const r = src && src.wx && src.wx[icao]; if (!r || !(r.m || r.t)) return null;
-  let w = null; try { const M = r.m ? WX.metar(r.m, at) : null, Tf = r.t ? WX.taf(String(r.t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; w = (M || Tf) ? WX.at(Tf, M, at) : null; } catch (e) {} if (!w || !w.main) return null;
-  const c = w.main, wx = (c.wx || []).join(' '), mw = (w.maybe || []).filter(m => m.g).map(m => ((m.c && m.c.wx) || []).join(' ') + (m.c && m.c.cb ? ' CB' : '')).join(' ');
+  let w = null; try { const M = r.m ? WX.metar(r.m, at) : null, Tf = r.t ? WX.taf(String(r.t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; w = (M || Tf) ? WX.atWin(Tf, M, at) : null; } catch (e) {} if (!w || !w.main) return null;
+  const c = w.main, wx = (c.wx || []).join(' '), mw = (w.maybe || []).filter(m => !/METAR/.test(m.whyEn || '')).map(m => ((m.c && m.c.wx) || []).join(' ') + (m.c && m.c.cb ? ' CB' : '')).join(' ');
   const ts = /TS|SQ|FC|GR/.test(wx) || c.cb, mts = !ts && /TS|SQ|FC|GR|CB/.test(mw), bad = ts || mts;
   const zh = ts ? '有雷雨 ⚠' : mts ? '可能有雷雨 ⚠' : /RA|DZ|SH/.test(wx) ? '有雨' : /FG|BR/.test(wx) ? '有雾' : /HZ|DU|SA|FU/.test(wx) ? '霾 / 沙尘' : /RA|DZ|SH/.test(mw) ? '可能有雨' : '天气好';
   const en = ts ? 'thunderstorms ⚠' : mts ? 'possible thunderstorms ⚠' : /RA|DZ|SH/.test(wx) ? 'rain' : /FG|BR/.test(wx) ? 'fog / mist' : /HZ|DU|SA|FU/.test(wx) ? 'haze / dust' : /RA|DZ|SH/.test(mw) ? 'possible rain' : 'fine';
@@ -1043,7 +1048,7 @@ function apCands(L) {
   APC = { k, list: Object.values(set).map(a => Object.assign(a, { pos: APT[a.icao] })) }; return APC.list;
 }
 function apWx(L, icao, at) { const r = L.wx && L.wx[icao]; if (!r || !(r.m || r.t)) return null;
-  try { const M = r.m ? WX.metar(r.m, at) : null, T = r.t ? WX.taf(String(r.t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; const w = (M || T) ? WX.at(T, M, at) : null; return w ? { w, rate: WX.rate(w) } : null; } catch (e) { return null; } }
+  try { const M = r.m ? WX.metar(r.m, at) : null, T = r.t ? WX.taf(String(r.t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; const w = (M || T) ? WX.atWin(T, M, at) : null; return w ? { w, rate: WX.rate(w) } : null; } catch (e) { return null; } }
 // 1 小时圈以内的合适备降场：天气 → 类别 → 距离
 function altNow(L, pos, t) {
   if (!pos) return []; const ti = tyIdx(L), R = { green: 0, none: 1, amber: 2, red: 3 };

@@ -45,8 +45,8 @@
   function cabinWx(o, icao, at) {
     const a = o && o.airports && o.airports[icao]; if (!a) return null;
     const m = (a.metar || []).slice(-1)[0], t = (a.taf || []).slice(-1)[0]; if (!m && !t) return null;
-    let w = null; try { const M = m ? WX.metar(m, at) : null, T = t ? WX.taf(String(t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; w = (M || T) ? WX.at(T, M, at) : null; } catch (e) {} if (!w || !w.main) return null;
-    const c = w.main, wx = (c.wx || []).join(' '), mw = (w.maybe || []).filter(q => q.g).map(q => ((q.c && q.c.wx) || []).join(' ') + (q.c && q.c.cb ? ' CB' : '')).join(' ');
+    let w = null; try { const M = m ? WX.metar(m, at) : null, T = t ? WX.taf(String(t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; w = (M || T) ? WX.atWin(T, M, at) : null; } catch (e) {} if (!w || !w.main) return null;
+    const c = w.main, wx = (c.wx || []).join(' '), mw = (w.maybe || []).filter(q => !/METAR/.test(q.whyEn || '')).map(q => ((q.c && q.c.wx) || []).join(' ') + (q.c && q.c.cb ? ' CB' : '')).join(' ');
     const ts = /TS|SQ|FC|GR/.test(wx) || c.cb, mts = !ts && /TS|SQ|FC|GR|CB/.test(mw);
     const zh = ts ? '有雷雨 ⚠' : mts ? '可能有雷雨 ⚠' : /RA|DZ|SH/.test(wx) ? '有雨' : /FG|BR/.test(wx) ? '有雾' : /HZ|DU|SA|FU/.test(wx) ? '霾 / 沙尘' : /RA|DZ|SH/.test(mw) ? '可能有雨' : '天气好';
     const en = ts ? 'thunderstorms ⚠' : mts ? 'possible thunderstorms ⚠' : /RA|DZ|SH/.test(wx) ? 'rain' : /FG|BR/.test(wx) ? 'fog / mist' : /HZ|DU|SA|FU/.test(wx) ? 'haze / dust' : /RA|DZ|SH/.test(mw) ? 'possible rain' : 'fine';

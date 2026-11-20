@@ -3,17 +3,18 @@
    用主页面的全局：S, lsGet, lsSet, clockUrl, th, thb, esc, hmZ, WX, atP, MIN, candidates, assess, renderList */
 (function () {
   'use strict';
-  let L = null; try { L = JSON.parse(lsGet('live') || 'null'); } catch (e) {}
+  let L;   // 存在 iPad 上的最新天气：第一次用到时再读（这个文件比主页面先载入）
+  const ld = () => { if (L === undefined) { try { L = JSON.parse(lsGet('live') || 'null'); } catch (e) { L = null; } } return L; };
   const keyOf = () => S.ofp ? S.ofp.flight.no + S.ofp.flight.date : '';
-  const cur = () => (L && L.k === keyOf() && L.ap) || null;
+  const cur = () => { ld(); return (L && L.k === keyOf() && L.ap) || null; };
   const stripM = s => String(s || '').replace(/^(METAR|SPECI)\s+(COR\s+)?[A-Z]{4}\s+/, '');
   const stripT = s => String(s || '').replace(/^TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, '');
   let busy = false, err = '';
 
   async function fetchLive(force) {
     const o = S.ofp; if (!o || busy || !navigator.onLine || !lsGet('key')) return;
-    if (!force && L && L.k === keyOf() && Date.now() - L.t < 15 * 60e3) return;
-    const ids = [o.flight.dep, o.flight.arr].concat((o.alternates || []).map(a => a.icao)).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 10);
+    ld(); if (!force && L && L.k === keyOf() && Date.now() - L.t < 15 * 60e3) return;
+    const ids = [o.flight.dep, o.flight.arr].concat((o.alternates || []).map(a => a.icao), Object.keys(o.airports || {})).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 12);   // 起飞、目的地、备降，再加航路备降场（后台一次最多 12 个）
     busy = true;
     try {
       const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'live', icaos: ids, pos: posOf(ids) }) });
@@ -107,7 +108,7 @@
       line(o.flight.arr, 'arr') + '<div class="small" style="color:var(--dim);margin-top:3px">' + src + '</div></div>';
   }
 
-  window.LIVE = { fetch: fetchLive, wx, pickRwy, line, impact, atisRwy };
+  window.LIVE = { info: () => cur() ? { t: L.t, n: Object.keys(L.ap).length } : null, fetch: fetchLive, wx, pickRwy, line, impact, atisRwy };
   window.addEventListener('online', () => fetchLive(false));
   setInterval(() => fetchLive(false), 5 * 60e3);
 })();

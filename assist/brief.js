@@ -1,6 +1,9 @@
 /* Today Brief：把整个航班总结成一页（可打印 / 存成 PDF）。
    用主页面里的全局函数：S, assess, candidates, catAt, ekHints, th, thb, tt, LANG, hmZ, dur, distNm, posAt, tb, TYPES, typeIdx, catTag, catName, WX, esc, R1, R2, MIN */
 'use strict';
+// 天气来源说明（OFP 里的 / 有网时取到的最新），以及「前后 1 小时」的算法
+function wxSrcLine() { const i = S.wxsrc !== 'ofp' && window.LIVE && LIVE.info ? LIVE.info() : null;
+  return '<div class="wxsrc">🌦 ' + (i ? th('天气：最新 METAR / TAF（' + hmZ(i.t) + ' 取得）', 'Weather: latest METAR / TAF (fetched ' + hmZ(i.t) + ')') : th('天气：OFP 里的 METAR / TAF', 'Weather: from the OFP')) + ' · ' + th('经过 / 落地前后 1 小时内的变化都算进去', 'changes within ±1 h of passing / landing included') + '</div>'; }
 function briefFull() {
   const o = S.ofp, f = o.flight, T = o.times, F = o.fuel || {}, W = o.weights || {};
   const T0 = tb(), ETA = atP(T.trip || 0);
@@ -88,6 +91,7 @@ function briefFull() {
   // ---------- 页面 ----------
   let h = '<h1>Today Brief · ' + f.no + ' · ' + f.date + ' ' + new Date(T.std || f.dateUTC).getUTCFullYear() + '</h1>' +
     '<div class="small">' + f.dep + ' → ' + f.arr + ' · ' + f.reg + ' ' + f.type + ' · ' + th('生成时间', 'Generated') + ' ' + hmZ(Date.now()) + ' · ' + th(S.atd ? '按实际起飞时间 ' + hmZ(S.atd) : '按计划起飞时间 ' + hmZ(T0), S.atd ? 'based on ATD ' + hmZ(S.atd) : 'based on planned takeoff ' + hmZ(T0)) + ' · ' + th('所有时间 UTC', 'all times UTC') + '</div>';
+  h += wxSrcLine();
   h += '<h2>' + th('机长简报', 'Captain\'s brief') + '</h2><div class="say">' + says.map(x => '<p>' + x + '</p>').join('') + '</div>';
   h += '<h2>' + th('航班', 'Flight') + '</h2><table>' +
     '<tr><th>' + th('航路', 'Route') + '</th><td colspan="3" style="font-family:monospace;font-size:11px">' + f.dep + '/' + (f.depRwy || '') + ' ' + esc(o.route) + ' ' + f.arr + '/' + (f.arrRwy || '') + '</td></tr>' +
@@ -204,6 +208,7 @@ function briefOne() {
   const H = (zh, en) => th(zh, en);
   const key = f.no + f.date;
   let h = '<div class="b1"><div class="b1t">TODAY BRIEF</div><div class="b1f">' + f.no + ' · ' + f.date + ' ' + new Date(T.std || f.dateUTC).getUTCFullYear() + '</div><div class="b1g">UTC · ' + L2('生成', 'gen') + ' ' + hmZ(Date.now()) + '</div></div>';
+  h += wxSrcLine();
   // 1. 航班
   h += '<table class="bt"><tr><th>' + H('航班', 'Flight') + '</th><th>' + H('注册号', 'Reg') + '</th><th>' + H('航线', 'Route') + '</th><th>' + H('停机位', 'Bay') + '</th><th>' + H('飞行时间', 'Flight time') + '</th><th>' + H('高度', 'Levels') + '</th></tr>' +
     '<tr class="big"><td>' + f.no + '</td><td>' + f.reg + '<small> ' + f.type + '</small></td><td>' + f.depIata + ' → ' + f.arrIata + '<small> ' + f.dep + '–' + f.arr + '</small></td><td>' + (f.bay || '<span class="blank"></span>') + '</td><td>' + mm(T.trip) + '</td><td>FL' + (fl.join('/') || (T.crzFl || '').replace('FL', '')) + '</td></tr>' +

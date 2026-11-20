@@ -139,6 +139,14 @@
     if (vis < 3000 || ceil < 1000 || /TS|CB/.test(wx) || c.cb || g >= 35 || /FZ/.test(wx)) return 'amber';
     return 'green';
   }
+  // 前后 win 分钟（默认 60）里的天气：主要情况 = t 时刻；这段时间里任何时候可能出现的（TEMPO / PROB / BECMG / FM 变化）都算「可能」
+  function atWin(T, M, t, win) {
+    win = win == null ? 60 : win; const w = at(T, M, t), seen = new Set(w.maybe.map(m => m.g));
+    [-win, -win / 2, win / 2, win].forEach(d => { const x = at(T, M, t + d * 60e3);
+      x.maybe.forEach(m => { if (m.g && seen.has(m.g)) return; if (m.g) seen.add(m.g); w.maybe.push(m); });
+      if (['vis', 'ceil', 'wx', 'wind', 'cb'].some(k => JSON.stringify(x.main[k]) !== JSON.stringify(w.main[k]))) w.maybe.push({ c: x.main, why: (d < 0 ? '之前 ' : '之后 ') + Math.abs(d) + ' 分钟', whyEn: Math.abs(d) + ' min ' + (d < 0 ? 'before' : 'after') }); });
+    w.win = win; return w;
+  }
   const ORDER = { green: 0, amber: 1, red: 2 };
   function rate(w) {
     let r = rateOne(w.main);
@@ -349,6 +357,6 @@
     if (pts.length >= 3) { const poly = pts.map(x => x.p); return { poly }; }
     return { pt: pts[0].p };
   }
-  root.WX = { metar, taf, at, rate, say, sayOne, runway, notams, closedRwys, hhmmZ, wxzh, sched, area };
+  root.WX = { metar, taf, at, atWin, rate, say, sayOne, runway, notams, closedRwys, hhmmZ, wxzh, sched, area };
   if (typeof module !== 'undefined') module.exports = root.WX;
 })(typeof window !== 'undefined' ? window : globalThis);
