@@ -25,10 +25,15 @@
     + '#pdsh .cc{border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;margin:10px 0}#pdsh .cc h4{margin:0 0 6px;font-size:19px}#pdsh .cc h4 small{font-size:13px;color:var(--dim);margin-left:6px;font-weight:600}'
     + '#pdsh .cc.rt2{border-color:#3fcf7f}#pdsh .cc.rt2 h4{color:#3fcf7f}'
     + '#pdsh .pr{display:flex;gap:10px;font-size:18px;font-weight:700;line-height:1.55}#pdsh .pr i{font-style:normal;flex:none;width:5.6em;color:var(--dim);font-weight:600;font-size:15px;white-space:nowrap}#pdsh .pr.bad{color:#ff6b6b}'
+    + '#pdchk{position:absolute;left:10px;top:100px;z-index:640;width:min(430px,calc(100% - 20px));background:var(--panel);border:2px solid #3fcf7f;border-radius:16px;padding:10px 12px;box-shadow:0 8px 26px rgba(0,0,0,.45);display:none}'
+    + '#pdchk .ch{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;margin-bottom:4px}#pdchk .ch span{flex:1}#pdchk .ch small{font-size:13px;color:var(--dim);font-weight:600}'
+    + '#pdchk .cols{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}#pdchk .ci{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:17px;font-weight:700;cursor:pointer}'
+    + '#pdchk .ci i{flex:none;width:26px;height:26px;border:2px solid var(--dim);border-radius:7px;font-style:normal;text-align:center;line-height:22px;font-size:18px}#pdchk .ci.on{opacity:.45}#pdchk .ci.on i{background:#3fcf7f;border-color:#3fcf7f;color:#04210f}'
     + '#pdsh .tl div{padding:7px 4px;border-bottom:1px solid var(--line);font-size:16px;font-weight:700}#pdsh .tl b{display:inline-block;width:3.2em}#pdsh .tl small{display:block;font-weight:500;font-size:13px;color:var(--dim);margin-left:3.6em}#pdsh .tl .done{opacity:.45}#pdsh .tl .now{background:rgba(63,207,127,.15)}';
   document.head.appendChild(css);
   const box = document.createElement('div'); box.id = 'pdx'; box.innerHTML = '<span class="ch" id="pd-cb"></span><span class="ch" id="pd-tl"></span>';
   (document.getElementById('mapwrap') || document.body).appendChild(box);
+  const ck = document.createElement('div'); ck.id = 'pdchk'; (document.getElementById('mapwrap') || document.body).appendChild(ck);
   const sh = document.createElement('div'); sh.id = 'pdsh'; sh.innerHTML = '<div class="in"></div>'; document.body.appendChild(sh);
   sh.onclick = e => { if (e.target === sh || e.target.closest('.x')) sh.classList.remove('open'); };
   const open = (title, body) => { sh.firstChild.innerHTML = '<div class="hd"><span>' + title + '</span><button class="btn sm x">✕</button></div>' + body; sh.classList.add('open'); };
@@ -72,7 +77,27 @@
     open('⏱ ' + XS('起飞前时间轴', 'Pre-departure timeline') + ' · STD ' + hmZ(s0), '<div class="tl">' + TLS.map(s => '<div class="' + (s === past ? 'now' : t >= s0 - s[0] * MIN ? 'done' : '') + '"><b>−' + s[0] + '</b>' + hmZ(s0 - s[0] * MIN) + ' · ' + esc(XS(s[1], s[2])) + '<small>' + esc(LANG === 'en' ? s[4] : s[3]) + (LANG === 'both' ? ' · ' + esc(s[4]) : '') + '</small></div>').join('') + '</div>');
   }
   document.getElementById('pd-cb').onclick = openCrew; document.getElementById('pd-tl').onclick = openTl;
+  // 出门检查单：接车前 20 分钟出现（接车 = STD 前 135 分钟），全部勾完就消失；没勾完一直显示到 STD 前 60 分钟。外站短停（人在机场）不显示
+  const PICKUP_MIN = 135, CHK = [['📱', '手机', 'Phone'], ['👛', '钱包', 'Wallet'], ['🛂', '护照', 'Passport'], ['🪪', '执照', 'Licence'], ['🩺', '体检合格证', 'Medical'], ['📲', 'iPad', 'iPad'], ['🧢', '帽子', 'Hat'], ['👔', '制服', 'Uniform'], ['👟', '过夜的鞋', 'Overnight shoes'], ['👕', '过夜的衣服', 'Overnight clothes'], ['🥪', '吃的', 'Food']];
+  const ckKey = o => 'fa.chk.' + o.flight.no + o.flight.date;
+  const ckGet = o => { try { return JSON.parse(localStorage.getItem(ckKey(o)) || '{}'); } catch (e) { return {}; } };
+  let TURN = { k: '', v: false };
+  async function isTurn(o) { const k = o.flight.no + o.flight.date; if (TURN.k === k) return TURN.v; TURN = { k, v: false };
+    try { const L = (window.OFL && OFL.entries) ? await OFL.entries() : []; TURN.v = L.some(x => x.arr === o.flight.dep && x.std < std(o) && x.std + (x.trip || 0) * MIN + 20 * MIN > std(o) - 6 * 36e5); } catch (e) {} return TURN.v; }
+  async function ckShow() {
+    const o = S.ofp; let h = '';
+    if (o && std(o)) { const t = now(), pu = std(o) - PICKUP_MIN * MIN, st = ckGet(o), done = CHK.every((c, i) => st[i]);
+      if (t < offOf(o) && !st.x && !done && t >= pu - 20 * MIN && t < std(o) - 60 * MIN && !(await isTurn(o))) {
+        const m = Math.ceil((pu - t) / MIN);
+        h = '<div class="ch"><span>🧳 ' + XS('出门检查单', 'Leaving checklist') + '</span><small>' + (m > 0 ? XS('接车还有 ' + m + ' 分', 'Pick-up in ' + m + ' min') : XS('接车时间到', 'Pick-up now')) + '</small><button class="btn sm" data-x="1">✕</button></div><div class="cols">'
+          + CHK.map((c, i) => '<div class="ci' + (st[i] ? ' on' : '') + '" data-i="' + i + '"><i>' + (st[i] ? '✓' : '') + '</i>' + c[0] + ' ' + esc(XS(c[1], c[2])) + '</div>').join('') + '</div>'; } }
+    if (ck.dataset.h !== h) { ck.dataset.h = h; ck.innerHTML = h; } ck.style.display = h ? 'block' : 'none';
+  }
+  ck.onclick = e => { const o = S.ofp; if (!o) return; const st = ckGet(o), it = e.target.closest('.ci');
+    if (e.target.closest('[data-x]')) st.x = 1; else if (it) { const i = +it.dataset.i; st[i] = st[i] ? 0 : 1; } else return;
+    try { localStorage.setItem(ckKey(o), JSON.stringify(st)); } catch (x) {} ckShow(); };
   function upd() {
+    ckShow();
     const o = S.ofp, cb = document.getElementById('pd-cb'), tl = document.getElementById('pd-tl'); let hc = '', ht = '';
     if (o && std(o)) {
       const t = now(), s0 = std(o), pre = t < offOf(o), bt = s0 - CB_MIN * MIN;
@@ -86,5 +111,5 @@
     if (tl.innerHTML !== ht) tl.innerHTML = ht; tl.style.display = ht ? 'inline-flex' : 'none';
   }
   setInterval(upd, 5000); setTimeout(upd, 1500);
-  window.PDX = { upd, openCrew, openTl };
+  window.PDX = { upd, openCrew, openTl, ckShow };
 })();

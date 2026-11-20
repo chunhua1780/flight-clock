@@ -171,6 +171,11 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 #tlc{display:none;align-items:baseline;gap:6px;border:2.5px solid #000;border-radius:10px;padding:2px 8px;font-size:16px;font-weight:900;background:#fff;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}#tlc .m{font-size:19px}#tlc .m.neg{color:var(--red)}#tlc .nx{font-size:13px;font-weight:700;color:#444;border-left:1.5px solid #999;padding-left:6px}
 html.cbold #tlc{border-color:#0f2c56}
 .tls{margin:8px 0}.tls div{padding:6px 4px;border-bottom:1px solid #ccc;font-size:16px;font-weight:800}.tls div b{display:inline-block;width:3.2em;font-variant-numeric:tabular-nums}.tls div small{display:block;font-weight:500;font-size:13px;color:#444;margin-left:3.6em}.tls .done{color:#999}.tls .now{background:#dff3e6}
+#chk{display:none;position:fixed;left:8px;right:8px;top:12vh;z-index:7;max-width:440px;margin:0 auto;background:#fff;border:3px solid #000;border-radius:16px;box-shadow:0 6px 22px rgba(0,0,0,.3);padding:8px 10px}
+#chk .ch{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:900;margin-bottom:4px}#chk .ch span{flex:1}#chk .ch small{font-size:13px;font-weight:700;color:#444}
+#chk .ci{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #ccc;font-size:18px;font-weight:800;cursor:pointer}#chk .ci:last-child{border-bottom:0}#chk .ci i{flex:none;width:28px;height:28px;border:3px solid #000;border-radius:7px;font-style:normal;text-align:center;line-height:22px;font-size:20px}#chk .ci.on{color:#999}#chk .ci.on i{background:#000;color:#fff}#chk .ci small{font-size:13px;font-weight:600;color:#666}
+#chk .cols{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
+html.cbold #chk{border-color:#0f2c56}html.cbold #chk .ci.on i{background:#00a04a;border-color:#00a04a}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -217,7 +222,7 @@ html.cbold #menu{border-color:var(--navy)}html.cbold #menu .btn{border-color:var
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
-  <div id="rk" style="display:none"></div>
+  <div id="rk" style="display:none"></div><div id="chk"></div>
   <div id="empty"></div>
   <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-zfw">⚖ <span data-i="无油重量 ZFW|Zero fuel weight"></span></span><span class="btn" id="b-sb">📋 <span data-i="简报（简洁版）|Short brief"></span></span><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
@@ -340,7 +345,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611200856';
+const PAGEV = '202611202029';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -758,7 +763,7 @@ function draw() {
   let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
     + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
     + (wFix(L) ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
-  ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
+  ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now); chkShow(L, ph, now, F);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
@@ -917,6 +922,20 @@ function tlcShow(L, ph, now) {
   }
   if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'inline-flex' : 'none';
 }
+// 出门检查单：接车前 20 分钟出现（接车 = STD 前 135 分钟），全部勾完就消失；没勾完一直显示到 STD 前 60 分钟。外站短停（人在机场）不显示
+const PICKUP_MIN = 135, CHK = [['📱', '手机', 'Phone'], ['👛', '钱包', 'Wallet'], ['🛂', '护照', 'Passport'], ['🪪', '执照', 'Licence'], ['🩺', '体检合格证', 'Medical'], ['📲', 'iPad', 'iPad'], ['🧢', '帽子', 'Hat'], ['👔', '制服', 'Uniform'], ['👟', '过夜的鞋', 'Overnight shoes'], ['👕', '过夜的衣服', 'Overnight clothes'], ['🥪', '吃的', 'Food']];
+const chkGet = L => { try { return JSON.parse(ls('chk.' + L.k) || '{}'); } catch (e) { return {}; } };
+function chkShow(L, ph, now, F) {
+  const b = $('chk'), pu = L.std - PICKUP_MIN * MIN, st = chkGet(L), turn = (F || []).some(x => x !== L && (x.bi === L.ai) && x.std < L.std && x.std + ((x.tx || 15) + (x.tr || 0)) * MIN > L.std - 6 * HOUR);
+  const done = CHK.every((c, i) => st[i]), on = ph === 0 && !turn && !st.x && !done && now >= pu - 20 * MIN && now < L.std - 60 * MIN;
+  if (!on) { if (b.style.display !== 'none') { b.style.display = 'none'; b.innerHTML = ''; } return; }
+  const m = Math.ceil((pu - now) / MIN), h = '<div class="ch"><span>🧳 ' + XS('出门检查单', 'Leaving checklist') + '</span><small>' + (m > 0 ? XS('接车还有 ' + m + ' 分', 'Pick-up in ' + m + ' min') : XS('接车时间到', 'Pick-up now')) + '</small><span class="btn" id="chk-x" style="flex:none">✕</span></div><div class="cols">'
+    + CHK.map((c, i) => '<div class="ci' + (st[i] ? ' on' : '') + '" data-i="' + i + '"><i>' + (st[i] ? '✓' : '') + '</i>' + c[0] + ' ' + esc(XS(c[1], c[2])) + '</div>').join('') + '</div>';
+  if (b.dataset.h !== h) { b.dataset.h = h; b.innerHTML = h; } b.style.display = 'block';
+}
+$('chk').onclick = e => { const L = CUR; if (!L) return; const st = chkGet(L), it = e.target.closest('.ci');
+  if (e.target.id === 'chk-x') st.x = 1; else if (it) { const i = +it.dataset.i; st[i] = st[i] ? 0 : 1; } else return;
+  ls('chk.' + L.k, JSON.stringify(st)); $('chk').dataset.h = ''; draw(); };
 $('tlc').onclick = () => { const L = CUR; if (!L) return; const now = NOW(), sh = $('sheet'), past = TLS.filter(s => now >= L.std - s[0] * MIN).pop();
   sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:18px">⏱ ' + XS('起飞前时间轴', 'Pre-departure timeline') + ' · STD ' + hmZ(L.std) + 'Z</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div><div class="tls">'
     + TLS.map(s => '<div class="' + (s === past ? 'now' : now >= L.std - s[0] * MIN ? 'done' : '') + '"><b>−' + s[0] + '</b>' + hmZ(L.std - s[0] * MIN) + 'Z · ' + esc(XS(s[1], s[2])) + '<small>' + esc(LANG === 'en' ? s[4] : s[3]) + (LANG === 'both' ? ' · ' + esc(s[4]) : '') + '</small></div>').join('') + '</div>';
