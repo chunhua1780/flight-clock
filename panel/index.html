@@ -166,43 +166,50 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 .btn.sg{padding:4px 9px;font-size:13px}.btn.sg.on{background:#000;color:#fff}
 #top{position:relative}#ovw{display:none;position:absolute;left:8px;bottom:2px;z-index:3;color:var(--red);font-weight:900;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
 @media (orientation:landscape) and (min-width:700px){#ovw{font-size:32px}}
+#tbar{position:absolute;left:8px;bottom:2px;z-index:3;display:flex;align-items:center;gap:8px}#tbar #ovw{position:static}
+#cbt{display:none;align-items:center;gap:6px;border:2.5px solid #000;border-radius:10px;padding:2px 4px 2px 8px;font-size:15px;font-weight:900;background:#fff;cursor:pointer;white-space:nowrap}
+#cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
+html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
+.cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
+.cc .r{display:flex;gap:10px;font-size:18px;font-weight:800;line-height:1.5}.cc .r i{font-style:normal;flex:none;width:5.6em;white-space:nowrap;color:#444;font-weight:700;font-size:15px}.cc .r.bad{color:var(--red)}
+html.cbold .cc{border-color:#0f2c56}html.cbold .cc h4{color:#0f2c56}html.cbold .cc.rt2{border-color:#00a04a}html.cbold .cc.rt2 h4{color:#00a04a}
 .zfwb{border:2.5px solid #000;border-radius:12px;padding:6px 9px;margin:4px 0 8px}.zfwb b{font-size:16px}.zfwb input{width:110px;font-size:22px;font-weight:900;padding:3px 6px;border:2px solid #000;border-radius:8px;font-variant-numeric:tabular-nums}.zfwb .btn{padding:3px 12px;font-size:18px}.zfwb .bw{margin:3px 0;font-size:16px;font-weight:800}
 .zb{z-index:5}
 .crew p{font-size:18px;font-weight:800;line-height:1.45;margin:10px 0;border-bottom:1px solid #ccc;padding-bottom:8px}
 /* ===== 2026-11-20 彩色墨水屏（海信 A5 Pro CC）配色：纯色、粗线、大色块；黑白墨水屏不用这套 ===== */
-html:not(.eink){--navy:#0f2c56;--sea:#6fb2ea;--mag:#d4008a;--grn:#00a04a;--org:#ff7a00;--yel:#ffd21f;--blu:#1c5fc4}
-html:not(.eink) #side{border-left:0;background:#fff}
-html:not(.eink) #fhdr{background:#e9eef6;border-bottom:2px solid var(--navy)}
-html:not(.eink) #fhdr .fc{color:var(--navy)}html:not(.eink) #fhdr .fn{color:#000;border-left:5px solid var(--org);padding-left:4px;margin-top:1px}
-html:not(.eink) .bx{border:3px solid var(--blu);color:#0a2a5c}
-html:not(.eink) .wp.ho .bx{border:3.5px solid var(--org)}
-html:not(.eink) .hf{color:#000;background:var(--org);border-radius:4px;margin-top:1px}
-html:not(.eink) .wp.nx .bx{background:var(--grn);border-color:var(--grn);color:#fff}html:not(.eink) .wp.nx .hf{background:#fff;color:#000}
-html:not(.eink) .wp.nx.ho .bx{box-shadow:0 0 0 3px var(--org)}
-html:not(.eink) .wp.nx{background:#dff3e6}html:not(.eink) .wp.nx .m .t{color:var(--grn)}
-html:not(.eink) .wp .m .t{color:#000}
-html:not(.eink) .wp.past .bx{border-color:#c4c4c4;color:#a0a0a0;background:#f2f2f2}html:not(.eink) .wp.past .hf{background:#ddd;color:#999}
-html:not(.eink) #sinfo{border-top:3px solid var(--navy)}
-html:not(.eink) .si.ho,html:not(.eink) .si.ho span{color:#000}html:not(.eink) .si.ho{border-left:6px solid var(--org)}
-html:not(.eink) .si.soon{background:var(--org);color:#000}html:not(.eink) .si.soon span{color:#000}
-html:not(.eink) .si.caution{border-left:6px solid #e00000;color:#000}html:not(.eink) .si.info{border-left:6px solid var(--blu)}
-html:not(.eink) .si.warning{background:#e00000}
-html:not(.eink) #firl{background:var(--org);border:0;color:#000;padding:2px 8px;border-radius:8px}
-html:not(.eink) #gpsb{background:#fff;border:2px solid var(--navy);color:var(--navy)}html:not(.eink) #gpsb.gps{background:var(--grn);border-color:var(--grn);color:#fff}
-html:not(.eink) .zb,html:not(.eink) .fab{background:#fff;border:2.5px solid var(--navy);color:var(--navy)}
-html:not(.eink) #st{color:#000;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
-html:not(.eink) #alc{border-color:#e00000}html:not(.eink) #alc .ah{background:#e00000}
-html:not(.eink) .it{border-left:6px solid var(--blu)}html:not(.eink) .it.red{border-color:#e00000;color:#c00000}
-html:not(.eink) #board h3{background:var(--navy);color:#fff;border-radius:8px;padding:4px 8px}
-html:not(.eink) .zfwb{border-color:var(--navy)}
-html:not(.eink) .tli.nx{background:#dff3e6}html:not(.eink) .tl{border-left-color:var(--navy)}
-html:not(.eink) .lg.on{background:var(--navy)}
-html:not(.eink) #menu{border-color:var(--navy)}html:not(.eink) #menu .btn{border-color:var(--navy)}
+html.cbold{--navy:#0f2c56;--sea:#6fb2ea;--mag:#d4008a;--grn:#00a04a;--org:#ff7a00;--yel:#ffd21f;--blu:#1c5fc4}
+html.cbold #side{border-left:0;background:#fff}
+html.cbold #fhdr{background:#e9eef6;border-bottom:2px solid var(--navy)}
+html.cbold #fhdr .fc{color:var(--navy)}html.cbold #fhdr .fn{color:#000;border-left:5px solid var(--org);padding-left:4px;margin-top:1px}
+html.cbold .bx{border:3px solid var(--blu);color:#0a2a5c}
+html.cbold .wp.ho .bx{border:3.5px solid var(--org)}
+html.cbold .hf{color:#000;background:var(--org);border-radius:4px;margin-top:1px}
+html.cbold .wp.nx .bx{background:var(--grn);border-color:var(--grn);color:#fff}html.cbold .wp.nx .hf{background:#fff;color:#000}
+html.cbold .wp.nx.ho .bx{box-shadow:0 0 0 3px var(--org)}
+html.cbold .wp.nx{background:#dff3e6}html.cbold .wp.nx .m .t{color:var(--grn)}
+html.cbold .wp .m .t{color:#000}
+html.cbold .wp.past .bx{border-color:#c4c4c4;color:#a0a0a0;background:#f2f2f2}html.cbold .wp.past .hf{background:#ddd;color:#999}
+html.cbold #sinfo{border-top:3px solid var(--navy)}
+html.cbold .si.ho,html.cbold .si.ho span{color:#000}html.cbold .si.ho{border-left:6px solid var(--org)}
+html.cbold .si.soon{background:var(--org);color:#000}html.cbold .si.soon span{color:#000}
+html.cbold .si.caution{border-left:6px solid #e00000;color:#000}html.cbold .si.info{border-left:6px solid var(--blu)}
+html.cbold .si.warning{background:#e00000}
+html.cbold #firl{background:var(--org);border:0;color:#000;padding:2px 8px;border-radius:8px}
+html.cbold #gpsb{background:#fff;border:2px solid var(--navy);color:var(--navy)}html.cbold #gpsb.gps{background:var(--grn);border-color:var(--grn);color:#fff}
+html.cbold .zb,html.cbold .fab{background:#fff;border:2.5px solid var(--navy);color:var(--navy)}
+html.cbold #st{color:#000;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+html.cbold #alc{border-color:#e00000}html.cbold #alc .ah{background:#e00000}
+html.cbold .it{border-left:6px solid var(--blu)}html.cbold .it.red{border-color:#e00000;color:#c00000}
+html.cbold #board h3{background:var(--navy);color:#fff;border-radius:8px;padding:4px 8px}
+html.cbold .zfwb{border-color:var(--navy)}
+html.cbold .tli.nx{background:#dff3e6}html.cbold .tl{border-left-color:var(--navy)}
+html.cbold .lg.on{background:var(--navy)}
+html.cbold #menu{border-color:var(--navy)}html.cbold #menu .btn{border-color:var(--navy)}
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="ovw"></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
+  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div></div></div>
@@ -216,6 +223,7 @@ html:not(.eink) #menu{border-color:var(--navy)}html:not(.eink) #menu .btn{border
   <b>⚙︎ <span data-i="设置|Settings"></span></b><br>
   <span data-i="口令|Password"></span><br><input id="s-key" type="password" autocomplete="off">
   <span data-i="夜间背光 5–30%|Night backlight 5–30%"></span><br><input id="s-bl" type="number" min="5" max="30">
+  <span data-i="地图颜色|Map colours"></span><br><span class="btn sg" id="s-mc-b" data-i="深色|Strong"></span><span class="btn sg" id="s-mc-l" data-i="浅色|Light"></span><br><br>
   <span class="btn" id="s-ok">✓ <span data-i="保存|Save"></span></span> <span class="btn" id="s-x">✕</span>
   <p style="color:var(--dim)" data-i="有网时自动读日历、云端和邮箱的 OFP，存在手机上离线用。|OFPs are fetched automatically when online and kept for offline use."></p>
   <p id="s-info" style="color:var(--dim);font-size:12px"></p>
@@ -232,6 +240,9 @@ const $ = id => document.getElementById(id), MIN = 6e4, HOUR = 36e5;
 // 墨水屏（Yota 等）：只有黑白。墨水屏版 App 自动打开；普通版可以在 ☰ 里手动切换
 const EINK = (() => { try { if (window.AndroidPanel && AndroidPanel.eink && AndroidPanel.eink()) return true; } catch (e) {} try { return localStorage.getItem('pnl.eink') === '1'; } catch (e) { return false; } })();
 if (EINK) document.documentElement.className += ' eink';
+// 地图颜色：深色（彩色墨水屏用，颜色饱和）/ 浅色（原来的淡色）。在 ⚙︎ 里选
+let MAPC = (() => { try { return localStorage.getItem('pnl.mapc') || 'bold'; } catch (e) { return 'bold'; } })();
+if (!EINK && MAPC !== 'light') document.documentElement.className += ' cbold';
 // 地图画完以后逐个像素换成黑白：海 → 白，陆地 → 浅灰，彩色（航线、警告、移交点）→ 黑（所有版本的 WebView 都能用）
 function einkPix(cv) {
   if (!EINK || !cv.width) return; const g = cv.getContext('2d'); let im; try { im = g.getImageData(0, 0, cv.width, cv.height); } catch (e) { return; }
@@ -326,7 +337,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611200840';
+const PAGEV = '202611200847';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -343,6 +354,7 @@ async function update(quiet) {
     try { await stFlush(); } catch (e) {}   // 先把没网时改的东西传上去
     let got = 0; try { got += await cloudSync(now); } catch (e) {}
     try { await fiSync(); } catch (e) {}
+    for (const l of LEGS.filter(l => l.std > now - 2 * HOUR && l.std < now + 48 * HOUR && !ls('pkgai.' + String(l.k).replace(/[^\w.-]/g, '')))) { try { const c = await withTimeout(postK({ action: 'pkgaiget', k: String(l.k).replace(/[^\w.-]/g, '') }), 30000); if (c && c.ok && c.d && c.d.secs) ls('pkgai.' + String(l.k).replace(/[^\w.-]/g, ''), JSON.stringify(c.d)); } catch (e) {} }   // 简报包的 AI 版：先存到手机，离线也能看
     try { await wacSync(); } catch (e) {}   // 途经国家的应急程序   // Flight Intelligence 数据库（审核过的区域提醒）
     const want = Object.keys(best).map(k => best[k]).filter(f => { const m = LIDO.exec(f.name || ''); return !(m && LEGS.some(l => /^cloud:/.test(l.fid || '') && l.sv === SV && last4(l.no) === last4(m[1]) && l.date === m[2] + m[3].toUpperCase())); });
     for (const f of want) {
@@ -543,9 +555,9 @@ function freeRect(cv, W, H) {
   return [(C[0] + C[2]) / 2, (C[1] + C[3]) / 2];
 }
 // 地图配色：彩色墨水屏用饱和的纯色、粗线；黑白墨水屏保留原来的颜色（einkPix 按这些颜色换成黑白）
-const MC = EINK ? { sea: '#e6f1fb', land: '#f3ecd9', coast: '#a8946a', coastW: .8, bord: '#c2ad80', bordW: .7, route: '#000', routeW: 3.2, flown: '#999', flownW: 2, nx: '#0a8a3a', ho: '#e07000', hoBg: 'rgba(255,244,230,.92)', hoTx: '#c25a00', ac: '#d00000', wp: '#000' }
-  : { sea: '#6fb2ea', land: '#f4d98c', coast: '#7a5a1e', coastW: 1.3, bord: '#b0453a', bordW: 1.2, route: '#d4008a', routeW: 5, flown: '#5c5c5c', flownW: 3, nx: '#00a04a', ho: '#ff7a00', hoBg: '#ff7a00', hoTx: '#000', ac: '#ffd21f', wp: '#000' };
+const MC_LITE = { sea: '#e6f1fb', land: '#f3ecd9', coast: '#a8946a', coastW: .8, bord: '#c2ad80', bordW: .7, route: '#000', routeW: 3.2, flown: '#999', flownW: 2, nx: '#0a8a3a', ho: '#e07000', hoBg: 'rgba(255,244,230,.92)', hoTx: '#c25a00', ac: '#d00000', wp: '#000' }, MC_BOLD = { sea: '#6fb2ea', land: '#f4d98c', coast: '#7a5a1e', coastW: 1.3, bord: '#b0453a', bordW: 1.2, route: '#d4008a', routeW: 5, flown: '#5c5c5c', flownW: 3, nx: '#00a04a', ho: '#ff7a00', hoBg: '#ff7a00', hoTx: '#000', ac: '#ffd21f', wp: '#000' };
 function drawMap(L, el, ph, S, hot) {
+  const LT = EINK || MAPC === 'light', MC = LT ? MC_LITE : MC_BOLD;   // 浅色 / 黑白墨水屏：原来的淡色
   const cv = $('map'), W = cv.clientWidth, H = cv.clientHeight; if (!W || !H) return;
   const dpr = window.devicePixelRatio || 1; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = MC.sea; g.fillRect(0, 0, W, H);   // 海
@@ -572,20 +584,20 @@ function drawMap(L, el, ph, S, hot) {
   const cur = ph === 1 ? wpos(L, el) : null;
   g.lineJoin = 'round'; g.lineCap = 'round';
   const line = (pts, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach((p, i) => { const q = xy(p[0], p[1]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.stroke(); };
-  const ahead = pts => { if (!EINK) line(pts, '#fff', MC.routeW + 3); line(pts, MC.route, MC.routeW); };   // 彩色：品红航线加白边，海上陆上都清楚
-  if (cur && cur.i > 0 && cur.i < N.length) { g.setLineDash(EINK ? [] : [6, 5]); line(N.slice(0, cur.i).map(w => [w[2], w[3]]).concat([cur.p]), MC.flown, MC.flownW); g.setLineDash([]); ahead([cur.p].concat(N.slice(cur.i).map(w => [w[2], w[3]]))); }
+  const ahead = pts => { if (!LT) line(pts, '#fff', MC.routeW + 3); line(pts, MC.route, MC.routeW); };   // 彩色：品红航线加白边，海上陆上都清楚
+  if (cur && cur.i > 0 && cur.i < N.length) { g.setLineDash(LT ? [] : [6, 5]); line(N.slice(0, cur.i).map(w => [w[2], w[3]]).concat([cur.p]), MC.flown, MC.flownW); g.setLineDash([]); ahead([cur.p].concat(N.slice(cur.i).map(w => [w[2], w[3]]))); }
   else if (ph === 2) line(N.map(w => [w[2], w[3]]), MC.flown, MC.flownW); else ahead(N.map(w => [w[2], w[3]]));
   // 航路点（名字太挤就不写）
   g.font = 'bold 11px sans-serif'; let lastLab = null; const FIRWP = new Set((L.fi || []).map(f => f[2]));
   const nxt = ph === 1 ? N.find(w => w[1] > el) : null, FIRAT = {}; (L.fi || []).forEach(f => FIRAT[f[2]] = f);
   N.forEach((w, i) => { const q = xy(w[2], w[3]); if (q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) return;
     const fw = FIRWP.has(w[0]), soon = fw && ph === 1 && w[1] - el > 0 && w[1] - el <= 10;
-    if (nxt && w === nxt) { g.strokeStyle = MC.nx; g.lineWidth = EINK ? 3.5 : 5; g.beginPath(); g.arc(q[0], q[1], EINK ? 10 : 12, 0, 7); g.stroke(); }   // 下一个点：绿色圆圈
+    if (nxt && w === nxt) { g.strokeStyle = MC.nx; g.lineWidth = LT ? 3.5 : 5; g.beginPath(); g.arc(q[0], q[1], LT ? 10 : 12, 0, 7); g.stroke(); }   // 下一个点：绿色圆圈
     if (fw) { const f = FIRAT[w[0]], lab = '→ ' + f[0] + ' ' + f[1];   // 移交点：橙色，旁边写管制区；快到（10 分钟内）变红并闪
-      if (!(soon && BLINK)) { g.font = 'bold 12px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? (EINK ? '#e07000' : '#e00000') : MC.hoBg; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); if (!EINK) { g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); } g.fillStyle = soon ? '#fff' : MC.hoTx; g.fillText(lab, q[0] - tw / 2, q[1] + 22); g.font = 'bold 11px sans-serif'; } }
+      if (!(soon && BLINK)) { g.font = 'bold 12px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? (LT ? '#e07000' : '#e00000') : MC.hoBg; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); if (!LT) { g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); } g.fillStyle = soon ? '#fff' : MC.hoTx; g.fillText(lab, q[0] - tw / 2, q[1] + 22); g.font = 'bold 11px sans-serif'; } }
     g.fillStyle = MC.wp;
-    if (fw) { g.strokeStyle = MC.ho; g.lineWidth = EINK ? 3 : 4; g.fillStyle = soon ? MC.ho : '#fff'; g.beginPath(); g.arc(q[0], q[1], 6, 0, 7); g.fill(); g.stroke(); } else if (EINK) g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5); else { g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.moveTo(q[0], q[1] - 6); g.lineTo(q[0] + 5.5, q[1] + 4); g.lineTo(q[0] - 5.5, q[1] + 4); g.closePath(); g.fill(); g.stroke(); }   // 移交点：橙色圆圈；普通航路点：白色三角
-    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = EINK ? 'rgba(255,255,255,.8)' : '#fff'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); if (!EINK) { g.strokeStyle = fw ? MC.ho : '#000'; g.lineWidth = 1; g.strokeRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); } g.fillStyle = fw ? (EINK ? '#c25a00' : '#000') : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
+    if (fw) { g.strokeStyle = MC.ho; g.lineWidth = LT ? 3 : 4; g.fillStyle = soon ? MC.ho : '#fff'; g.beginPath(); g.arc(q[0], q[1], 6, 0, 7); g.fill(); g.stroke(); } else if (LT) g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5); else { g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.moveTo(q[0], q[1] - 6); g.lineTo(q[0] + 5.5, q[1] + 4); g.lineTo(q[0] - 5.5, q[1] + 4); g.closePath(); g.fill(); g.stroke(); }   // 移交点：橙色圆圈；普通航路点：白色三角
+    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = LT ? 'rgba(255,255,255,.8)' : '#fff'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); if (!LT) { g.strokeStyle = fw ? MC.ho : '#000'; g.lineWidth = 1; g.strokeRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); } g.fillStyle = fw ? (LT ? '#c25a00' : '#000') : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
   // 飞机
   const ac = xy(P[0], P[1]); let hdg = 0;
   if (S && S.src === 'GPS' && GPS.fix && GPS.fix.trk >= 0 && GPS.fix.gs > 50) hdg = GPS.fix.trk * Math.PI / 180;
@@ -593,10 +605,10 @@ function drawMap(L, el, ph, S, hot) {
   // 有警告的管制区：在移交点画红色「!」
   const rf = new Set(((L.R && L.R.enr) || []).map(r => r[2].loc)); (L.fi || []).forEach(f => { if (!rf.has(FIRALIAS[f[1]] || f[1])) return; const w = N.find(x => x[0] === f[2]); if (!w) return; const q = xy(w[2], w[3]);
     g.fillStyle = '#d00000'; g.beginPath(); g.arc(q[0], q[1] - 18, 9, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 14px sans-serif'; g.fillText('!', q[0] - 2.5, q[1] - 13); });
-  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = MC.ac; g.strokeStyle = '#000'; g.lineWidth = EINK ? 1.5 : 2.5;   // 飞机：墨水屏红色，彩色屏黄色加黑边
-  const z = EINK ? 1 : 1.35; g.scale(z, z); g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.fill(); g.stroke(); g.restore();
+  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = MC.ac; g.strokeStyle = '#000'; g.lineWidth = LT ? 1.5 : 2.5;   // 飞机：墨水屏红色，彩色屏黄色加黑边
+  const z = LT ? 1 : 1.35; g.scale(z, z); g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.fill(); g.stroke(); g.restore();
   // 比例尺 + 北
-  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; if (!EINK) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(W - px - 56, H - 32, px + 8, 24); } g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = 'bold 11px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
+  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; if (!LT) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(W - px - 56, H - 32, px + 8, 24); } g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = 'bold 11px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
 }
 
 /* =====================================================================
@@ -707,7 +719,7 @@ function showWarn(ms) {
   $('wpop').style.display = 'block'; clearTimeout(wTimer); if (ms) wTimer = setTimeout(() => { $('wpop').style.display = 'none'; }, ms);
 }
 // 呼号字体：占满左上角那一块
-function fitFl() { const box = $('sel'), el = $('fl'), ov = $('ovw'); if (!box.clientWidth) return; el.style.fontSize = '100px'; const r = Math.min(box.clientWidth / el.scrollWidth, (box.clientHeight - (ov && ov.style.display === 'block' ? ov.offsetHeight + 4 : 0)) * .92 / el.offsetHeight); el.style.fontSize = Math.max(28, Math.floor(100 * r)) + 'px'; }
+function fitFl() { const box = $('sel'), el = $('fl'), ov = $('ovw'); if (!box.clientWidth) return; el.style.fontSize = '100px'; const r = Math.min(box.clientWidth / el.scrollWidth, (box.clientHeight - ($('tbar').offsetHeight ? $('tbar').offsetHeight + 4 : 0)) * .92 / el.offsetHeight); el.style.fontSize = Math.max(28, Math.floor(100 * r)) + 'px'; }
 function ntText(loc, id) { const L = CUR; if (!L || !L.nt) return ''; const A = (L.nt[loc] || []).find(n => n[0] === id) || Object.values(L.nt).reduce((r, a) => r || a.find(n => n[0] === id), null); return A ? A[1] : ''; }
 function draw() {
   const now = NOW(), F = flights(now);
@@ -743,7 +755,7 @@ function draw() {
   let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
     + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
     + (wFix(L) ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
-  ovwShow(L, ph, el);   // 航班号下面的红字：超重时最大油量 / 最大无油重
+  ovwShow(L, ph, el); cbtShow(L, ph, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
@@ -840,23 +852,53 @@ function openShort() { const L = CUR; if (!L || L.noOfp) return; const h = ls('s
     + (h ? '<iframe id="sb-f" style="width:100%;height:calc(100vh - 60px);border:1px solid #999;background:#fff"></iframe>' : '<div class="ok">' + XS('还没有：在 iPad 上打开这一班的 OFP（或 Today Brief），会自动传一份过来；有网时手机自动下载。', 'Not yet — open this OFP / Today Brief on the iPad; it uploads a copy automatically.') + '</div>');
   sh.style.display = 'block'; sh.scrollTop = 0; if (h) { $('sb-f').onload = () => { try { const d = $('sb-f').contentDocument, w = d.documentElement.scrollWidth, W = $('sb-f').clientWidth; if (w > W + 4) d.body.style.zoom = (W / w).toFixed(3); openShort.fit = (W / w).toFixed(3); } catch (e) {} };
     $('sb-z').onclick = () => { try { const b = $('sb-f').contentDocument.body; b.style.zoom = b.style.zoom === '1' ? openShort.fit : '1'; } catch (e) {} };   /* 🔍：整页 / 原大（可以左右滑） */ $('sb-f').srcdoc = h; }  /* 整页缩到手机宽度 */ $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('sb-c').onclick = () => openCrew(); }
-// 机组简报：飞行时间、高度、ETA、颠簸（来自 iPad 简报的客舱一栏）、回程
+// 机组简报（STD−83 分钟）：给乘务组的简单卡片 —— 去程、回程各自的飞行时间、高度、到达天气
+const CB_MIN = 83;
+const flTxt = l => (l.fls && l.fls.length ? l.fls : l.fl ? [String(Math.round(l.fl / 100))] : []).map(x => 'FL' + x).join(' / ');
+// 到达时的天气，说给乘务组听：好 / 有雨 / 雷雨 / 雾霾沙尘 + 温度（只用手机里存的 METAR / TAF）
+function cabinWx(src, icao, at) {
+  const r = src && src.wx && src.wx[icao]; if (!r || !(r.m || r.t)) return null;
+  let w = null; try { const M = r.m ? WX.metar(r.m, at) : null, Tf = r.t ? WX.taf(String(r.t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; w = (M || Tf) ? WX.at(Tf, M, at) : null; } catch (e) {} if (!w || !w.main) return null;
+  const c = w.main, wx = (c.wx || []).join(' '), mw = (w.maybe || []).filter(m => m.g).map(m => ((m.c && m.c.wx) || []).join(' ') + (m.c && m.c.cb ? ' CB' : '')).join(' ');
+  const ts = /TS|SQ|FC|GR/.test(wx) || c.cb, mts = !ts && /TS|SQ|FC|GR|CB/.test(mw), bad = ts || mts;
+  const zh = ts ? '有雷雨 ⚠' : mts ? '可能有雷雨 ⚠' : /RA|DZ|SH/.test(wx) ? '有雨' : /FG|BR/.test(wx) ? '有雾' : /HZ|DU|SA|FU/.test(wx) ? '霾 / 沙尘' : /RA|DZ|SH/.test(mw) ? '可能有雨' : '天气好';
+  const en = ts ? 'thunderstorms ⚠' : mts ? 'possible thunderstorms ⚠' : /RA|DZ|SH/.test(wx) ? 'rain' : /FG|BR/.test(wx) ? 'fog / mist' : /HZ|DU|SA|FU/.test(wx) ? 'haze / dust' : /RA|DZ|SH/.test(mw) ? 'possible rain' : 'fine';
+  const t = c.temp != null ? ' · ' + c.temp + '°C' : '';
+  return { txt: X(zh, en) + t, bad };
+}
+// 同一天的回程（从目的地飞回出发地，36 小时内）
+const backOf = L => flights(NOW()).find(x => x !== L && x.std > L.std && x.std < L.std + 36 * HOUR && (x.ai === L.bi || x.dep === L.arr) && (x.bi === L.ai || x.arr === L.dep));
+function cabinTurb(L) { const sb = ls('sb.' + String(L.k).replace(/[^\w.-]/g, '')); if (!sb) return ''; const m = /(?:客舱简报|Cabin brief)<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(sb); return m ? m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : ''; }
+function legCard(l, back, wxSrc) {
+  const off = back ? l.std + (l.tx || 15) * MIN : offOf(l), on = off + l.tr * MIN, w = cabinWx(l, l.arr, on) || cabinWx(wxSrc, l.arr || wxSrc && wxSrc.dep, on), fl = flTxt(l), tb = l.noOfp ? '' : cabinTurb(l);
+  const row = (k, v, bad) => '<div class="r' + (bad ? ' bad' : '') + '"><i>' + k + '</i><span>' + v + '</span></div>';
+  return '<div class="cc' + (back ? ' rt2' : '') + '"><h4>' + (back ? '↩ ' + XS('回程', 'Return') : '✈ ' + XS('去程', 'Outbound')) + ' ' + esc(l.ai) + ' → ' + esc(l.bi) + '<small>' + esc(l.no || '') + (back ? ' · STD ' + hmZ(l.std) + 'Z' : '') + '</small></h4>'
+    + row(XS('飞行', 'Flight'), dur(l.tr) + (l.noOfp ? ' <small>(' + XS('按排班', 'roster') + ')</small>' : ''))
+    + row(XS('高度', 'Level'), fl || '—')
+    + row(XS('落地', 'Landing'), hmZ(on) + 'Z')
+    + row(esc(l.bi) + ' ' + XS('天气', 'wx'), w ? w.txt : '—', w && w.bad)
+    + (tb ? row(XS('颠簸', 'Turb.'), esc(tb)) : '') + '</div>';
+}
+// 兼容：提醒卡片里也列出来（文字版）
 function crewInfo(L) {
-  const off = offOf(L), on = off + L.tr * MIN, fl = (L.fls && L.fls.length ? L.fls : [String(Math.round((L.fl || 0) / 100))]).map(x => 'FL' + x).join(' / ');
-  let cabin = ''; const sb = ls('sb.' + String(L.k).replace(/[^\w.-]/g, '')); if (sb) { const m = /(?:客舱简报|Cabin brief)<\/th>\s*<td>([\s\S]*?)<\/td>/.exec(sb); if (m) cabin = m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(); }
-  const F = flights(NOW()), back = F.find(x => x !== L && x.std > L.std && x.std < L.std + 36 * HOUR && (x.ai === L.bi || x.dep === L.arr) && (x.bi === L.ai || x.arr === L.dep));
-  const lines = [{ zh: '✈ ' + L.no + ' ' + L.ai + '→' + L.bi + '：飞行 ' + dur(L.tr) + ' · ' + fl + ' · 落地约 ' + hmZ(on) + 'Z', en: 'Flight ' + dur(L.tr) + ' · ' + fl + ' · ETA ' + hmZ(on) + 'Z' }];
-  if (cabin) lines.push({ zh: '⚠ ' + cabin, en: '' }); else lines.push({ zh: XS('（颠簸 / 天气：iPad 上生成 Today Brief 后这里会显示）', '(Turbulence: appears after the iPad Today Brief)'), en: '' });
-  if (back) { const bfl = back.fls && back.fls.length ? back.fls.map(x => 'FL' + x).join(' / ') : back.fl ? 'FL' + Math.round(back.fl / 100) : '';
-    lines.push({ zh: '↩ 回程 ' + (back.no || '') + ' ' + back.ai + '→' + back.bi + '：STD ' + hmZ(back.std) + 'Z · 飞行 ' + dur(back.tr) + (bfl ? ' · ' + bfl : '') + (back.noOfp ? '（按排班，还没有 OFP）' : ''), en: 'Return ' + back.ai + '→' + back.bi + ': STD ' + hmZ(back.std) + 'Z · ' + dur(back.tr) + (bfl ? ' · ' + bfl : '') }); }
+  const back = backOf(L), on = offOf(L) + L.tr * MIN, w = cabinWx(L, L.arr, on);
+  const lines = [{ zh: '✈ ' + L.ai + '→' + L.bi + '：飞行 ' + dur(L.tr) + ' · ' + flTxt(L) + (w ? ' · 天气 ' + w.txt : ''), en: L.ai + '→' + L.bi + ': ' + dur(L.tr) + ' · ' + flTxt(L) + (w ? ' · wx ' + w.txt : '') }];
+  if (back) { const bon = back.std + ((back.tx || 15) + back.tr) * MIN, bw = cabinWx(back, back.arr, bon) || cabinWx(L, L.dep, bon); lines.push({ zh: '↩ 回程 ' + back.ai + '→' + back.bi + '：STD ' + hmZ(back.std) + 'Z · 飞行 ' + dur(back.tr) + ' · ' + (flTxt(back) || '—') + (bw ? ' · 天气 ' + bw.txt : ''), en: 'Return ' + back.ai + '→' + back.bi + ': ' + dur(back.tr) + ' · ' + (flTxt(back) || '—') + (bw ? ' · wx ' + bw.txt : '') }); }
   return lines;
 }
 function crewAlerts(L, S, now) { if (L.noOfp || S.ph !== 0 || now < L.std - 85 * MIN || now >= L.std - 80 * MIN) return [];
-  const x = { id: 'crew:' + L.k, kind: 'crew', name: '👥 ' + XS('机组简报', 'Crew brief') + ' · STD−83', level: 'info', msg: XS('乘务组简报：飞行时间、高度、颠簸、回程', 'Crew brief: time, levels, turbulence, return'), msgEn: '', actions: crewInfo(L), ver: 1 };
-  PSEUDO[x.id] = x; return [{ x, state: 'proc', label: hmZ(L.std - 83 * MIN) + 'Z', min: 0, nm: 0 }]; }
-function openCrew() { const L = CUR; if (!L || L.noOfp) return; const sh = $('sheet');
-  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:17px">👥 ' + XS('机组简报', 'Crew brief') + ' · ' + esc(L.no) + '</b><span style="flex:1"></span><span class="btn" id="cb-s">📋 ' + XS('简洁版', 'Short brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
-    + '<div class="crew">' + crewInfo(L).map(l => '<p>' + esc(LANG === 'en' && l.en ? l.en : l.zh) + '</p>').join('') + '</div>';
+  const x = { id: 'crew:' + L.k, kind: 'crew', name: '👥 ' + XS('机组简报', 'Crew brief') + ' · STD−' + CB_MIN, level: 'info', msg: XS('乘务组简报：点航班号下面的 ! 看卡片', 'Crew brief: tap ! under the flight number'), msgEn: '', actions: crewInfo(L), ver: 2 };
+  PSEUDO[x.id] = x; return [{ x, state: 'proc', label: hmZ(L.std - CB_MIN * MIN) + 'Z', min: 0, nm: 0 }]; }
+// 航班号下面：机组简报前 30 分钟开始倒计时，点「!」打开卡片
+function cbtShow(L, ph, now) {
+  const t = L.std - CB_MIN * MIN, on = ph === 0 && now >= t - 30 * MIN && now < L.std - 60 * MIN, b = $('cbt'); let h = '';
+  if (on) { const m = Math.ceil((t - now) / MIN); h = '👥 ' + (m > 0 ? XS('机组简报 还有 ' + m + ' 分', 'Crew brief in ' + m + ' min') : XS('机组简报 现在', 'Crew brief now')) + '<span class="ex">!</span>'; }
+  if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'inline-flex' : 'none';
+}
+$('cbt').onclick = () => openCrew();
+function openCrew() { const L = CUR; if (!L) return; const sh = $('sheet'), back = backOf(L);
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:18px">👥 ' + XS('机组简报', 'Crew brief') + ' · ' + esc(L.no) + ' · ' + hmZ(L.std - CB_MIN * MIN) + 'Z</b><span style="flex:1"></span><span class="btn" id="cb-s">📋 ' + XS('简洁版', 'Short brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
+    + legCard(L, false) + (back ? legCard(back, true, L) : '<div class="ok">' + XS('没有找到当天的回程航班', 'No return flight found') + '</div>');
   sh.style.display = 'block'; sh.scrollTop = 0; $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('cb-s').onclick = () => openShort(); }
 $('b-zfw').onclick = () => { const L = CUR; if (!L || !wFix(L)) { MSG = XS('这个航班没有 OFP 重量数据', 'No OFP weights for this flight'); draw(); return; } const v = prompt(XS('实际无油重量 ZFW（吨，例如 245.3；留空 = 用计划 ', 'Actual ZFW (t; empty = plan ') + T(L.w.z) + '）', zfwOf(L) ? T(zfwOf(L)) : ''); if (v !== null) setZfw(L, v); };
 $('b-eink').onclick = () => { try { localStorage.setItem('pnl.eink', EINK ? '0' : '1'); } catch (e) {} location.reload(); };
@@ -916,7 +958,10 @@ const permOk = () => { try { return !window.AndroidPanel || !AndroidPanel.canWri
 $('b-perm').onclick = () => { try { AndroidPanel.askWrite(); } catch (e) {} };
 function permBtn() { $('b-perm').style.display = permOk() ? 'none' : ''; $('b-gps').style.display = gpsPerm() ? 'none' : ''; $('b-snd').textContent = (ls('snd') === 'off' ? '🔕 ' : '🔔 ') + XS(ls('snd') === 'off' ? '声音：关' : '声音：开', ls('snd') === 'off' ? 'Sound: off' : 'Sound: on'); }
 $('b-mode').onclick = () => { MODE = MODE === 'auto' ? 'day' : MODE === 'day' ? 'night' : 'auto'; ls('mode', MODE); draw(); };
-function openSet() { $('s-key').value = ls('key') || ''; $('s-bl').value = ls('blp') || 20; $('s-info').textContent = VER(); $('set').style.display = 'block'; }
+function mcBtns() { $('s-mc-b').classList.toggle('on', MAPC !== 'light'); $('s-mc-l').classList.toggle('on', MAPC === 'light'); }
+function setMapc(v) { MAPC = v; ls('mapc', v); document.documentElement.classList.toggle('cbold', !EINK && v !== 'light'); mcBtns(); draw(); }
+$('s-mc-b').onclick = () => setMapc('bold'); $('s-mc-l').onclick = () => setMapc('light');
+function openSet() { mcBtns();  $('s-key').value = ls('key') || ''; $('s-bl').value = ls('blp') || 20; $('s-info').textContent = VER(); $('set').style.display = 'block'; }
 $('b-set').addEventListener('click', openSet); $('s-x').onclick = () => { $('set').style.display = 'none'; };
 $('s-ok').onclick = () => { ls('key', $('s-key').value.trim()); ls('blp', String(Math.max(5, Math.min(30, +$('s-bl').value || 20)))); lastBL = null; $('set').style.display = 'none'; draw(); update(false); };
 window.addEventListener('resize', () => { $('fl').dataset.f = ''; draw(); });
