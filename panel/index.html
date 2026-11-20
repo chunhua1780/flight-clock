@@ -168,6 +168,9 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 @media (orientation:landscape) and (min-width:700px){#ovw{font-size:32px}}
 #tbar{position:absolute;left:8px;bottom:2px;z-index:3;display:flex;align-items:center;gap:8px}#tbar #ovw{position:static}
 #cbt{display:none;align-items:center;gap:6px;border:2.5px solid #000;border-radius:10px;padding:2px 4px 2px 8px;font-size:15px;font-weight:900;background:#fff;cursor:pointer;white-space:nowrap}
+#tlc{display:none;align-items:baseline;gap:6px;border:2.5px solid #000;border-radius:10px;padding:2px 8px;font-size:16px;font-weight:900;background:#fff;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}#tlc .m{font-size:19px}#tlc .m.neg{color:var(--red)}#tlc .nx{font-size:13px;font-weight:700;color:#444;border-left:1.5px solid #999;padding-left:6px}
+html.cbold #tlc{border-color:#0f2c56}
+.tls{margin:8px 0}.tls div{padding:6px 4px;border-bottom:1px solid #ccc;font-size:16px;font-weight:800}.tls div b{display:inline-block;width:3.2em;font-variant-numeric:tabular-nums}.tls div small{display:block;font-weight:500;font-size:13px;color:#444;margin-left:3.6em}.tls .done{color:#999}.tls .now{background:#dff3e6}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -209,7 +212,7 @@ html.cbold #menu{border-color:var(--navy)}html.cbold #menu .btn{border-color:var
 </head>
 <body>
 <div id="app">
-  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
+  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div></div></div>
@@ -337,7 +340,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611200847';
+const PAGEV = '202611200856';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -755,7 +758,7 @@ function draw() {
   let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
     + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
     + (wFix(L) ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
-  ovwShow(L, ph, el); cbtShow(L, ph, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
+  ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
@@ -891,11 +894,33 @@ function crewAlerts(L, S, now) { if (L.noOfp || S.ph !== 0 || now < L.std - 85 *
   PSEUDO[x.id] = x; return [{ x, state: 'proc', label: hmZ(L.std - CB_MIN * MIN) + 'Z', min: 0, nm: 0 }]; }
 // 航班号下面：机组简报前 30 分钟开始倒计时，点「!」打开卡片
 function cbtShow(L, ph, now) {
-  const t = L.std - CB_MIN * MIN, on = ph === 0 && now >= t - 30 * MIN && now < L.std - 60 * MIN, b = $('cbt'); let h = '';
+  const t = L.std - CB_MIN * MIN, on = ph === 0 && now >= t - 30 * MIN && now < L.std - 75 * MIN, b = $('cbt'); let h = '';
   if (on) { const m = Math.ceil((t - now) / MIN); h = '👥 ' + (m > 0 ? XS('机组简报 还有 ' + m + ' 分', 'Crew brief in ' + m + ' min') : XS('机组简报 现在', 'Crew brief now')) + '<span class="ex">!</span>'; }
   if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'inline-flex' : 'none';
 }
 $('cbt').onclick = () => openCrew();
+// 起飞前时间轴（按 STD）：航班号下面一直显示「现在这一步 −几分」和「下一步 还有几分」；点开看全部
+const TLS = [
+  [60, '上机', 'On board', '机组、乘务组到飞机', 'Flight crew / cabin crew at the aeroplane'],
+  [45, '预登机', 'Pre-board', 'PRM / UM 先登机', 'PRM / UM pre-boarding'],
+  [40, '登机·舱单', 'Board · LS', '旅客登机；初步舱单（EZFW、重心）。用 ACARS 报最终油量（不行就 VHF），也告诉地面 / 机务', 'Passenger boarding; preliminary loadsheet (EZFW, CG). Final fuel via ACARS (or VHF), and to ground staff / engineer'],
+  [20, 'APU', 'APU', '开 APU，断开 GPU / ACU（需要时）', 'Start APU, disconnect GPU / ACU as needed'],
+  [15, '卸行李', 'Offload', '卸下没登机旅客的行李', 'Offload missing passenger baggage'],
+  [10, '欢迎广播', 'Welcome PA', '欢迎广播', 'Welcome PA'],
+  [5, '关门', 'Doors', '尽量关闭所有舱门', 'Close all doors, as possible']];
+function tlcShow(L, ph, now) {
+  const b = $('tlc'); let h = '';
+  if (ph === 0 && now >= L.std - 75 * MIN) {
+    const m = s => Math.round((now - (L.std - s[0] * MIN)) / MIN), cur = TLS.filter(s => m(s) >= 0).pop(), nx = TLS.find(s => m(s) < 0), lb = s => XS(s[1], s[2]);
+    if (cur) h = '⏱ ' + lb(cur) + ' <span class="m neg">−' + m(cur) + '</span>' + (nx ? '<span class="nx">' + lb(nx) + ' ' + (-m(nx)) + XS(' 分', "'") + '</span>' : '');
+    else h = '⏱ ' + lb(nx) + ' <span class="m">' + XS('还有 ', 'in ') + (-m(nx)) + XS(' 分', ' min') + '</span>';
+  }
+  if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'inline-flex' : 'none';
+}
+$('tlc').onclick = () => { const L = CUR; if (!L) return; const now = NOW(), sh = $('sheet'), past = TLS.filter(s => now >= L.std - s[0] * MIN).pop();
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:18px">⏱ ' + XS('起飞前时间轴', 'Pre-departure timeline') + ' · STD ' + hmZ(L.std) + 'Z</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div><div class="tls">'
+    + TLS.map(s => '<div class="' + (s === past ? 'now' : now >= L.std - s[0] * MIN ? 'done' : '') + '"><b>−' + s[0] + '</b>' + hmZ(L.std - s[0] * MIN) + 'Z · ' + esc(XS(s[1], s[2])) + '<small>' + esc(LANG === 'en' ? s[4] : s[3]) + (LANG === 'both' ? ' · ' + esc(s[4]) : '') + '</small></div>').join('') + '</div>';
+  sh.style.display = 'block'; sh.scrollTop = 0; $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; };
 function openCrew() { const L = CUR; if (!L) return; const sh = $('sheet'), back = backOf(L);
   sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:18px">👥 ' + XS('机组简报', 'Crew brief') + ' · ' + esc(L.no) + ' · ' + hmZ(L.std - CB_MIN * MIN) + 'Z</b><span style="flex:1"></span><span class="btn" id="cb-s">📋 ' + XS('简洁版', 'Short brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
     + legCard(L, false) + (back ? legCard(back, true, L) : '<div class="ok">' + XS('没有找到当天的回程航班', 'No return flight found') + '</div>');
