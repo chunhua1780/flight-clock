@@ -245,6 +245,15 @@ async function wacSync() {
   if (!navigator.onLine || !ls('key') || (WACD && Date.now() - (WACD.got || 0) < 7 * 864e5)) return;
   try { const j = await postK({ action: 'wac' }); if (j && j.ok && j.d) { WACD = typeof j.d === 'string' ? JSON.parse(j.d) : j.d; WACD.got = Date.now(); WPX = null; ls('wac', JSON.stringify(WACD)); } } catch (e) {}
 }
+// 「说人话」的中文版（后台 AI 翻；只翻接下来航班经过的国家），存在手机上离线用。键 = 国家名|标题
+let WACZ = {}; try { WACZ = JSON.parse(ls('waczh') || '{}'); } catch (e) {}
+async function waczhSync() {
+  if (!navigator.onLine || !ls('key') || !WACD) return; const now = Date.now(), n = new Set();
+  LEGS.filter(l => l.std > now - 12 * HOUR && l.std < now + 48 * HOUR).forEach(l => (l.fi || []).forEach(f => wacCountry(FIRALIAS[f[1]] || f[1]).forEach(c => n.add(c.n))));
+  const names = [...n].filter(x => (WACD.c.find(c => c.n === x) || { t: [] }).t.some(t => t.x && !WACZ[x + '|' + t.h])); if (!names.length) return;
+  for (let i = 0; i < 4; i++) { try { const j = await postK({ action: 'waczh', names }); if (!j || !j.ok) return; Object.assign(WACZ, j.zh || {}); ls('waczh', JSON.stringify(WACZ)); if (!j.left) return; } catch (e) { return; } }
+}
+const wacH = (c, t) => { const z = WACZ[c.n + '|' + t.h]; return LANG === 'en' || !z || !z.h ? t.h : LANG === 'zh' ? z.h : z.h + ' · ' + t.h; };
 let WPX = null;
 function wacExpand(list) { const out = []; let base = ''; list.forEach(p => String(p).split('/').forEach(tok => { const m = /\b([A-Z]{1,2})\b/.exec(tok.trim()); if (!m) return; const t = m[1];
   if (t.length === 2) { out.push(t); base = t[0]; } else if (base && out.length) out.push(base + t); else { out.push(t); base = ''; } })); return out; }
@@ -258,13 +267,14 @@ function wacAlerts(L, S, off) {
     const dt = f[3] - el; if (dt > 25 || dt < -10 || (S.ph === 0 && f[3] > 25)) return;
     const tops = (c.t || []).filter(t => t.x), id = 'wac:' + c.n;
     const x = { id, kind: 'wac', wac: c, name: '🌐 ' + c.n + XS(' 应急程序', ' contingency'), level: 'info', fir: code,
-      msg: tops.length ? tops.map(t => t.h).join(' · ') : 'CRAR ' + (c.crar || ''), msgEn: tops.length ? tops.map(t => t.h).join(' · ') : 'CRAR ' + (c.crar || ''), ver: 1 };
+      msg: tops.length ? tops.map(t => wacH(c, t)).join(' · ') : 'CRAR ' + (c.crar || ''), msgEn: tops.length ? tops.map(t => t.h).join(' · ') : 'CRAR ' + (c.crar || ''), ver: 1 };
     PSEUDO[id] = x; out.push({ x, state: 'ahead', min: Math.max(0, dt), nm: 0, label: '' }); }); });
   return out;
 }
 function wacDetail(x) { const c = x.wac;
   $('sheet').innerHTML = '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:17px">' + esc(x.name) + '</b><span style="flex:1"></span><span class="btn" id="sh-x">✕</span></div>'
-    + (c.t || []).map(t => '<div class="nt"><b>' + esc(t.h) + '</b>' + (t.x ? '<div class="en" style="white-space:pre-wrap;font-family:inherit;font-size:13.5px;color:#000">' + esc(t.x) + '</div>' : '<div class="tm">' + XS('（没有内容，查 CRAR ', '(no text, see CRAR ') + esc(c.crar || '') + '）</div>') + '</div>').join('')
+    + (c.t || []).map(t => { const z = WACZ[c.n + '|' + t.h], zx = z && LANG !== 'en' ? '<div style="white-space:pre-line;font-size:16px;font-weight:700;line-height:1.5;margin-top:4px">' + esc(z.x) + '</div>' : (LANG !== 'en' && t.x ? '<div class="tm">' + XS('（中文还在翻译，有网时点 🔄 更新）', '') + '</div>' : ''), ex = LANG === 'zh' && z ? '' : '<div class="en" style="white-space:pre-wrap;font-family:inherit;font-size:' + (LANG === 'en' || !z ? '13.5px;color:#000' : '12px;color:#555') + '">' + esc(t.x) + '</div>';
+      return '<div class="nt"><b>' + esc(wacH(c, t)) + '</b>' + (t.x ? zx + ex : '<div class="tm">' + XS('（没有内容，查 CRAR ', '(no text, see CRAR ') + esc(c.crar || '') + '）</div>') + '</div>'; }).join('')
     + '<div class="ok" style="font-size:12px">Worldwide Airspace Contingency Flashcards · CRAR ' + esc(c.crar || '') + ' · ' + X('仅供辅助，以公司资料为准', 'awareness only') + '</div>';
   $('sheet').style.display = 'block'; $('sheet').scrollTop = 0; $('sh-x').onclick = () => { $('sheet').style.display = 'none'; draw(); };
 }

@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-20z';
+const BACKEND_VER = '2026-11-21a';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -106,6 +106,8 @@ function postJson_(text) {
   if (j.action === 'live') return JSON.stringify(live_(j));
   if (j.action === 'selfupdate') return JSON.stringify(selfUpdate_(true));
   if (j.action === 'backendver') return JSON.stringify({ ok: true, v: BACKEND_VER });
+  // 各国应急程序：AI 翻成「说人话」的中文（只翻请求的国家 / 地区卡，翻好存在 flight-box/fidata/wac.zh.json，下次直接用）
+  if (j.action === 'waczh') return JSON.stringify(wacZh_(j));
   if (j.action === 'wac') return JSON.stringify(WAC_GZ ? { ok: true, d: Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(WAC_GZ), 'application/x-gzip')).getDataAsString('UTF-8') } : { ok: false, error: 'no data' });
   if (j.action === 'ofpget') return JSON.stringify(ofpGet_(j));
   if (j.action === 'relay') return JSON.stringify(relay_(true));
@@ -1230,6 +1232,36 @@ function trWork_() {
     if (todo.length) { const res = translate2_(todo.map(function (n) { return n[1]; })); trStore_(k, todo.map(function (n) { return n[0]; }), res.map(function (r) { return r.zh; }), 0, res.map(function (r) { return r.s; })); }
     if (todo.length < 120) { q.shift(); pr.setProperty('trq', JSON.stringify(q)); }
   } finally { pr.setProperty('trq_busy', '0'); }
+}
+// 各国应急程序（Worldwide Airspace Contingency）中文版：简单明了，给飞行员看。键 = 国家名|标题（地区卡：R:地区名|标题）
+function wacZh_(j) {
+  if (!WAC_GZ) return { ok: false, error: 'no data' };
+  const W = JSON.parse(Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(WAC_GZ), 'application/x-gzip')).getDataAsString('UTF-8'));
+  const names = (j.names || []).map(String).slice(0, 60), want = {}; names.forEach(function (n) { want[n] = 1; });
+  const path = 'fidata/wac.zh.json', g = gh_('get', path); let Z = {};
+  if (g && g.code === 200 && g.j) { try { Z = JSON.parse(Utilities.newBlob(Utilities.base64Decode(g.j.content)).getDataAsString('UTF-8')); } catch (e) { Z = {}; } }
+  const items = [];   // 这次要的：[键, 标题, 原文]
+  (W.c || []).forEach(function (c) { if (want[c.n]) (c.t || []).forEach(function (t) { if (t.x) items.push([c.n + '|' + t.h, t.h, t.x]); }); });
+  (W.r || []).forEach(function (r) { if (want['R:' + r.n]) (r.sec || []).forEach(function (t) { if (t.x) items.push(['R:' + r.n + '|' + t.h, t.h, t.x]); }); });
+  const todo = items.filter(function (it) { const z = Z[it[0]]; return !z || z.src !== hash_(it[2]); });
+  let done = 0; const t0 = Date.now();
+  for (let i = 0; i < todo.length && Date.now() - t0 < 200e3; i += 6) {   // 一次 6 段；Apps Script 一次最多跑 6 分钟，留余量
+    const part = todo.slice(i, i + 6);
+    const prompt = '你是资深的波音 777 机长。把下面每一段「Worldwide Airspace Contingency」航空应急程序改写成简体中文的「说人话」版本，给中国飞行员在驾驶舱里快速看懂：\n'
+      + '- 短句，分条，每条一行，以「• 」开头；先说要做什么（例如：「• 偏离航路 15 海里」「• 在 121.5 和 123.45 上广播」）\n'
+      + '- 频率、航路、航路点、高度、数字、单位、代码、ICAO 术语（例如 SLOP、CPDLC、TCAS、FL、NM、MHz）保留英文原样\n'
+      + '- 不能漏掉任何步骤、条件、数字和限制；不要加原文没有的内容；不要解释，不要客套\n'
+      + '- 标题也翻成简短的中文\n'
+      + '返回 JSON：{"items":[{"h":"中文标题","x":"中文内容"}]}，数量和顺序与输入完全一致。\n\n'
+      + part.map(function (it, k) { return '=== ' + (k + 1) + ' ===\n标题: ' + it[1] + '\n' + it[2]; }).join('\n\n');
+    const r = gemini_(prompt, true, 0); if (!r.ok) break;
+    let out = []; try { const d = JSON.parse(r.out); out = d.items || d || []; } catch (e) { break; }
+    if (out.length !== part.length) break;
+    part.forEach(function (it, k) { if (out[k] && out[k].x) { Z[it[0]] = { h: String(out[k].h || '').slice(0, 120), x: String(out[k].x).slice(0, 6000), src: hash_(it[2]) }; done++; } });
+  }
+  if (done) ghPut_(path, Utilities.base64Encode(JSON.stringify(Z), Utilities.Charset.UTF_8), 'wac zh');
+  const res = {}; items.forEach(function (it) { if (Z[it[0]] && Z[it[0]].src === hash_(it[2])) res[it[0]] = { h: Z[it[0]].h, x: Z[it[0]].x }; });
+  return { ok: true, zh: res, left: todo.length - done };
 }
 function ofpBrief_(j) {
   const text = String(j.text || '').slice(0, 400000); if (text.length < 500) return { ok: false, error: 'no OFP text' };

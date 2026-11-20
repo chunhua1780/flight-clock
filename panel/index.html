@@ -178,6 +178,7 @@ html.cbold #tlc{border-color:#0f2c56}
 html.cbold #chk{border-color:#0f2c56}html.cbold #chk .ci.on i{background:#00a04a;border-color:#00a04a}
 #gpsc{display:none;position:absolute;left:8px;top:58px;z-index:6;background:#fff;border:3px solid #e07000;border-radius:12px;padding:5px 10px 6px;max-width:calc(100% - 64px);box-shadow:0 4px 14px rgba(0,0,0,.25)}#gpsc .gh{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:900;color:#a34a00}#gpsc .gh span{flex:1}#gpsc .gh b{font-size:20px;padding:0 4px;cursor:pointer;color:#000}#gpsc .gs{font-size:17px;font-weight:900;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums}
 html.eink #gpsc{border-color:#000}html.eink #gpsc .gh{color:#000}
+#zbd.on{background:#000;color:#fff}html.cbold #zbd.on{background:#0f2c56}
 #zly{font-size:12px!important;font-weight:900;letter-spacing:-.02em}
 #lyp{display:none;position:absolute;right:52px;top:150px;z-index:8;background:#fff;border:2.5px solid #000;border-radius:12px;padding:6px;box-shadow:0 4px 16px rgba(0,0,0,.25);width:190px}#lyp .btn{display:block;margin:3px 0;text-align:left;font-size:14px;padding:6px 8px}#lyp .btn.on{background:#000;color:#fff}
 html.cbold #lyp{border-color:#0f2c56}html.cbold #lyp .btn.on{background:#0f2c56;border-color:#0f2c56}
@@ -249,7 +250,7 @@ html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.e
 <div id="app">
   <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
-  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><div id="gpsc"></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><div id="lyp"></div>
+  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><div id="gpsc"></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><div id="lyp"></div>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div><div id="altl"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div><div id="chk"></div>
@@ -375,7 +376,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611202230';
+const PAGEV = '202611202248';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -394,7 +395,8 @@ async function update(quiet) {
     try { await fiSync(); } catch (e) {}
     try { if (Date.now() - +(ls('ekt') || 0) > 6 * HOUR) { const r = await ghRaw('ofpdata/ZZEKTABLE.sb.html'); if (r) { const t = await r.text(), j = JSON.parse(t); if (j && j.ap) { EKT = j; ls('ek', t); APC.k = ''; } } ls('ekt', String(Date.now())); } } catch (e) {}   // 公司机场授权表（iPad 导入后自动传上来）
     for (const l of LEGS.filter(l => l.std > now - 2 * HOUR && l.std < now + 48 * HOUR && !ls('pkgai.' + String(l.k).replace(/[^\w.-]/g, '')))) { try { const c = await withTimeout(postK({ action: 'pkgaiget', k: String(l.k).replace(/[^\w.-]/g, '') }), 30000); if (c && c.ok && c.d && c.d.secs) ls('pkgai.' + String(l.k).replace(/[^\w.-]/g, ''), JSON.stringify(c.d)); } catch (e) {} }   // 简报包的 AI 版：先存到手机，离线也能看
-    try { await wacSync(); } catch (e) {}   // 途经国家的应急程序   // Flight Intelligence 数据库（审核过的区域提醒）
+    try { await wacSync(); } catch (e) {}
+    try { await waczhSync(); } catch (e) {}   // 应急程序的中文版（只翻接下来航班经过的国家）   // 途经国家的应急程序   // Flight Intelligence 数据库（审核过的区域提醒）
     const want = Object.keys(best).map(k => best[k]).filter(f => { const m = LIDO.exec(f.name || ''); return !(m && LEGS.some(l => /^cloud:/.test(l.fid || '') && l.sv === SV && last4(l.no) === last4(m[1]) && l.date === m[2] + m[3].toUpperCase())); });
     for (const f of want) {
       if (LEGS.some(l => l.fid === f.id && l.sv === SV)) continue;
@@ -687,6 +689,7 @@ function ovwShow(L, ph, el) {
   }
   if (o.innerHTML !== h) o.innerHTML = h; o.style.display = h ? 'block' : 'none'; if (h) fitFl();
 }
+let BOARDV = false;   // 起飞前提醒板开着没有
 let CUR = null, wplTouch = 0, HOV = null, ALSIG = '', FLASHED = {};
 let WARN = { list: [] }, WSIG = '', wTimer = null;
 // ---------- 演示：把这个航班快放一遍（大约 90 秒），看看哪里有问题 ----------
@@ -757,7 +760,7 @@ function board(L, now, off, on) {
 
   const enr = L.R.enr.length, arr = L.R.arr.length;
   h += '<h3>' + X('后面的提醒（起飞后到时候自动出现）', 'Later (appear automatically in flight)') + '</h3><div class="ok">✈️ ' + X('航路 ', 'En route ') + enr + ' · 🛬 ' + X('落地 ', 'Arrival ') + arr + '</div>' + (arr ? L.R.arr.map(item).join('') : '');
-  h += '<div class="ok" style="margin-top:8px">' + X('起飞后（填 ATD 或到计划起飞时间）自动换成地图', 'The map appears after take-off (ATD or planned time)') + '</div>';
+  h += '<div class="ok" style="margin-top:8px">' + X('再点一下地图右边的 🛫 关上这一页，回到地图', 'Tap 🛫 on the map again to close this page') + '</div>';
   if ($('board').innerHTML !== h) $('board').innerHTML = h;
 }
 function showWarn(ms) {
@@ -807,11 +810,12 @@ function draw() {
   ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now); altlShow(L, P && P.p, now, ph); chkShow(L, ph, now, F); gpscShow(L, ph, el, off, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
-  const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
+  // 起飞前：地图照常显示；起飞前提醒板（重量、时间轴、起飞警告）点地图上的 🛫 打开 / 关上
+  const pre = ph === 0 && !L.noOfp; $('board').style.display = pre && BOARDV ? 'block' : 'none'; $('zbd').style.display = pre ? '' : 'none'; $('zbd').classList.toggle('on', pre && BOARDV); $('board').style.paddingTop = DEMO ? '44px' : '';
   if (pre) board(L, now, off, on);
   // 地图
   const FA = L.noOfp ? [] : fiAlerts(L, LS, off, now).concat(crewAlerts(L, LS, now), tlAlerts(L, LS, now), ruleAlerts(L, LS, off, now), procAlerts(L, LS, off, now), wacAlerts(L, LS, off)), HOT = {}; FA.forEach(a => HOT[a.x.id] = 1);
-  const drawMapNow = () => { if (!L.noOfp && !pre) { drawMap(L, el, ph, LS, HOT); einkPix($('map')); } else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
+  const drawMapNow = () => { if (!L.noOfp) { drawMap(L, el, ph, LS, HOT); einkPix($('map')); } else { const g = $('map').getContext('2d'); g.clearRect(0, 0, 9999, 9999); g.font = '14px sans-serif'; g.fillText(X('收到 OFP 后显示航线地图', 'Map appears when the OFP arrives'), 10, 24); } };
   // 右边：航路点时间线（下一个点绿色圆圈，移交点橙色圆圈并写下一个管制区；不用红线）
   if (!L.noOfp) {
     const riskFir = new Set((L.R.enr || []).map(r => r[2].loc)), FIW = {}; FI.forEach(f => FIW[f[2]] = f);
@@ -1093,6 +1097,7 @@ function drawLayers(L, P, xy, s, W, H, t) {
       if (c[1] - r > 14) { g.font = 'bold 11px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(c[0] - tw / 2 - 3, c[1] - r - 7, tw + 6, 14); g.fillStyle = col; g.fillText(lab, c[0] - tw / 2, c[1] - r + 4); } }); }
 }
 function lypShow() { $('lyp').innerHTML = [['r', XS('◯ 1h / 2h 距离圈', '◯ 1h / 2h rings')], ['a', XS('🛬 航路机场', '🛬 Route airports')], ['l', XS('📋 合适备降列表', '📋 Suitable alternates')]].map(([k, t]) => '<span class="btn' + (LAY[k] ? ' on' : '') + '" data-ly="' + k + '">' + t + '</span>').join(''); }
+$('zbd').onclick = () => { BOARDV = !BOARDV; draw(); };
 $('zly').onclick = () => { const p = $('lyp'); if (p.style.display === 'block') { p.style.display = 'none'; return; } lypShow(); p.style.display = 'block'; };
 $('lyp').onclick = e => { const b = e.target.closest('[data-ly]'); if (!b) return; LAY[b.dataset.ly] = LAY[b.dataset.ly] ? 0 : 1; ls('lay', JSON.stringify(LAY)); lypShow(); draw(); };
 // 出门检查单：接车前 20 分钟出现（接车 = STD 前 135 分钟），全部勾完就消失；没勾完一直显示到 STD 前 60 分钟。外站短停（人在机场）不显示

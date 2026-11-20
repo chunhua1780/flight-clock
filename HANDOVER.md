@@ -29,6 +29,9 @@ Owner: Emirates B777 pilot. Replies in Chinese, plain language. All times UTC. E
 - OFP number (`OFP:34/0/1` → `flight.ofpn` = 34, bigger = newer): Flight Assist keeps every number as its own library entry (key ends with `|34`), uses the newest per flight automatically, shows "OFP 34" in the title and in the flight menu (older ones selectable). Uploads to the cloud carry `meta.ofpn` and are skipped when the cloud already has a bigger number (iPad and phone); downloads only take bigger numbers.
 - Revised OFPs (2026-11-20): Lido re-sends with the same file name. Flight Assist mail now goes by attachment id (oldest first, newer overwrites), skips identical text, and reloads the current flight when its OFP changed; cloud sync also re-downloads when the cloud copy is newer and a different length.
 
+- Country contingency (WAC) in Chinese (2026-11-21): backend action `waczh` (names = country names, regions as `R:name`) has Gemini rewrite each section as short plain-Chinese bullets (codes / frequencies / numbers kept), caches in flight-box `fidata/wac.zh.json` keyed `country|heading` with a hash of the English. Panel (`WACZ`, `waczhSync` for countries on legs in the next 48 h) and Flight Assist (`Z2`, on opening the route card) download and show: zh = Chinese only, both = Chinese + small English, en = English. Needs backend ≥ 2026-11-21a (auto-loads within an hour, or POST reload).
+- Panel before take-off shows the map; the pre-departure board opens with the 🛫 map button (`BOARDV`).
+
 ## Open items
 - GPS sharing phone → iPad: options A (cloud relay, needs internet), B (phone hotspot + QR pairing, offline; need to confirm company iPad can join the hotspot), C (MFi Bluetooth GPS). Waiting for the user's choice.
 - Mailbox OFP auto-reader verified only partially (Gemini was overloaded); check `?action=ver` → `mailOfp` after the next OFP arrives.
