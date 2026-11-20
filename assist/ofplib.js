@@ -189,6 +189,7 @@
   async function remove(k) { if (!confirm(T('从这台 iPad 删除这份 OFP？', 'Remove this OFP from this iPad?'))) return; await del(k); if (ls('ofpk') === k) ls('ofpk', ''); menu(true); }
 
   window.OFL = { allDays() { ALL = !ALL; ML = []; pick(); }, saveKeys() { const k = (document.getElementById('mp-key') || {}).value, g = (document.getElementById('mp-gh') || {}).value; if (k && k.trim()) ls('key', k.trim()); if (g && g.trim()) ls('ghtok', g.trim()); if (typeof $ === 'function' && $('s-key')) $('s-key').value = ls('key') || ''; pick(); }, save, activate, auto, mail, menu, remove, all, keyOf, remember, snap, get, pick, pickClose: () => { const b = document.getElementById('mailpick'); if (b) b.classList.remove('open'); } };
+  window.OFL.entries = all;   // 机组简报卡片：找同一天的回程
   document.addEventListener('click', e => { if (open && !e.target.closest('#ofpmenu') && !e.target.closest('#t-fl')) menu(false); });
   window.addEventListener('online', () => mail(true));
   setTimeout(() => { auto(); mail(true); }, 5000);

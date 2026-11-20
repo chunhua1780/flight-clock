@@ -21,6 +21,8 @@ Owner: Emirates B777 pilot. Replies in Chinese, plain language. All times UTC. E
 
 - Flight Assist map (2026-11-20): land canvas padding .15 (iPad Safari blanks canvases over ~16.7 M px); `mapHeal()` redraws after resize / return from background; `mapPad()` / `fitVis()` / `viewAt()` keep the route and aircraft out from under the waypoint column and the bottom cards; ⤢ Whole-route button; service worker caches files one by one (only core files block an update).
 
+- Flight Assist also shows the crew-brief and pre-departure timeline chips (`assist/cbtl.js`, same timings and texts as the panel; return leg = stored OFP from destination back within 36 h via `OFL.entries`). Keep the two copies of `TLS` in sync.
+
 ## Data formats for other AIs
 - `flight-intel-format.md` (areas / notams / waypoints / procedures) and `提醒规则格式-reminders.md` (reminders: where + timed steps) — copies were sent to the user.
 
