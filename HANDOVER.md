@@ -26,6 +26,8 @@ Owner: Emirates B777 pilot. Replies in Chinese, plain language. All times UTC. E
 ## Data formats for other AIs
 - `flight-intel-format.md` (areas / notams / waypoints / procedures) and `提醒规则格式-reminders.md` (reminders: where + timed steps) — copies were sent to the user.
 
+- Revised OFPs (2026-11-20): Lido re-sends with the same file name. Flight Assist mail now goes by attachment id (oldest first, newer overwrites), skips identical text, and reloads the current flight when its OFP changed; cloud sync also re-downloads when the cloud copy is newer and a different length.
+
 ## Open items
 - GPS sharing phone → iPad: options A (cloud relay, needs internet), B (phone hotspot + QR pairing, offline; need to confirm company iPad can join the hotspot), C (MFi Bluetooth GPS). Waiting for the user's choice.
 - Mailbox OFP auto-reader verified only partially (Gemini was overloaded); check `?action=ver` → `mailOfp` after the next OFP arrives.

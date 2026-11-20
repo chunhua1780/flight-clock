@@ -154,18 +154,21 @@
       if (!j.ok) { mailMsg = '⚠️ ' + (j.error || ''); if (!quiet) toast(mailMsg, 5000); return; }
       const legs = j.legs || [], seen = new Set(JSON.parse(ls('mailseen') || '[]')), libNames = new Set((await all()).map(e => e.name).filter(Boolean));
       const onRoster = (digits, dest, std) => !legs.length ? true : legs.some(l => last4(l.digits) === last4(digits) && l.dest === dest && (std == null || Math.abs(l.std - std) < 12 * 36e5));
-      for (const f of (j.files || []).filter(isOfp).slice(0, 12)) {
-        if (seen.has(f.id) || libNames.has(f.name)) continue;
+      // 新版 OFP 和旧版文件名常常一样：按附件（id）认，不按文件名；旧的先读、新的后读，新版覆盖旧版
+      const upd = new Set(), curK = ls('ofpk');
+      for (const f of (j.files || []).filter(isOfp).slice(0, 12).sort((a, b) => (a.t || 0) - (b.t || 0))) {
+        if (seen.has(f.id) || (libNames.has(f.name) && !f.t)) continue;
         const m = LIDO.exec(f.name || ''); if (!m && !f.up && !/OFP|LIDO|FLIGHT\s?PLAN|FLT\s?PLAN|EK\s?-?\d{3,4}/i.test((f.name || '') + ' ' + (f.subject || ''))) continue;   // 文件名或标题像 OFP 的都收（不再要求排班上有：日历读错时会漏掉回程）
         let bin; try { bin = await getFile(f.id); } catch (e) { continue; }
         let text = ''; try { text = (await DOCR.readAny(new Blob([bin]), f.name, pdfText)).text; } catch (e) { continue; }
         const r = OFP.parse(text); seen.add(f.id);
         const sd = r.ok ? (r.times.std || r.flight.dateUTC) : 0; if (!r.ok || sd < Date.now() - 2 * 864e5 || sd > Date.now() + 3 * 864e5) continue;   // 读出来是 OFP、而且是这几天的航班就收
-        const e = await save(text, f.up ? 'share' : 'mail', f.name, r); if (e) { libNames.add(f.name); got++; if (f.up && (!upK || f.t > upT)) { upK = e.k; upT = f.t; } }
+        const old = await get(keyOf(r)); if (old && old.text === text) continue;   // 内容一样：不算新的
+        const e = await save(text, f.up ? 'share' : 'mail', f.name, r); if (e) { libNames.add(f.name); got++; if (old) upd.add(e.k); if (f.up && (!upK || f.t > upT)) { upK = e.k; upT = f.t; } }
       }
       ls('mailseen', JSON.stringify([...seen].slice(-200)));
       mailMsg = got ? '📧 ' + T('收到 ' + got + ' 份 OFP', got + ' OFP(s) received') : T('没有新的 OFP', 'No new OFP');
-      if (got) { toast(mailMsg, 3500); if (upK) await activate(upK); else await auto(); const b = document.getElementById('mailpick'); if (b && b.classList.contains('open')) drawPick(); }
+      if (got) { toast(mailMsg, 3500); if (upK) await activate(upK); else if (curK && upd.has(curK)) { await activate(curK, true); toast('🔄 ' + T('当前航班的 OFP 已换成新版', 'Current flight updated to the new OFP'), 5000); } else await auto(); const b = document.getElementById('mailpick'); if (b && b.classList.contains('open')) drawPick(); }
       else if (!quiet) toast(mailMsg, 2500);
     } catch (e) { mailMsg = T('没连上', 'Could not connect'); if (!quiet) toast(mailMsg); }
     finally { mailBusy = false; menuRefresh(); }

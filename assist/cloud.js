@@ -32,13 +32,16 @@
     if (busy || !navigator.onLine || typeof DecompressionStream === 'undefined') return 0; busy = true; let got = 0;
     try {
       const r = await gh('ofpdata/index.json'); if (!r) return 0;
-      const idx = await r.json(), now = Date.now(), have = new Set((await OFL.all()).map(e => (e.no + e.date).replace(/[^\w.-]/g, '')));
+      const idx = await r.json(), now = Date.now(), lib = {}; (await OFL.all()).forEach(e => { lib[(e.no + e.date).replace(/[^\w.-]/g, '')] = e; });
       for (const x of idx) {
         const m = x.meta || {}; if (!m.std || m.std < now - 3 * 864e5 || m.std > now + 48 * 36e5) continue;   // 3 天内的都下载（往返两段、演示）
-        if (!have.has(x.k)) {
+        // 没有这一班，或者云端是更新的一版（别的设备收到了新版 OFP）：下载
+        const mine = lib[x.k], newer = mine && x.t && x.len && x.t > (mine.at || 0) + 60e3 && (mine.text || '').length !== x.len;
+        if (!mine || newer) {
           const f = await gh('ofpdata/' + x.k + '.txt.gz'); if (!f) continue;
           const text = await gunzip(new Uint8Array(await f.arrayBuffer())); const o = OFP.parse(text); if (!o.ok) continue;
           await OFL.save(text, 'cloud', 'cloud:' + x.k, o); lsSet('cloud.' + x.k, String(text.length)); got++;
+          if (newer && S.ofp && keyOf(S.ofp) === x.k && !S.demo) { try { const ent = (await OFL.all()).find(e => (e.no + e.date).replace(/[^\w.-]/g, '') === x.k), ok = ent && await OFL.activate(ent.k, true); if (ok) toast('🔄 ' + tt('当前航班的 OFP 已换成新版（来自手机 / 云端）', 'Current flight updated to the new OFP (from the cloud)'), 5000); } catch (e) {} }
         }
         if (x.brief && !lsGet('aib.' + (m.no || '') + (m.date || '')) && m.no) {
           const b = await gh('ofpdata/' + x.k + '.brief.json');
