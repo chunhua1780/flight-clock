@@ -19,9 +19,10 @@
   async function upload(text, o) {
     if (!navigator.onLine || !lsGet('key') || !o || !o.ok || !text) return;
     const k = keyOf(o); if (lsGet('cloud.' + k) === String(text.length)) return;
+    try { const ir = await gh('ofpdata/index.json'); if (ir) { const x = (await ir.json()).find(e => e.k === k); if (x && x.meta && (x.meta.ofpn || 0) > (o.flight.ofpn || 0)) return; } } catch (e) {}   // 云端已经是更新的 OFP：不拿旧的去盖
     try {
       const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'ofpsave', k, text,
-        meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' },
+        meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '', ofpn: o.flight.ofpn || 0 },
         nt: [].concat.apply([], Object.keys(o.notams || {}).map(c => o.notams[c].map(n => [n.id, typeof NX === 'object' && NX.en ? NX.en(n.text) : n.text]))).filter((n, i, A) => A.findIndex(m => m[0] === n[0]) === i) }) });   // 通告清单：后台马上开始翻译
       const j = JSON.parse(await r.text()); if (j.ok) lsSet('cloud.' + k, String(text.length));
     } catch (e) {}
@@ -32,16 +33,16 @@
     if (busy || !navigator.onLine || typeof DecompressionStream === 'undefined') return 0; busy = true; let got = 0;
     try {
       const r = await gh('ofpdata/index.json'); if (!r) return 0;
-      const idx = await r.json(), now = Date.now(), lib = {}; (await OFL.all()).forEach(e => { lib[(e.no + e.date).replace(/[^\w.-]/g, '')] = e; });
+      const idx = await r.json(), now = Date.now(), lib = {}; OFL.newest(await OFL.all()).forEach(e => { lib[(e.no + e.date).replace(/[^\w.-]/g, '')] = e; });
       for (const x of idx) {
         const m = x.meta || {}; if (!m.std || m.std < now - 3 * 864e5 || m.std > now + 48 * 36e5) continue;   // 3 天内的都下载（往返两段、演示）
         // 没有这一班，或者云端是更新的一版（别的设备收到了新版 OFP）：下载
-        const mine = lib[x.k], newer = mine && x.t && x.len && x.t > (mine.at || 0) + 60e3 && (mine.text || '').length !== x.len;
+        const mine = lib[x.k], cn = (x.meta && x.meta.ofpn) || 0, newer = mine && (cn ? cn > (mine.ofpn || 0) : (x.t && x.len && x.t > (mine.at || 0) + 60e3 && (mine.text || '').length !== x.len));   // 云端的 OFP 编号更大（旧记录没有编号：看时间和长度）
         if (!mine || newer) {
           const f = await gh('ofpdata/' + x.k + '.txt.gz'); if (!f) continue;
           const text = await gunzip(new Uint8Array(await f.arrayBuffer())); const o = OFP.parse(text); if (!o.ok) continue;
           await OFL.save(text, 'cloud', 'cloud:' + x.k, o); lsSet('cloud.' + x.k, String(text.length)); got++;
-          if (newer && S.ofp && keyOf(S.ofp) === x.k && !S.demo) { try { const ent = (await OFL.all()).find(e => (e.no + e.date).replace(/[^\w.-]/g, '') === x.k), ok = ent && await OFL.activate(ent.k, true); if (ok) toast('🔄 ' + tt('当前航班的 OFP 已换成新版（来自手机 / 云端）', 'Current flight updated to the new OFP (from the cloud)'), 5000); } catch (e) {} }
+          if (newer && S.ofp && keyOf(S.ofp) === x.k && !S.demo) { try { localStorage.setItem('fa.ofppin', '0'); await OFL.auto(); } catch (e) {} } if (false) { try { const ent = (await OFL.all()).find(e => (e.no + e.date).replace(/[^\w.-]/g, '') === x.k), ok = ent && await OFL.activate(ent.k, true); if (ok) toast('🔄 ' + tt('当前航班的 OFP 已换成新版（来自手机 / 云端）', 'Current flight updated to the new OFP (from the cloud)'), 5000); } catch (e) {} }
         }
         if (x.brief && !lsGet('aib.' + (m.no || '') + (m.date || '')) && m.no) {
           const b = await gh('ofpdata/' + x.k + '.brief.json');

@@ -46,6 +46,8 @@
     const hl = (T.slice(h.index).split('\n')[0] || '').toUpperCase();
     let reg = h[9] || ''; if (!reg) { const r2 = /\bA6-?([A-Z]{3})\b/.exec(hl) || /\s(?:B?77[\w-]*|B?777[\w-]*)\s+([A-Z]{3})\b/.exec(hl); if (r2) reg = 'A6-' + r2[1]; }
     out.flight = { no: 'EK' + h[1], digits: h[1], date: h[2] + h[3], dateUTC, dep: h[4], depIata: h[5], arr: h[6], arrIata: h[7], type: normType(h[8] || ''), reg: normReg(reg || splitTR(h[8] || '')[1]) };
+    // OFP 编号「OFP:34/0/1」：同一航班同一天可能有好几份，数字越大越新
+    { const n = /\bOFP:\s*(\d+)\/\d+\/\d+/.exec(T); out.flight.ofpn = n ? +n[1] : 0; }
     // ATC 呼号：ATC 飞行计划「(FPL-UAE2AK-IS」，或抬头第二行「UAE9873」（呼号可能和航班号不一样）
     { const c1 = /\(FPL-([A-Z]{3}[A-Z0-9]{1,5})-/.exec(T), c2 = /^\s*((?:UAE)[A-Z0-9]{1,5})\b/m.exec(T); out.flight.cs = (c1 && c1[1]) || (c2 && c2[1]) || ''; }
 

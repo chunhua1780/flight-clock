@@ -26,6 +26,7 @@ Owner: Emirates B777 pilot. Replies in Chinese, plain language. All times UTC. E
 ## Data formats for other AIs
 - `flight-intel-format.md` (areas / notams / waypoints / procedures) and `提醒规则格式-reminders.md` (reminders: where + timed steps) — copies were sent to the user.
 
+- OFP number (`OFP:34/0/1` → `flight.ofpn` = 34, bigger = newer): Flight Assist keeps every number as its own library entry (key ends with `|34`), uses the newest per flight automatically, shows "OFP 34" in the title and in the flight menu (older ones selectable). Uploads to the cloud carry `meta.ofpn` and are skipped when the cloud already has a bigger number (iPad and phone); downloads only take bigger numbers.
 - Revised OFPs (2026-11-20): Lido re-sends with the same file name. Flight Assist mail now goes by attachment id (oldest first, newer overwrites), skips identical text, and reloads the current flight when its OFP changed; cloud sync also re-downloads when the cloud copy is newer and a different length.
 
 ## Open items

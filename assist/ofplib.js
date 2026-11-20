@@ -11,7 +11,10 @@
   const get = async k => { try { return await tx('readonly', s => s.get(k)); } catch (e) { return null; } };
   const put = e => tx('readwrite', s => s.put(e)).catch(() => {});
   const del = k => tx('readwrite', s => s.delete(k)).catch(() => {});
-  const keyOf = r => r.flight.no + '|' + r.flight.date + '|' + r.flight.dep;
+  // 每个 OFP 编号各存一份（同一航班同一天可能有好几份，让人自己选；默认用编号最大的）
+  const keyOf = r => r.flight.no + '|' + r.flight.date + '|' + r.flight.dep + (r.flight.ofpn ? '|' + r.flight.ofpn : '');
+  const fkey = e => e.no + '|' + e.date + '|' + e.dep;   // 同一个航班（不管编号）
+  const newest = L => { const best = {}; L.forEach(e => { const f = fkey(e); if (!best[f] || (e.ofpn || 0) > (best[f].ofpn || 0) || ((e.ofpn || 0) === (best[f].ofpn || 0) && (e.at || 0) > (best[f].at || 0))) best[f] = e; }); return L.filter(e => best[fkey(e)] === e); };
   const last4 = d => String(d || '').replace(/\D/g, '').slice(-4).replace(/^0+/, '');
   const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem('fa.' + k); localStorage.setItem('fa.' + k, v); } catch (e) { return null; } };
 
@@ -19,7 +22,7 @@
   async function save(text, src, name, parsed) {
     const r = parsed || OFP.parse(text); if (!r || !r.ok) return null;
     const k = keyOf(r), old = await get(k), f = r.flight;
-    const e = Object.assign(old || {}, { k, no: f.no, digits: f.digits, date: f.date, dep: f.dep, arr: f.arr, depI: f.depIata, arrI: f.arrIata, reg: f.reg, std: r.times.std || f.dateUTC, trip: r.times.trip || 0, text, name: name || (old && old.name) || '', src: src || (old && old.src) || 'manual', at: Date.now() });
+    const e = Object.assign(old || {}, { k, ofpn: f.ofpn || 0, no: f.no, digits: f.digits, date: f.date, dep: f.dep, arr: f.arr, depI: f.depIata, arrI: f.arrIata, reg: f.reg, std: r.times.std || f.dateUTC, trip: r.times.trip || 0, text, name: name || (old && old.name) || '', src: src || (old && old.src) || 'manual', at: Date.now() });
     await put(e);
     // 太旧的（10 天前）清掉
     (await all()).forEach(x => { if (x.std && Date.now() - x.std > 10 * 864e5 && x.k !== e.k) del(x.k); });
@@ -43,8 +46,10 @@
   async function auto() {
     if (typeof S !== 'undefined' && S.demo) return;
     if (Date.now() - +(ls('ofppin') || 0) < 12 * 36e5) return;
-    const L = (await all()).filter(e => endOf(e) > Date.now()).sort((a, b) => a.std - b.std); if (!L.length) return;
+    const L = newest((await all()).filter(e => endOf(e) > Date.now())).sort((a, b) => a.std - b.std); if (!L.length) return;
     const curK = ls('ofpk'), cur = curK ? await get(curK) : null, next = L[0];
+    const nv = cur && L.find(e => fkey(e) === fkey(cur) && (e.ofpn || 0) > (cur.ofpn || 0));   // 正在用的这一班来了编号更大的 OFP：换成新的
+    if (nv) { await activate(nv.k, true); if (typeof toast === 'function') toast('🔄 ' + T('换成最新的 OFP ' + nv.ofpn + '（旧的 OFP ' + (cur.ofpn || '?') + ' 还在航班菜单里，可以选回去）', 'Switched to the newest OFP ' + nv.ofpn + ' (OFP ' + (cur.ofpn || '?') + ' is still in the flight menu)'), 7000); return; }
     if (!S.ofp || !cur || (endOf(cur) < Date.now() && next.k !== cur.k)) await activate(next.k, !S.ofp);
   }
 
@@ -168,7 +173,7 @@
       }
       ls('mailseen', JSON.stringify([...seen].slice(-200)));
       mailMsg = got ? '📧 ' + T('收到 ' + got + ' 份 OFP', got + ' OFP(s) received') : T('没有新的 OFP', 'No new OFP');
-      if (got) { toast(mailMsg, 3500); if (upK) await activate(upK); else if (curK && upd.has(curK)) { await activate(curK, true); toast('🔄 ' + T('当前航班的 OFP 已换成新版', 'Current flight updated to the new OFP'), 5000); } else await auto(); const b = document.getElementById('mailpick'); if (b && b.classList.contains('open')) drawPick(); }
+      if (got) { toast(mailMsg, 3500); if (upK) await activate(upK); else { const c = curK && await get(curK); if (c && upd.has(curK)) await activate(curK, true); ls('ofppin', '0'); await auto(); } const b = document.getElementById('mailpick'); if (b && b.classList.contains('open')) drawPick(); }
       else if (!quiet) toast(mailMsg, 2500);
     } catch (e) { mailMsg = T('没连上', 'Could not connect'); if (!quiet) toast(mailMsg); }
     finally { mailBusy = false; menuRefresh(); }
@@ -180,10 +185,10 @@
   async function menu(show) {
     open = show; const m = document.getElementById('ofpmenu'); if (!m) return;
     if (!show) { m.classList.remove('open'); return; }
-    const L = (await all()).sort((a, b) => a.std - b.std), cur = ls('ofpk'), z2 = n => String(n).padStart(2, '0');
+    const A = await all(), NW = new Set(newest(A).map(e => e.k)), L = A.sort((a, b) => a.std - b.std || (b.ofpn || 0) - (a.ofpn || 0)), cur = ls('ofpk'), z2 = n => String(n).padStart(2, '0');
     const hm = t => t ? z2(new Date(t).getUTCHours()) + z2(new Date(t).getUTCMinutes()) + 'Z' : '';
     m.innerHTML = '<div class="oh">' + T('这台 iPad 上的 OFP', 'OFPs on this iPad') + '</div>' +
-      (L.length ? L.map(e => '<div class="oi' + (e.k === cur ? ' on' : '') + (endOf(e) < Date.now() ? ' old' : '') + '" onclick="OFL.activate(\'' + e.k + '\')"><b>' + esc(e.no) + '</b> ' + esc(e.date) + ' · ' + esc(e.dep) + '→' + esc(e.arr) + ' · STD ' + hm(e.std) +
+      (L.length ? L.map(e => '<div class="oi' + (e.k === cur ? ' on' : '') + (endOf(e) < Date.now() ? ' old' : '') + '" onclick="OFL.activate(\'' + e.k + '\')"><b>' + esc(e.no) + '</b> ' + esc(e.date) + ' · ' + esc(e.dep) + '→' + esc(e.arr) + ' · STD ' + hm(e.std) + (e.ofpn ? ' · <b>OFP ' + e.ofpn + '</b>' : '') + (e.ofpn && NW.has(e.k) && A.some(x => x !== e && fkey(x) === fkey(e)) ? ' <span class="os" style="color:var(--green)">' + T('最新', 'newest') + '</span>' : '') +
         (e.src === 'mail' ? ' <span class="os">📧</span>' : '') + (e.k === cur ? ' ✓' : '') + '<span class="ox" onclick="event.stopPropagation();OFL.remove(\'' + e.k + '\')">✕</span></div>').join('') : '<div class="oe">' + T('还没有', 'None yet') + '</div>') +
       '<div class="ob"><button class="btn sm" onclick="OFL.menu(false);openLoad();OFL.pick()">📧 ' + T('从邮箱选', 'Pick from mail') + '</button><button class="btn sm" onclick="openLoad();OFL.menu(false)">＋ ' + T('载入 / 粘贴', 'Load / paste') + '</button></div>' +
       (mailMsg ? '<div class="om2">' + esc(mailMsg) + '</div>' : '');
@@ -192,7 +197,8 @@
   async function remove(k) { if (!confirm(T('从这台 iPad 删除这份 OFP？', 'Remove this OFP from this iPad?'))) return; await del(k); if (ls('ofpk') === k) ls('ofpk', ''); menu(true); }
 
   window.OFL = { allDays() { ALL = !ALL; ML = []; pick(); }, saveKeys() { const k = (document.getElementById('mp-key') || {}).value, g = (document.getElementById('mp-gh') || {}).value; if (k && k.trim()) ls('key', k.trim()); if (g && g.trim()) ls('ghtok', g.trim()); if (typeof $ === 'function' && $('s-key')) $('s-key').value = ls('key') || ''; pick(); }, save, activate, auto, mail, menu, remove, all, keyOf, remember, snap, get, pick, pickClose: () => { const b = document.getElementById('mailpick'); if (b) b.classList.remove('open'); } };
-  window.OFL.entries = all;   // 机组简报卡片：找同一天的回程
+  window.OFL.entries = async () => newest(await all());   // 每个航班只给最新的一份（机组简报找回程等）
+  window.OFL.newest = newest;   // 机组简报卡片：找同一天的回程
   document.addEventListener('click', e => { if (open && !e.target.closest('#ofpmenu') && !e.target.closest('#t-fl')) menu(false); });
   window.addEventListener('online', () => mail(true));
   setTimeout(() => { auto(); mail(true); }, 5000);

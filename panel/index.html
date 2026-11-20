@@ -375,7 +375,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611202218';
+const PAGEV = '202611202230';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -403,6 +403,7 @@ async function update(quiet) {
       const txt = await pdfText(u8, (n, N) => { if (n % 5 === 0 || n === N) { MSG = '⏳ ' + X('读取 ', 'Reading ') + n + '/' + N + ' · ' + f.name.slice(0, 16); draw(); } });
       const o = OFP.parse(txt); if (!o.ok) { BAD.push(f.name + ': ' + (o.warnings || []).join('; ')); continue; }
       const leg = summarize(o); fixLeg(leg); leg.fid = f.id; leg.ft = f.t;
+      { const ex = LEGS.find(l => l.k === leg.k); if (ex && (ex.ofpn || 0) > (leg.ofpn || 0)) continue; }   // 手机上已经有编号更大的 OFP：旧的不要
       cloudUp(txt, o);   // 传一份到云端，iPad 就不用再下载解析
       if (!LEGS.some(l => l.k === leg.k)) NEWL.push(leg); LEGS = LEGS.filter(l => l.k !== leg.k).concat([leg]); got++;
       ls('legs', JSON.stringify(LEGS));
@@ -429,6 +430,7 @@ async function cloudSync(now) {
   const r = await ghRaw('ofpdata/index.json'); if (!r) return 0; const idx = await r.json(); let got = 0;
   for (const x of idx) {
     const m = x.meta || {}; if (!m.std || m.std < now - 3 * 864e5 || m.std > now + 48 * HOUR) continue;
+    { const ex = LEGS.find(l => l.k.replace(/[^\w.-]/g, '') === x.k); if (ex && m.ofpn != null && (ex.ofpn || 0) > m.ofpn) continue; }   // 云端的比手机上的旧
     const fid = 'cloud:' + x.k + ':' + (x.len || 0); if (LEGS.some(l => l.fid === fid && l.sv === SV)) continue;
     MSG = '☁️ ' + X('云端下载 ', 'Cloud ') + (m.no || x.k); draw();
     const f = await ghRaw('ofpdata/' + x.k + '.txt.gz'); if (!f) continue;
@@ -452,9 +454,10 @@ async function cloudSync(now) {
     try { const t = await ghRaw('ofpdata/' + x.k + '.tr.json'); if (t) { ls('tr.' + x.k, JSON.stringify(await t.json())); ls('trn.' + x.k, String(x.tr)); } } catch (e) {} }
   return got;
 }
-function cloudUp(text, o) {
+async function cloudUp(text, o) {
+  try { const r = await ghRaw('ofpdata/index.json'); if (r) { const x = (await r.json()).find(e => e.k === (o.flight.no + o.flight.date).replace(/[^\w.-]/g, '')); if (x && x.meta && (x.meta.ofpn || 0) > (o.flight.ofpn || 0)) return; } } catch (e) {}   // 云端已经是编号更大的 OFP：不拿旧的去盖
   try { fetch(API + '?k=' + encodeURIComponent(ls('key') || ''), { method: 'POST', body: JSON.stringify({ action: 'ofpsave', k: (o.flight.no + o.flight.date).replace(/[^\w.-]/g, ''), text,
-    meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '' },
+    meta: { no: o.flight.no, date: o.flight.date, dep: o.flight.dep, arr: o.flight.arr, depI: o.flight.depIata, arrI: o.flight.arrIata, std: o.times.std, trip: o.times.trip, cs: o.flight.cs || '', reg: o.flight.reg || '', ofpn: o.flight.ofpn || 0 },
     nt: [].concat.apply([], Object.keys(o.notams || {}).map(c => o.notams[c].map(n => [n.id, n.text]))).filter((n, i, A) => A.findIndex(m => m[0] === n[0]) === i) }) }).catch(() => {}); } catch (e) {}   // 通告清单：后台马上开始翻译
 }
 
@@ -483,7 +486,7 @@ function summarize(o) {
     WX.notams(o.notams[icao], at).filter(n => n.lv !== 'info').slice(0, 5).forEach(n => out.push({ lv: n.lv, zh: role[0] + ' ' + icao + '：' + n.zh, en: role[1] + ' ' + icao + ': ' + n.en, loc: icao, id: n.ids[0] }));
     return out;
   };
-  const leg = { sv: SV, k: f.no + f.date, no: f.no, date: f.date, dep: f.dep, arr: f.arr, ai: f.depIata, bi: f.arrIata, reg: f.reg || '', ty: f.type || '',
+  const leg = { sv: SV, ofpn: f.ofpn || 0, k: f.no + f.date, no: f.no, date: f.date, dep: f.dep, arr: f.arr, ai: f.depIata, bi: f.arrIata, reg: f.reg || '', ty: f.type || '',
     cs: f.cs || '', std: t.std, tx: t.taxi || 0, tr: t.trip || 0, fl: (+(String(t.crzFl || '').replace(/\D/g, '')) || 350) * 100, n: N.map(w => X[w.id] ? [w.id, w.t, Math.round(X[w.id][0] * 1000) / 1000, Math.round(X[w.id][1] * 1000) / 1000] : [w.id, w.t]), fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] }, ap: [f.dep, f.arr].concat((o.alternates || []).map(a => a.icao)), nt: {} };
   // 全部通告（每个机场、每个管制区）：编号、原文、生效时间 —— 点开能看全文、译文、地图上的区域
   Object.keys(o.notams || {}).forEach(k => { leg.nt[k] = o.notams[k].map(n => [n.id, n.text, n.from, n.to]); });

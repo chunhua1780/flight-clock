@@ -1434,7 +1434,7 @@ function useText(txt) {
   S.fix = null; lsSet('fix', ''); S.ofp = r; lsSet('ofp', JSON.stringify(r)); lsSet('ofptext1', txt.slice(0, 6000)); lsSet('ofptext', txt);   // 原文也存着：以后解析规则改进了可以自动重新读
   if (S.atd && Math.abs(S.atd - (r.times.std || 0)) > 18 * 3600e3) setATD(null);
   atdDays();
-  $('t-fl').textContent = r.flight.no + ' · ' + r.flight.date;
+  $('t-fl').textContent = r.flight.no + ' · ' + r.flight.date + (r.flight.ofpn ? ' · OFP ' + r.flight.ofpn : '');
   delete $('t-rt').dataset.i; $('t-rt').textContent = r.flight.dep + '/' + r.flight.depIata + ' → ' + r.flight.arr + '/' + r.flight.arrIata + ' · ' + r.flight.reg + ' · STD ' + hmZ(r.times.std) + ' · TRIP ' + dur(r.times.trip);
   const nA = Object.keys(r.airports).length, nN = Object.values(r.notams).reduce((s, x) => s + x.length, 0);
   $('msg').style.color = 'var(--green)';
@@ -1681,7 +1681,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v97';
+const APPV = 'v98';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 // 简报包 PDF：手机 Panel（或这里）生成后存在云端；这里下载打开（存一份在本机，离线也能打开）
@@ -2117,7 +2117,7 @@ Promise.all([apReady, ekReady]).then(() => {
   S.started = 1;
   setTimeout(() => { try { LIVE.fetch(false); } catch (e) {} try { AIB.fetch(false); } catch (e) {} }, 3000);
   if (S.ofp) {
-    $('t-fl').textContent = S.ofp.flight.no + ' · ' + S.ofp.flight.date;
+    $('t-fl').textContent = S.ofp.flight.no + ' · ' + S.ofp.flight.date + (S.ofp.flight.ofpn ? ' · OFP ' + S.ofp.flight.ofpn : '');
     delete $('t-rt').dataset.i; $('t-rt').textContent = S.ofp.flight.dep + ' → ' + S.ofp.flight.arr + ' · ' + S.ofp.flight.reg + ' · STD ' + hmZ(S.ofp.times.std) + ' · TRIP ' + dur(S.ofp.times.trip);
     if (S.atd) $('atd').value = hmZ(S.atd).slice(0, 4);
     drawRoute();
