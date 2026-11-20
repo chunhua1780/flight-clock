@@ -69,6 +69,11 @@
     const html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:12.5px/1.5 -apple-system,"Noto Sans SC",sans-serif;color:#111;background:#fff;margin:10px}table{border-collapse:collapse;width:100%}' + css + '.note{display:none}.pg{margin:0!important;padding:8px!important;box-shadow:none!important;max-width:none!important}</style></head><body><div class="pg one">' + body + '</div></body></html>';
     try { const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'sbsave', k, html }) }); const j = JSON.parse(await r.text()); if (j.ok) lsSet('sbup.' + k, String(Date.now())); } catch (e) {}
   }
+  // 公司机场授权表：传一份到私有云端，手机 Panel 下载（航路机场 D / A1 / A2 / CA / EA、合适的备降场）。表变了才重新传
+  async function ekUp() {
+    if (!navigator.onLine || !lsGet('key') || !S.EK || !S.EK.ap) return; const sig = S.EK.n + '|' + (S.EK.at || ''); if (lsGet('ekup') === sig) return;
+    try { const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'sbsave', k: 'ZZEKTABLE', html: JSON.stringify(S.EK) }) }); const j = JSON.parse(await r.text()); if (j.ok) lsSet('ekup', sig); } catch (e) {}
+  }
   // 共享状态：这台改了 ATD → 马上传（没网先存着，有网再传）
   async function stPut(set) {
     if (!S.ofp) return; const k = keyOf(S.ofp), t = Date.now(); Object.keys(set).forEach(f => lsSet('stu.' + f + '.' + k, String(t)));
@@ -79,7 +84,8 @@
     for (const k of Object.keys(q)) { const set = Object.assign({}, q[k]), t = set._t; delete set._t;
       try { const r = await fetch(clockUrl() + '?k=' + encodeURIComponent(lsGet('key')), { method: 'POST', body: JSON.stringify({ action: 'stput', k, set, t }) }); const j = JSON.parse(await r.text()); if (j.ok) { delete q[k]; lsSet('stq', JSON.stringify(q)); } } catch (e) {} }
   }
-  window.CLOUD = { upload, sync, sbUp, stPut };
+  window.CLOUD = { upload, sync, sbUp, stPut, ekUp };
+  setTimeout(ekUp, 8000); window.addEventListener('online', () => setTimeout(ekUp, 3000));
   window.addEventListener('online', () => { stFlush(); sync(true); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navigator.onLine) { stFlush(); sync(true); } });   // 一打开就同步
   setTimeout(() => sync(true), 2500);
