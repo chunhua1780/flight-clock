@@ -108,6 +108,7 @@ button{font-family:inherit}
 .mora.hi{color:#ffab2e;background:rgba(255,171,46,.15)}.mora.xh{color:#ff5a4f;background:rgba(255,90,79,.15)}
 :root[data-theme=light] .mora{color:#2b8fd8}:root[data-theme=light] .mora.hi{color:#b86e00}:root[data-theme=light] .mora.xh{color:#c62d24}
 #b-srch{position:absolute;right:96px;top:10px;z-index:500}
+#b-fit{position:absolute;right:226px;top:10px;z-index:500}#mapwrap.wpon #b-fit{right:404px}
 #srch{position:absolute;right:10px;top:48px;z-index:660;width:min(330px,80%);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 4px 18px rgba(0,0,0,.35);display:none}
 #srch input{width:100%;box-sizing:border-box;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:16px;text-transform:uppercase}
 #srch .res{max-height:220px;overflow:auto;margin-top:6px}
@@ -463,6 +464,7 @@ div.en,.wl .en{display:block;margin-left:0}
     <div id="legend"></div>
     <div id="scrub"><span id="scrub-a" class="num"></span><input type="range" id="scrub-r" min="0" max="100" step="1" value="0"><span id="scrub-b" class="num"></span></div>
     <button class="btn sm" id="b-rings">◯ 1h / 2h</button>
+    <button class="btn sm" id="b-fit">⤢ <span data-i="全航路|Whole route"></span></button>
     <button class="btn sm" id="b-srch">🔍 <span data-i="航路点|Waypoint"></span></button>
     <div id="srch"></div>
     <div id="fixbar"></div>
@@ -636,10 +638,21 @@ function worldCopies(fc) {
   return { type: 'FeatureCollection', features: feats };
 }
 const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 2, maxZoom: 10, zoomSnap: .5, worldCopyJump: true }).setView([24, 80], 4);
-fetch('data/countries.json').then(r => r.json()).then(topo => {
-  L_land = L.geoJSON(worldCopies(topojson.feature(topo, topo.objects.countries)), { renderer: L.canvas({ padding: .5 }), style: Object.assign({ weight: .8, fillOpacity: 1 }, MAPC().land), interactive: false }).addTo(map);
-  drawRoute();
-}).catch(() => {});
+// 陆地：画在一张画布上。画布不能太大 —— iPad 的 Safari 画布超过约 1600 万像素就整张变空白（大屏 iPad 用 padding .5 会超）
+const LAND_R = L.canvas({ padding: .15 });
+function loadLand(n) {
+  fetch('data/countries.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(topo => {
+    if (L_land) return; L_land = L.geoJSON(worldCopies(topojson.feature(topo, topo.objects.countries)), { renderer: LAND_R, style: Object.assign({ weight: .8, fillOpacity: 1 }, MAPC().land), interactive: false }).addTo(map);
+    drawRoute();
+  }).catch(() => { if ((n || 0) < 20) setTimeout(() => loadLand((n || 0) + 1), 3000); });   // 没读到（刚装好、缓存还没准备好）：过几秒再试
+}
+loadLand(0);
+// 地图重新画一遍：iPad 切到后台再回来、转屏、分栏拖动以后，画布有时候被系统清空或者尺寸不对 → 只显示一部分
+function mapHeal() { try { map.invalidateSize({ pan: false }); if (L_land) L_land.setStyle(Object.assign({ weight: .8, fillOpacity: 1 }, MAPC().land)); if (L_route) L_route.eachLayer(l => l.redraw && l.redraw()); } catch (e) {} }
+if (window.ResizeObserver) new ResizeObserver(() => { clearTimeout(mapHeal.t); mapHeal.t = setTimeout(mapHeal, 120); }).observe($('map'));
+['pageshow', 'focus', 'orientationchange'].forEach(ev => addEventListener(ev, () => setTimeout(mapHeal, 300)));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(mapHeal, 300); });
+addEventListener('online', () => { if (!L_land) loadLand(0); });
 let L_route, L_done, L_plane, L_wps = [], L_aps = [], L_apm = {};
 const R1 = 410, R2 = 820;                                                 // 1 小时 / 2 小时圈（海里）
 const ringOpt = (c, w) => ({ radius: 1, color: c, weight: w, dashArray: '7 7', fill: false, interactive: false });
@@ -665,13 +678,24 @@ function placeRings(pos) {
 }
 $('b-rings').classList.toggle('off', !S.showRings);
 $('b-rings').onclick = () => { S.showRings = !S.showRings; lsSet('rings', S.showRings ? '1' : '0'); $('b-rings').classList.toggle('off', !S.showRings); tick(); };
-function fitRing() { if (S.cur && S.cur.pos) map.fitBounds(L.latLng(S.cur.pos).toBounds(R1 * 1852 * 2.2), { animate: false }); }
+// 地图上「看得见」的部分：右边的航路点列、上面的按钮、下面的数据卡片会盖住地图 —— 放航线、放飞机都只用剩下的那块
+function mapPad() { const m = $('map').getBoundingClientRect(), wc = $('wpcol'), hud = $('hud'), sc = $('scrub');
+  const right = wc && wc.offsetWidth && getComputedStyle(wc).display !== 'none' ? wc.offsetWidth : 0;
+  let bot = 0; [hud, sc].forEach(e => { if (e && e.offsetHeight && getComputedStyle(e).display !== 'none') { const r = e.getBoundingClientRect(); bot = Math.max(bot, m.bottom - r.top); } });
+  return { l: 0, t: 52, r: right, b: Math.min(bot, m.height * .45) }; }
+function fitVis(b, o) { const P = mapPad(); map.fitBounds(b, Object.assign({ paddingTopLeft: [P.l + 30, P.t + 20], paddingBottomRight: [P.r + 30, P.b + 20] }, o || {})); }
+// 把某一点放在看得见的那块的中间
+function viewAt(pos, z, o) { const P = mapPad(); z = z == null ? map.getZoom() : z; const c = map.unproject(map.project(L.latLng(pos), z).add([(P.r - P.l) / 2, (P.b - P.t) / 2]), z); map.setView(c, z, o || { animate: false }); }
+// ⤢ 全航路：整条航线放进地图（不再跟着飞机，点右下角箭头回到飞机）
+function fitRoute() { if (!L_route) return; S.follow = false; rcOn(false); map.invalidateSize({ pan: false }); const b = L_route.getBounds(); if (b.isValid()) fitVis(b, { animate: false }); }
+$('b-fit').onclick = () => fitRoute();
+function fitRing() { if (S.cur && S.cur.pos) fitVis(L.latLng(S.cur.pos).toBounds(R1 * 1852 * 2.2), { animate: false }); }
 const PLANE = '<svg viewBox="0 0 64 64" width="34" height="34"><path fill="#e2b964" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
 const zoomCls = () => { $('map').classList.toggle('far', map.getZoom() < 6); $('map').classList.toggle('far5', map.getZoom() < 5); };
 map.on('zoomend', zoomCls); zoomCls();
 map.on('dragstart', () => { S.follow = false; rcOn(false); });
 // 回到飞机（像地图导航的「当前位置」）：结束预览，跟随飞机
-$('recenter').onclick = () => { S.drag = null; S.dragging = false; S.follow = true; rcOn(true); lastList = 0; S.userScroll = 0; tick(); if (S.cur && S.cur.pos) map.setView(S.cur.pos, Math.max(map.getZoom(), 5), { animate: true }); };
+$('recenter').onclick = () => { S.drag = null; S.dragging = false; S.follow = true; rcOn(true); lastList = 0; S.userScroll = 0; tick(); if (S.cur && S.cur.pos) viewAt(S.cur.pos, Math.max(map.getZoom(), 5), { animate: true }); };
 function rcOn(on) { $('recenter').classList.toggle('on', !!on); }
 rcOn(true);
 // 图例：点 ⓘ 显示，再点收起（记住）
@@ -680,8 +704,8 @@ if (lsGet('ui.leg')) { $('legend').classList.add('on'); $('b-leg').classList.add
 // 底部进度条：拖动看任何时刻的位置、天气、备降场；松手 10 秒后自动回到现在
 let scrubT = 0;
 $('scrub-r').addEventListener('input', () => { if (!S.ofp) return; S.drag = +$('scrub-r').value; S.dragging = true; S.dragAt = Date.now(); S.follow = false; rcOn(false);
-  if (Date.now() - scrubT > 200) { scrubT = Date.now(); lastList = 0; S.userScroll = 0; tick(); if (S.cur && S.cur.pos) map.panTo(S.cur.pos, { animate: false }); } });
-$('scrub-r').addEventListener('change', () => { S.dragging = false; S.dragAt = Date.now(); lastList = 0; tick(); if (S.cur && S.cur.pos) map.panTo(S.cur.pos, { animate: false }); });
+  if (Date.now() - scrubT > 200) { scrubT = Date.now(); lastList = 0; S.userScroll = 0; tick(); if (S.cur && S.cur.pos) viewAt(S.cur.pos); } });
+$('scrub-r').addEventListener('change', () => { S.dragging = false; S.dragAt = Date.now(); lastList = 0; tick(); if (S.cur && S.cur.pos) viewAt(S.cur.pos); });
 function scrubBar(el, pv) {
   const o = S.ofp; if (!o) { $('scrub').style.display = 'none'; return; }
   $('scrub').style.display = 'flex'; const trip = o.times.trip || 0, r = $('scrub-r');
@@ -882,7 +906,7 @@ function drawRoute() {
   L_plane.on('drag', e => { const m = snapRoute(e.latlng); if (m == null) return; S.drag = m; S.dragAt = Date.now(); if (Date.now() - lastDR > 250) { lastDR = Date.now(); lastList = 0; S.userScroll = 0; tick(); } });
   L_plane.on('dragend', () => { S.dragging = false; S.dragAt = Date.now(); lastList = 0; S.userScroll = 0; tick(); });
   drawFirCircles();
-  map.fitBounds(L_route.getBounds(), { padding: [30, 30] });
+  fitVis(L_route.getBounds());
 }
 // 每个管制区：以进入点和移交点为直径画一个圆，点圆里任何地方 → 这个管制区的通告
 function drawFirCircles() {
@@ -1081,7 +1105,7 @@ function tick() {
     else if (S.L_next) { S.L_next.remove(); S.L_next = null; }
     if (S.atd && p.i) L_done.setLatLngs(S.pts.slice(0, p.i).map(x => x.pos).concat([p.pos]));
     placeRings(p.pos);
-    if (S.follow && S.atd && !pv) map.setView(p.pos, map.getZoom(), { animate: false });
+    if (S.follow && S.atd && !pv) viewAt(p.pos);
   }
   const eta = S.atd ? atP(o.times.trip) : null;
   const remain = S.atd ? Math.max(0, o.times.trip - el) : o.times.trip;
@@ -1632,7 +1656,7 @@ function renderSrch(q) {
   h += '<div style="text-align:right;margin-top:6px">' + (S.fix ? '<button class="btn sm" id="srch-clr">' + th('取消过点修正', 'Clear fix') + '</button> ' : '') + '<button class="btn sm" id="srch-x">' + th('关闭', 'Close') + '</button></div>';
   $('srch').innerHTML = h;
   const qi = $('srch-q'); qi.oninput = () => { srchSel = null; renderSrch(qi.value); const n = $('srch-q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
-  $('srch').querySelectorAll('.r').forEach(r => r.onclick = () => { const id = r.dataset.id, t = +r.dataset.t; srchSel = S.pts.find(x => x.id === id && x.t === t); S.follow = false; rcOn(false); map.setView(srchSel.pos, Math.max(map.getZoom(), 7)); renderSrch(id); setTimeout(() => $('srch-t') && $('srch-t').focus(), 50); });
+  $('srch').querySelectorAll('.r').forEach(r => r.onclick = () => { const id = r.dataset.id, t = +r.dataset.t; srchSel = S.pts.find(x => x.id === id && x.t === t); S.follow = false; rcOn(false); viewAt(srchSel.pos, Math.max(map.getZoom(), 7)); renderSrch(id); setTimeout(() => $('srch-t') && $('srch-t').focus(), 50); });
   $('srch-x').onclick = () => { $('srch').style.display = 'none'; };
   if ($('srch-clr')) $('srch-clr').onclick = () => { setFix(null); renderSrch(''); };
   if ($('srch-ok')) { const go = () => { const v = $('srch-t').value.replace(/\D/g, ''); if (!/^\d{4}$/.test(v) || +v.slice(0, 2) > 23 || +v.slice(2) > 59) { toast(th('请输入 4 位 UTC 时间，例如 0930', 'Enter 4-digit UTC time, e.g. 0930')); return; }
@@ -1656,7 +1680,7 @@ function setFix(fx) {
 function fixBar() { const e = $('fixbar'); if (!S.fix || !S.ofp) { e.style.display = 'none'; return; } e.style.display = 'block'; e.innerHTML = '📍 ' + th('过点修正', 'Fix') + ' <b>' + S.fix.id + ' ' + hmZ(S.fix.at) + '</b> · ETA ' + hmZ(atP(S.ofp.times.trip)); }
 
 /* ---------------- 自动发给家里的时钟 ---------------- */
-const APPV = 'v90';
+const APPV = 'v91';
 const DEF_CLOCK = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
 const clockUrl = () => lsGet('clock') || DEF_CLOCK;
 // 简报包 PDF：手机 Panel（或这里）生成后存在云端；这里下载打开（存一份在本机，离线也能打开）
@@ -1754,7 +1778,7 @@ function renderWp(force) {
     const k = e.dataset.k, nt = e.getBoundingClientRect().top;
     if (old[k] != null && prevNext) { const d = old[k] - nt; if (Math.abs(d) > 1) { e.animate([{ transform: 'translateY(' + d + 'px)' }, { transform: 'none' }], { duration: e.classList.contains('past') ? 900 : 600, easing: e.classList.contains('past') ? 'cubic-bezier(.3,1.3,.5,1)' : 'ease-out' }); } }
     if (prevNext && e.classList.contains('next')) e.classList.add('popin');
-    e.onclick = () => { const [id, t] = k.split('_'); const pt = S.pts.find(x => x.id === id && String(x.t) === t); if (!pt) return; S.follow = false; rcOn(false); map.setView(pt.pos, Math.max(map.getZoom(), 7)); srchSel = pt; $('srch').style.display = 'block'; renderSrch(id); };
+    e.onclick = () => { const [id, t] = k.split('_'); const pt = S.pts.find(x => x.id === id && String(x.t) === t); if (!pt) return; S.follow = false; rcOn(false); viewAt(pt.pos, Math.max(map.getZoom(), 7)); srchSel = pt; $('srch').style.display = 'block'; renderSrch(id); };
   });
 }
 const FIRWPS = () => { const o = {}; ((S.ofp && S.ofp.firs) || []).forEach(f => { if (f.wp) o[f.wp] = f; }); return o; };
