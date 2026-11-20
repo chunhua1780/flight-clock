@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f2c56">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
 <title>Flight Panel</title>
 <style>
@@ -171,14 +171,6 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 .crew p{font-size:18px;font-weight:800;line-height:1.45;margin:10px 0;border-bottom:1px solid #ccc;padding-bottom:8px}
 /* ===== 2026-11-20 彩色墨水屏（海信 A5 Pro CC）配色：纯色、粗线、大色块；黑白墨水屏不用这套 ===== */
 html:not(.eink){--navy:#0f2c56;--sea:#6fb2ea;--mag:#d4008a;--grn:#00a04a;--org:#ff7a00;--yel:#ffd21f;--blu:#1c5fc4}
-html:not(.eink) #top{background:var(--navy);color:#fff;border-bottom:0}
-html:not(.eink) .fl{color:#fff}html:not(.eink) .fl small{color:var(--yel)}html:not(.eink) .fl .dd{color:var(--yel)}
-html:not(.eink) #tinfo{border-left-color:rgba(255,255,255,.35)}
-html:not(.eink) .rt .rr{color:#fff}html:not(.eink) .rt .rc{color:#bcd3f2}
-html:not(.eink) #phx{display:inline-block;background:var(--yel);color:#000;border-radius:6px;padding:1px 6px;margin-top:2px;font-weight:900}
-html:not(.eink) .row .l{color:#9fc0ea}html:not(.eink) .row .v{color:#fff}html:not(.eink) .row .v .s{color:#bcd3f2}
-html:not(.eink) #ovw{background:#e00000;color:#fff;border-radius:8px;padding:2px 8px}
-html:not(.eink) #hov{color:var(--yel)}
 html:not(.eink) #side{border-left:0;background:#fff}
 html:not(.eink) #fhdr{background:#e9eef6;border-bottom:2px solid var(--navy)}
 html:not(.eink) #fhdr .fc{color:var(--navy)}html:not(.eink) #fhdr .fn{color:#000;border-left:5px solid var(--org);padding-left:4px;margin-top:1px}
@@ -206,7 +198,6 @@ html:not(.eink) .zfwb{border-color:var(--navy)}
 html:not(.eink) .tli.nx{background:#dff3e6}html:not(.eink) .tl{border-left-color:var(--navy)}
 html:not(.eink) .lg.on{background:var(--navy)}
 html:not(.eink) #menu{border-color:var(--navy)}html:not(.eink) #menu .btn{border-color:var(--navy)}
-@media (orientation:landscape) and (min-width:700px){html:not(.eink) #top{border:0;box-shadow:0 0 0 3px var(--navy)}}
 </style>
 </head>
 <body>
@@ -335,7 +326,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611200834';
+const PAGEV = '202611200840';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
