@@ -215,6 +215,21 @@ html.cbold .zfwb{border-color:var(--navy)}
 html.cbold .tli.nx{background:#dff3e6}html.cbold .tl{border-left-color:var(--navy)}
 html.cbold .lg.on{background:var(--navy)}
 html.cbold #menu{border-color:var(--navy)}html.cbold #menu .btn{border-color:var(--navy)}
+/* 简洁版简报：手机版重排 */
+.rf{font-size:16px;line-height:1.4;padding-bottom:30px}.rf small{font-size:.8em;color:#444;font-weight:600}.rf .en{display:block;font-size:.72em;font-weight:600;color:#666}
+.rf .hd2{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:8px 0 4px;padding-bottom:6px;border-bottom:3px solid #000}.rf .hd2 span:first-child{font-size:20px;font-weight:900;letter-spacing:.04em}.rf .hd2 span:nth-child(2){font-size:20px;font-weight:900}.rf .hd2 span:nth-child(3){font-size:13px;color:#444;font-weight:700}
+.rf .g2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.rf .it2{border:1.5px solid #bbb;border-radius:10px;padding:5px 8px;min-width:0}.rf .it2.w{grid-column:1/-1}
+.rf .it2 .kk{font-size:12px;font-weight:800;color:#444;line-height:1.2}.rf .it2 .kk .en{display:inline;font-size:11px;margin-left:4px}
+.rf .it2 .vv{font-size:21px;font-weight:900;line-height:1.25;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.rf .it2.w .vv{font-size:17px;font-weight:700;line-height:1.45}
+.rf .s2{margin:14px 0 6px;font-size:17px;font-weight:900;border-left:6px solid #000;padding-left:8px}.rf .s2 .en{display:inline;margin-left:6px}
+.rf .cd2{border:1.5px solid #bbb;border-radius:10px;padding:6px 9px;margin:6px 0}.rf .cd2 .t{font-size:17px;font-weight:900}.rf .cd2 .b{font-size:16px;font-weight:600;margin-top:3px}
+.rf .bk2{font-size:16px;margin:6px 0;font-weight:600}.rf .ft2{font-size:12px;color:#666;margin-top:16px}
+.rf .chips2{display:flex;flex-wrap:wrap;gap:6px}.rf .ch{display:inline-block;border-radius:9px;padding:5px 10px;font-size:16px;font-weight:800;border:2px solid #000}
+.rf .ch.r{background:#d00000;color:#fff;border-color:#d00000}.rf .ch.a{background:#ffb000;color:#000;border-color:#ffb000}.rf .ch.g{background:#fff;color:#0a6a2c;border-color:#0a8a3a}.rf .ch.b{background:#1c5fc4;color:#fff;border-color:#1c5fc4}
+.rf .kr{color:#c00000;font-weight:800}.rf .ka{color:#a35a00;font-weight:800}.rf .kg{color:#0a7a32;font-weight:800}.rf .blank{display:inline-block;min-width:3em;border-bottom:2px solid #999}.rf .sm,.rf .sm2{font-size:15px}
+.rf .ap2{font-size:18px;font-weight:800}
+html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.eink .rf .ch.a{background:#fff;border:3px solid #000}html.eink .rf .kr,html.eink .rf .ka,html.eink .rf .kg{color:#000}
 </style>
 </head>
 <body>
@@ -347,7 +362,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611202036';
+const PAGEV = '202611202040';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -857,11 +872,49 @@ $('b-log').onclick = () => openLog();
 $('b-pkg').onclick = () => openPkg();
 $('b-sb').onclick = () => openShort();
 // 简洁版简报：iPad 上生成的那一页 Today Brief（云端下载，离线可看）
+// 简洁版简报：iPad 上生成的 Today Brief 是按 iPad 宽度排的表格，缩到手机上字太小。
+// 这里把它重新排成手机版：每个格子 = 小标签 + 大字；一行两个，长内容占一整行。🔍 可以切回原版。
+function sbReflow(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html'), root = doc.querySelector('.pg') || doc.body, out = [];
+  const txt = el => (el.textContent || '').replace(/\s+/g, ' ').trim(), inner = el => el.innerHTML.replace(/contenteditable="true"/g, '');
+  const item = (k, v, long) => '<div class="it2' + (long ? ' w' : '') + '">' + (k ? '<div class="kk">' + k + '</div>' : '') + '<div class="vv">' + v + '</div></div>';
+  const isLong = el => txt(el).length > 26 || !!el.querySelector('div,br,table');
+  [].forEach.call(root.children, el => {
+    if (el.classList.contains('note')) return;
+    if (el.classList.contains('b1')) { out.push('<div class="hd2">' + [].map.call(el.children, c => '<span>' + esc(txt(c)) + '</span>').join('') + '</div>'); return; }
+    if (el.classList.contains('bh') && el.nextElementSibling && el.nextElementSibling.classList.contains('note') && !txt(el.nextElementSibling)) return;   // 机组补充是空的：标题也不要
+    if (el.classList.contains('bh')) { out.push('<h3 class="s2">' + inner(el) + '</h3>'); return; }
+    if (el.classList.contains('foot')) { out.push('<div class="ft2">' + inner(el) + '</div>'); return; }
+    if (el.tagName !== 'TABLE') { out.push('<div class="bk2">' + inner(el) + '</div>'); return; }
+    const R = [].slice.call(el.rows); let g = [];
+    const flush = () => { if (g.length) out.push('<div class="g2">' + g.join('') + '</div>'); g = []; };
+    for (let i = 0; i < R.length; i++) {
+      const c = [].slice.call(R[i].cells), allTh = c.every(x => x.tagName === 'TH');
+      if (allTh) {   // 表头：后面一行 = 一组格子；后面好几行 = 一行一张小卡片
+        const D = []; let j = i + 1; while (j < R.length && ![].every.call(R[j].cells, x => x.tagName === 'TH')) { D.push([].slice.call(R[j].cells)); j++; }
+        // 第一行格子数和表头一样、后面只是整行备注（例如 油量 + 额外油原因、机场 + 备降）：表头配第一行，备注单独一行
+        if (D.length && D[0].length === c.length && D.slice(1).every(r => r.length === 1)) { D[0].forEach((d, k) => { if (txt(d) || d.querySelector('.blank')) g.push(item(inner(c[k]), inner(d) || '—', isLong(d))); }); flush(); D.slice(1).forEach(r => { if (txt(r[0])) out.push('<div class="bk2">' + inner(r[0]) + '</div>'); }); }
+        else { flush(); D.forEach(r => { if (!r.some(d => txt(d))) return; if (r.length === 1) { out.push('<div class="bk2">' + inner(r[0]) + '</div>'); return; }
+          out.push('<div class="cd2"><div class="t">' + r.slice(0, Math.min(2, r.length - 1)).map(inner).join(' · ') + '</div>' + r.slice(Math.min(2, r.length - 1)).map(d => '<div class="b">' + inner(d) + '</div>').join('') + '</div>'); }); }
+        flush(); i = j - 1; continue;
+      }
+      const th = c.filter(x => x.tagName === 'TH');
+      if (th.length) { for (let k = 0; k < c.length; k++) if (c[k].tagName === 'TH') { const v = []; while (c[k + 1] && c[k + 1].tagName === 'TD') v.push(inner(c[++k])); g.push(item(inner(c[k - v.length]), v.join(' ') || '—', true)); } continue; }
+      flush(); c.forEach(d => { if (txt(d)) out.push('<div class="bk2">' + inner(d) + '</div>'); });
+    }
+    flush();
+  });
+  return '<div class="rf">' + out.join('') + '</div>';
+}
 function openShort() { const L = CUR; if (!L || L.noOfp) return; const h = ls('sb.' + String(L.k).replace(/[^\w.-]/g, '')), sh = $('sheet');
-  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px">📋 ' + XS('简报（简洁版）', 'Short brief') + '</b><span style="flex:1"></span><span class="btn" id="sb-z">🔍</span><span class="btn" id="sb-c">👥 ' + XS('机组简报', 'Crew brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
-    + (h ? '<iframe id="sb-f" style="width:100%;height:calc(100vh - 60px);border:1px solid #999;background:#fff"></iframe>' : '<div class="ok">' + XS('还没有：在 iPad 上打开这一班的 OFP（或 Today Brief），会自动传一份过来；有网时手机自动下载。', 'Not yet — open this OFP / Today Brief on the iPad; it uploads a copy automatically.') + '</div>');
-  sh.style.display = 'block'; sh.scrollTop = 0; if (h) { $('sb-f').onload = () => { try { const d = $('sb-f').contentDocument, w = d.documentElement.scrollWidth, W = $('sb-f').clientWidth; if (w > W + 4) d.body.style.zoom = (W / w).toFixed(3); openShort.fit = (W / w).toFixed(3); } catch (e) {} };
-    $('sb-z').onclick = () => { try { const b = $('sb-f').contentDocument.body; b.style.zoom = b.style.zoom === '1' ? openShort.fit : '1'; } catch (e) {} };   /* 🔍：整页 / 原大（可以左右滑） */ $('sb-f').srcdoc = h; }  /* 整页缩到手机宽度 */ $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('sb-c').onclick = () => openCrew(); }
+  let orig = false; try { orig = ls('sbo') === '1'; } catch (e) {}
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px">📋 ' + XS('简报（简洁版）', 'Short brief') + '</b><span style="flex:1"></span>' + (h ? '<span class="btn" id="sb-z">' + (orig ? XS('📱 手机版', '📱 Phone') : XS('🔍 原版', '🔍 Original')) + '</span>' : '') + '<span class="btn" id="sb-c">👥 ' + XS('机组简报', 'Crew brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
+    + (!h ? '<div class="ok">' + XS('还没有：在 iPad 上打开这一班的 OFP（或 Today Brief），会自动传一份过来；有网时手机自动下载。', 'Not yet — open this OFP / Today Brief on the iPad; it uploads a copy automatically.') + '</div>'
+      : orig ? '<iframe id="sb-f" style="width:100%;height:calc(100vh - 60px);border:1px solid #999;background:#fff"></iframe>' : (() => { try { return sbReflow(h); } catch (e) { return '<div class="ok">⚠️ ' + esc(e.message) + '</div>'; } })());
+  sh.style.display = 'block'; sh.scrollTop = 0;
+  if (h && orig) { $('sb-f').onload = () => { try { const d = $('sb-f').contentDocument, w = d.documentElement.scrollWidth, W = $('sb-f').clientWidth; if (w > W + 4) d.body.style.zoom = (W / w).toFixed(3); } catch (e) {} }; $('sb-f').srcdoc = h; }
+  if (h) $('sb-z').onclick = () => { ls('sbo', orig ? '0' : '1'); openShort(); };
+  $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('sb-c').onclick = () => openCrew(); }
 // 机组简报（STD−83 分钟）：给乘务组的简单卡片 —— 去程、回程各自的飞行时间、高度、到达天气
 const CB_MIN = 83;
 const flTxt = l => (l.fls && l.fls.length ? l.fls : l.fl ? [String(Math.round(l.fl / 100))] : []).map(x => 'FL' + x).join(' / ');
