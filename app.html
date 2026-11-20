@@ -250,7 +250,8 @@ body[data-mode=layover] .sc-shade{background:linear-gradient(180deg,rgba(0,0,0,.
 :root{--clk:#fffaf1;--clk-g:none}
 .bigclock .t,.city .t{color:var(--clk)}
 body.clk-g .bigclock .t,body.clk-g .city .t{background:var(--clk-g);background-size:150% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 4px 22px rgba(0,0,0,.45)) drop-shadow(0 1px 3px rgba(0,0,0,.4))}
-body.clk-g .bigclock .t .s{color:transparent;-webkit-text-fill-color:transparent}
+body.clk-g .bigclock .t .s{opacity:1;background:var(--clk-g);background-size:600% 100%;background-position:100% 50%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:none}   /* iPad Safari：秒数要有自己的渐变，否则看不见 */
+body.clk-flow .bigclock .t .s{animation:clkflow 40s linear infinite}
 body.clk-flow .bigclock .t,body.clk-flow .city .t{animation:clkflow 40s linear infinite}
 @keyframes clkflow{0%{background-position:0% 50%}100%{background-position:300% 50%}}
 body:not(.clk-g) .bigclock .t .s{color:var(--clk);opacity:.8}
