@@ -126,6 +126,8 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .car{display:inline-block;vertical-align:-3px;width:34px;height:14px;color:var(--gold);filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .cdbox .lbl .car{margin-right:6px}
 .kvs .kv .s{white-space:normal;line-height:1.35}
+.kvs.k4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.kv.home .lbl,.kv.home .v,.kv.home .s{color:var(--green)}
 .cdbox{margin-left:auto;text-align:right;flex:none}
 .cdbox .v{color:var(--gold)}
 .cdbox.soon .v{color:var(--red)}
@@ -361,6 +363,7 @@ body:not(.clk-g) .bigclock .t .s{color:var(--clk);opacity:.8}
     </div>
     <div id="testout"></div>
     <p class="demo" style="margin-top:14px">Demo: <a href="?demo=home">Home</a><a href="?demo=layover">Layover</a><a href="?demo=flight">Flying</a><a href="./">Exit demo</a></p>
+    <p class="demo" id="s-ver" style="color:var(--dim)"></p>
     <p class="demo">Weather preview: <a href="?demo=layover&wx=dust">Dust storm</a><a href="?demo=layover&wx=rain">Rain</a><a href="?demo=layover&wx=storm">Thunderstorm</a><a href="?demo=layover&wx=fog">Fog</a><a href="?demo=home&wx=clear&phase=dawn">Dawn</a><a href="?demo=home&wx=clear&phase=night">Night</a></p>
   </div>
 </div>
@@ -860,6 +863,8 @@ function nextCard(f, upcoming) {
   upcoming = null; // 之后的航班看右侧日历
   if (!f) return '<div class="nc"><div class="empty">No flights scheduled yet</div></div>';
   const oTz = apTz(f.origin), dTz = apTz(f.dest);
+  // 人在外站：回到迪拜是哪天、星期几、几点落地（绿色）—— 下一个落在基地的航班
+  const back = isHome(f.origin) ? null : (S.flights || []).filter(x => x.std >= f.std && isHome(x.dest)).sort((a, b) => a.std - b.std)[0] || null;
   const pickup = f.std - CFG.pickup * MIN; // 接车 = 起飞前 2 小时 15 分（设置里可改）
   const toPick = NOCAR ? -1 : pickup - Date.now();   // 来回航班：人在机场，没有接车
   let more = '';
@@ -875,10 +880,11 @@ function nextCard(f, upcoming) {
     '<div class="kv cdbox' + (toPick < 3 * HOUR ? ' soon' : '') + '"><span class="lbl">' + (toPick > 0 ? CAR : 'Departs in') + '</span>' +
       '<span class="v num" data-cd="' + (toPick > 0 ? pickup : f.std) + '">' + cdTxt((toPick > 0 ? pickup : f.std) - Date.now()) + '</span></div>' +
     '</div>' +
-    '<div class="kvs">' +
+    '<div class="kvs' + (back ? ' k4' : '') + '">' +
       (NOCAR ? '<div class="kv"></div>' : '<div class="kv"><span class="lbl">' + CAR + '</span><span class="v num">' + hmDual(pickup, oTz) + '</span><span class="s">' + dayLbl(pickup, oTz) + dualNote(pickup, oTz) + '</span></div>') +
       '<div class="kv"><span class="lbl">Departure</span><span class="v num">' + hmDual(f.std, oTz) + '</span><span class="s">' + dayLbl(f.std, oTz) + dualNote(f.std, oTz) + '</span></div>' +
       '<div class="kv"><span class="lbl">Arrival</span><span class="v num">' + hmDual(f.sta, dTz) + '</span><span class="s">' + dayLbl(f.sta, dTz) + ' · ' + f.dest + (dualNote(f.sta, dTz) || ' local') + (f.staEst ? ' · approx.' : '') + '</span></div>' +
+      (back ? '<div class="kv home"><span class="lbl">Back in ' + esc(HN) + '</span><span class="v num">' + hm(back.sta, HOME_TZ) + '</span><span class="s">' + F(HOME_TZ, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(back.sta)) + (back !== f ? ' · ' + esc(back.no) : '') + '</span></div>' : '') +
     '</div>' + more + '</div>';
 }
 
@@ -1647,6 +1653,7 @@ function openSettings() {
   $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-ofp').checked = !!CFG.ofp; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
   $('s-flow').checked = CFG.flow !== false; clrPick = { id: CFG.clr || 'white', c: CFG.clrC || '#7fd3ff' }; buildClrs();
   $('testout').textContent = '';
+  $('s-ver').textContent = 'Version ' + (/^\d{14}$/.test(APP_VER) ? APP_VER.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2}).*/, '$1-$2-$3 $4:$5 UTC') : APP_VER) + (window.top !== window.self ? ' · auto-update on' : '');
   $('settings').classList.add('open');
 }
 function readSettings() {

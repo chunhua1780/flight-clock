@@ -29,6 +29,8 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;tr
     f.setAttribute('allowfullscreen', '');
     f.src = '../app.html?' + q.toString();
     if (!cur) { cur = f; document.body.appendChild(f); return; }
+    // 保险：2 分钟后还没换成新版本（iPad 上新画面没加载完、内存不够等），就整页重新打开一次
+    setTimeout(function () { if (cur !== f) location.reload(); }, 120000);
     f.style.opacity = '0'; f.style.pointerEvents = 'none';
     document.body.appendChild(f);
     f.onload = function () {
