@@ -199,7 +199,8 @@ function procAlerts(L, S, off, now) {
   FIDB.items.forEach(x => {
     if (x.kind !== 'proc' || x.trigger === 'timeline' || !fiUsable(x, now) || !fiActiveAt(x, now)) return;
     let key = null, lab = '';
-    if (x.trigger === 'gnss') {
+    if (x.trigger === 'gnss') { return;   // 改用航班号下面的简短 GPS 干扰提醒（gpscShow）
+
       const depG = gnssAt(L, L.dep, off), arrG = gnssAt(L, L.arr, off + L.tr * MIN);
       if (depG && (S.ph === 0 || S.el < 15)) { key = 'dep'; lab = XS('起飞机场 GPS 干扰', 'DEP GPS SI'); }
       else if (depG && S.ph === 1 && S.el < 60) { key = 'toc'; lab = XS('TOC 后恢复 GPS', 'At TOC'); }

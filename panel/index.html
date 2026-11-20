@@ -176,6 +176,8 @@ html.cbold #tlc{border-color:#0f2c56}
 #chk .ci{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #ccc;font-size:18px;font-weight:800;cursor:pointer}#chk .ci:last-child{border-bottom:0}#chk .ci i{flex:none;width:28px;height:28px;border:3px solid #000;border-radius:7px;font-style:normal;text-align:center;line-height:22px;font-size:20px}#chk .ci.on{color:#999}#chk .ci.on i{background:#000;color:#fff}#chk .ci small{font-size:13px;font-weight:600;color:#666}
 #chk .cols{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}
 html.cbold #chk{border-color:#0f2c56}html.cbold #chk .ci.on i{background:#00a04a;border-color:#00a04a}
+#gpsc{display:none;position:absolute;left:8px;top:58px;z-index:6;background:#fff;border:3px solid #e07000;border-radius:12px;padding:5px 10px 6px;max-width:calc(100% - 64px);box-shadow:0 4px 14px rgba(0,0,0,.25)}#gpsc .gh{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:900;color:#a34a00}#gpsc .gh span{flex:1}#gpsc .gh b{font-size:20px;padding:0 4px;cursor:pointer;color:#000}#gpsc .gs{font-size:17px;font-weight:900;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums}
+html.eink #gpsc{border-color:#000}html.eink #gpsc .gh{color:#000}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -219,7 +221,7 @@ html.cbold #menu{border-color:var(--navy)}html.cbold #menu .btn{border-color:var
 <div id="app">
   <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="legs"></div>
-  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span>
+  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><div id="gpsc"></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div><div id="chk"></div>
@@ -345,7 +347,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611202029';
+const PAGEV = '202611202036';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -763,7 +765,7 @@ function draw() {
   let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
     + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
     + (wFix(L) ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
-  ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now); chkShow(L, ph, now, F);   // 航班号下面的红字：超重时最大油量 / 最大无油重
+  ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now); chkShow(L, ph, now, F); gpscShow(L, ph, el, off, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
   const pre = ph === 0 && !L.noOfp; $('board').style.display = pre ? 'block' : 'none'; $('board').style.paddingTop = DEMO ? '44px' : '';
@@ -922,6 +924,33 @@ function tlcShow(L, ph, now) {
   }
   if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'inline-flex' : 'none';
 }
+// GPS 干扰（起飞 / 目的地机场有 GNSS 干扰 NOTAM）：最简短的提醒
+//   起飞前 60～20 分钟：POS GPS OFF · TERR OVRD ON · RADIO NAV ENABLE
+//   起飞后飞出干扰区（进入第一个没有 GNSS 干扰通告的管制区）后 15 分钟内：GPS ON · RADIO NAV ON · TERR OVRD OFF
+//   落地前 60 分钟起：TERR OVRD ON · GPS OFF · RADIO NAV UPDATE ON · RNP APCH / PROGRESS / RNP 1
+const GPS_RE = /\b(GNSS|GPS|RAIM)\b/, GPS_BAD = /INTERFERENCE|JAMM|SPOOF|UNRELIAB|U\/S|NOT AVBL|OUTAGE|DEGRAD|UNAVBL|DISRUPT/;
+const GPS_STEPS = { dep: ['POS GPS — OFF', 'TERR OVRD — ON', 'RADIO NAV — ENABLE'], clr: ['GPS — ON', 'RADIO NAV — ON', 'TERR OVRD — OFF'], arr: ['TERR OVRD — ON', 'GPS — OFF', 'RADIO NAV UPDATE — ON', 'RNP APCH · PROGRESS · RNP 1'] };
+// nts(code) → [{ text, from, to }]；fis → [{ code, t }]（进入这个管制区的分钟数）
+function gpsPlan(nts, dep, arr, fis, off, std, tr, el, ph, t) {
+  const bad = (c, at) => (nts(c) || []).some(n => GPS_RE.test(n.text || '') && GPS_BAD.test(n.text || '') && !(n.to && n.to < at - 60 * 6e4) && !(n.from && n.from > at + 60 * 6e4));
+  const depG = bad(dep, off), arrG = bad(arr, off + tr * 6e4);
+  if (ph === 0 && depG && t >= std - 60 * 6e4 && t < std - 20 * 6e4) return { k: 'dep', at: dep };
+  if (ph !== 1) return null;
+  if (arrG && tr - el <= 60) return { k: 'arr', at: arr };
+  if (depG) { let ex = null, fr = dep;
+    for (const f of (fis || []).filter(f => f.t > 0).sort((a, b) => a.t - b.t)) { if (!bad(f.code, off + f.t * 6e4)) { ex = f.t; break; } fr = f.code; }
+    ex = Math.min(ex == null ? 45 : ex, Math.max(20, tr - 70));
+    if (el >= ex && el < ex + 15) return { k: 'clr', at: fr }; }
+  return null;
+}
+function gpscShow(L, ph, el, off, now) {
+  const b = $('gpsc'), P = L.noOfp ? null : gpsPlan(c => ((L.nt && L.nt[c]) || (FIRALIAS[c] && L.nt && L.nt[FIRALIAS[c]]) || []).map(n => ({ text: n[1], from: n[2], to: n[3] })), L.dep, L.arr, (L.fi || []).map(f => ({ code: f[1], t: f[3] })), off, L.std, L.tr, el, ph, now);
+  const key = P ? 'gpsx.' + L.k + '.' + P.k : '', on = P && !ls(key);
+  let h = ''; if (on) { const tl = { dep: XS('起飞机场 GPS 干扰 ', 'DEP GPS interference ') + P.at, clr: XS('已飞出 GPS 干扰区 ', 'Clear of GPS interference ') + P.at, arr: XS('目的地 GPS 干扰 ', 'DEST GPS interference ') + P.at };
+    h = '<div class="gh"><span>📡 ' + esc(tl[P.k]) + '</span><b data-k="' + esc(key) + '">✕</b></div>' + GPS_STEPS[P.k].map(x => '<div class="gs">' + esc(x) + '</div>').join(''); }
+  if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'block' : 'none';
+}
+$('gpsc').onclick = e => { const k = e.target.dataset && e.target.dataset.k; if (k) { ls(k, '1'); draw(); } };
 // 出门检查单：接车前 20 分钟出现（接车 = STD 前 135 分钟），全部勾完就消失；没勾完一直显示到 STD 前 60 分钟。外站短停（人在机场）不显示
 const PICKUP_MIN = 135, CHK = [['📱', '手机', 'Phone'], ['👛', '钱包', 'Wallet'], ['🛂', '护照', 'Passport'], ['🪪', '执照', 'Licence'], ['🩺', '体检合格证', 'Medical'], ['📲', 'iPad', 'iPad'], ['🧢', '帽子', 'Hat'], ['👔', '制服', 'Uniform'], ['👟', '过夜的鞋', 'Overnight shoes'], ['👕', '过夜的衣服', 'Overnight clothes'], ['🥪', '吃的', 'Food']];
 const chkGet = L => { try { return JSON.parse(ls('chk.' + L.k) || '{}'); } catch (e) { return {}; } };

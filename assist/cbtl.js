@@ -29,9 +29,10 @@
     + '#pdchk .ch{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;margin-bottom:4px}#pdchk .ch span{flex:1}#pdchk .ch small{font-size:13px;color:var(--dim);font-weight:600}'
     + '#pdchk .cols{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}#pdchk .ci{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:17px;font-weight:700;cursor:pointer}'
     + '#pdchk .ci i{flex:none;width:26px;height:26px;border:2px solid var(--dim);border-radius:7px;font-style:normal;text-align:center;line-height:22px;font-size:18px}#pdchk .ci.on{opacity:.45}#pdchk .ci.on i{background:#3fcf7f;border-color:#3fcf7f;color:#04210f}'
+    + '#pd-gps{display:none;flex-basis:100%;max-width:420px;background:var(--panel);border:2px solid #f3b13c;border-radius:14px;padding:7px 12px;box-shadow:0 4px 16px rgba(0,0,0,.4)}#pd-gps .gh{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:#f3b13c}#pd-gps .gh span{flex:1}#pd-gps .gh b{cursor:pointer;color:var(--text);font-size:18px;padding:0 4px}#pd-gps .gs{font-size:18px;font-weight:800;line-height:1.45}'
     + '#pdsh .tl div{padding:7px 4px;border-bottom:1px solid var(--line);font-size:16px;font-weight:700}#pdsh .tl b{display:inline-block;width:3.2em}#pdsh .tl small{display:block;font-weight:500;font-size:13px;color:var(--dim);margin-left:3.6em}#pdsh .tl .done{opacity:.45}#pdsh .tl .now{background:rgba(63,207,127,.15)}';
   document.head.appendChild(css);
-  const box = document.createElement('div'); box.id = 'pdx'; box.innerHTML = '<span class="ch" id="pd-cb"></span><span class="ch" id="pd-tl"></span>';
+  const box = document.createElement('div'); box.id = 'pdx'; box.innerHTML = '<span class="ch" id="pd-cb"></span><span class="ch" id="pd-tl"></span><div id="pd-gps"></div>';
   (document.getElementById('mapwrap') || document.body).appendChild(box);
   const ck = document.createElement('div'); ck.id = 'pdchk'; (document.getElementById('mapwrap') || document.body).appendChild(ck);
   const sh = document.createElement('div'); sh.id = 'pdsh'; sh.innerHTML = '<div class="in"></div>'; document.body.appendChild(sh);
@@ -77,6 +78,35 @@
     open('⏱ ' + XS('起飞前时间轴', 'Pre-departure timeline') + ' · STD ' + hmZ(s0), '<div class="tl">' + TLS.map(s => '<div class="' + (s === past ? 'now' : t >= s0 - s[0] * MIN ? 'done' : '') + '"><b>−' + s[0] + '</b>' + hmZ(s0 - s[0] * MIN) + ' · ' + esc(XS(s[1], s[2])) + '<small>' + esc(LANG === 'en' ? s[4] : s[3]) + (LANG === 'both' ? ' · ' + esc(s[4]) : '') + '</small></div>').join('') + '</div>');
   }
   document.getElementById('pd-cb').onclick = openCrew; document.getElementById('pd-tl').onclick = openTl;
+// GPS 干扰（起飞 / 目的地机场有 GNSS 干扰 NOTAM）：最简短的提醒
+  //   起飞前 60～20 分钟：POS GPS OFF · TERR OVRD ON · RADIO NAV ENABLE
+  //   起飞后飞出干扰区（进入第一个没有 GNSS 干扰通告的管制区）后 15 分钟内：GPS ON · RADIO NAV ON · TERR OVRD OFF
+  //   落地前 60 分钟起：TERR OVRD ON · GPS OFF · RADIO NAV UPDATE ON · RNP APCH / PROGRESS / RNP 1
+  const GPS_RE = /\b(GNSS|GPS|RAIM)\b/, GPS_BAD = /INTERFERENCE|JAMM|SPOOF|UNRELIAB|U\/S|NOT AVBL|OUTAGE|DEGRAD|UNAVBL|DISRUPT/;
+  const GPS_STEPS = { dep: ['POS GPS — OFF', 'TERR OVRD — ON', 'RADIO NAV — ENABLE'], clr: ['GPS — ON', 'RADIO NAV — ON', 'TERR OVRD — OFF'], arr: ['TERR OVRD — ON', 'GPS — OFF', 'RADIO NAV UPDATE — ON', 'RNP APCH · PROGRESS · RNP 1'] };
+  // nts(code) → [{ text, from, to }]；fis → [{ code, t }]（进入这个管制区的分钟数）
+  function gpsPlan(nts, dep, arr, fis, off, std, tr, el, ph, t) {
+    const bad = (c, at) => (nts(c) || []).some(n => GPS_RE.test(n.text || '') && GPS_BAD.test(n.text || '') && !(n.to && n.to < at - 60 * 6e4) && !(n.from && n.from > at + 60 * 6e4));
+    const depG = bad(dep, off), arrG = bad(arr, off + tr * 6e4);
+    if (ph === 0 && depG && t >= std - 60 * 6e4 && t < std - 20 * 6e4) return { k: 'dep', at: dep };
+    if (ph !== 1) return null;
+    if (arrG && tr - el <= 60) return { k: 'arr', at: arr };
+    if (depG) { let ex = null, fr = dep;
+      for (const f of (fis || []).filter(f => f.t > 0).sort((a, b) => a.t - b.t)) { if (!bad(f.code, off + f.t * 6e4)) { ex = f.t; break; } fr = f.code; }
+      ex = Math.min(ex == null ? 45 : ex, Math.max(20, tr - 70));
+      if (el >= ex && el < ex + 15) return { k: 'clr', at: fr }; }
+    return null;
+  }
+  function gpsShow() {
+    const o = S.ofp, b = document.getElementById('pd-gps'); let h = '';
+    if (o && std(o)) { const t = now(), off = offOf(o), el = S.atd ? elAt(t) : (t - off) / MIN, tr = o.times.trip || 0, ph = t < off ? 0 : el < tr ? 1 : 2;
+      const P = gpsPlan(c => (o.notams && o.notams[c]) || [], o.flight.dep, o.flight.arr, (o.firs || []).filter(f => f.wp && f.t != null).map(f => ({ code: f.code, t: f.t })), off, std(o), tr, el, ph, t);
+      const key = P ? 'fa.gpsx.' + o.flight.no + o.flight.date + '.' + P.k : ''; let x = null; try { x = key && localStorage.getItem(key); } catch (e) {}
+      if (P && !x) { const tl = { dep: XS('起飞机场 GPS 干扰 ', 'DEP GPS interference ') + P.at, clr: XS('已飞出 GPS 干扰区 ', 'Clear of GPS interference ') + P.at, arr: XS('目的地 GPS 干扰 ', 'DEST GPS interference ') + P.at };
+        h = '<div class="gh"><span>📡 ' + esc(tl[P.k]) + '</span><b data-k="' + esc(key) + '">✕</b></div>' + GPS_STEPS[P.k].map(s => '<div class="gs">' + esc(s) + '</div>').join(''); } }
+    if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'block' : 'none';
+  }
+  document.getElementById('pd-gps').onclick = e => { const k = e.target.dataset && e.target.dataset.k; if (k) { try { localStorage.setItem(k, '1'); } catch (x) {} gpsShow(); } };
   // 出门检查单：接车前 20 分钟出现（接车 = STD 前 135 分钟），全部勾完就消失；没勾完一直显示到 STD 前 60 分钟。外站短停（人在机场）不显示
   const PICKUP_MIN = 135, CHK = [['📱', '手机', 'Phone'], ['👛', '钱包', 'Wallet'], ['🛂', '护照', 'Passport'], ['🪪', '执照', 'Licence'], ['🩺', '体检合格证', 'Medical'], ['📲', 'iPad', 'iPad'], ['🧢', '帽子', 'Hat'], ['👔', '制服', 'Uniform'], ['👟', '过夜的鞋', 'Overnight shoes'], ['👕', '过夜的衣服', 'Overnight clothes'], ['🥪', '吃的', 'Food']];
   const ckKey = o => 'fa.chk.' + o.flight.no + o.flight.date;
@@ -97,7 +127,7 @@
     if (e.target.closest('[data-x]')) st.x = 1; else if (it) { const i = +it.dataset.i; st[i] = st[i] ? 0 : 1; } else return;
     try { localStorage.setItem(ckKey(o), JSON.stringify(st)); } catch (x) {} ckShow(); };
   function upd() {
-    ckShow();
+    ckShow(); gpsShow();
     const o = S.ofp, cb = document.getElementById('pd-cb'), tl = document.getElementById('pd-tl'); let hc = '', ht = '';
     if (o && std(o)) {
       const t = now(), s0 = std(o), pre = t < offOf(o), bt = s0 - CB_MIN * MIN;
