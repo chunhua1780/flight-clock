@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#0f2c56">
 <link rel="manifest" href="manifest.json">
 <title>Flight Panel</title>
 <style>
@@ -169,6 +169,44 @@ html.eink .tli.nx{background:#000;color:#fff}html.eink .tli.nx i{color:#fff}
 .zfwb{border:2.5px solid #000;border-radius:12px;padding:6px 9px;margin:4px 0 8px}.zfwb b{font-size:16px}.zfwb input{width:110px;font-size:22px;font-weight:900;padding:3px 6px;border:2px solid #000;border-radius:8px;font-variant-numeric:tabular-nums}.zfwb .btn{padding:3px 12px;font-size:18px}.zfwb .bw{margin:3px 0;font-size:16px;font-weight:800}
 .zb{z-index:5}
 .crew p{font-size:18px;font-weight:800;line-height:1.45;margin:10px 0;border-bottom:1px solid #ccc;padding-bottom:8px}
+/* ===== 2026-11-20 彩色墨水屏（海信 A5 Pro CC）配色：纯色、粗线、大色块；黑白墨水屏不用这套 ===== */
+html:not(.eink){--navy:#0f2c56;--sea:#6fb2ea;--mag:#d4008a;--grn:#00a04a;--org:#ff7a00;--yel:#ffd21f;--blu:#1c5fc4}
+html:not(.eink) #top{background:var(--navy);color:#fff;border-bottom:0}
+html:not(.eink) .fl{color:#fff}html:not(.eink) .fl small{color:var(--yel)}html:not(.eink) .fl .dd{color:var(--yel)}
+html:not(.eink) #tinfo{border-left-color:rgba(255,255,255,.35)}
+html:not(.eink) .rt .rr{color:#fff}html:not(.eink) .rt .rc{color:#bcd3f2}
+html:not(.eink) #phx{display:inline-block;background:var(--yel);color:#000;border-radius:6px;padding:1px 6px;margin-top:2px;font-weight:900}
+html:not(.eink) .row .l{color:#9fc0ea}html:not(.eink) .row .v{color:#fff}html:not(.eink) .row .v .s{color:#bcd3f2}
+html:not(.eink) #ovw{background:#e00000;color:#fff;border-radius:8px;padding:2px 8px}
+html:not(.eink) #hov{color:var(--yel)}
+html:not(.eink) #side{border-left:0;background:#fff}
+html:not(.eink) #fhdr{background:#e9eef6;border-bottom:2px solid var(--navy)}
+html:not(.eink) #fhdr .fc{color:var(--navy)}html:not(.eink) #fhdr .fn{color:#000;border-left:5px solid var(--org);padding-left:4px;margin-top:1px}
+html:not(.eink) .bx{border:3px solid var(--blu);color:#0a2a5c}
+html:not(.eink) .wp.ho .bx{border:3.5px solid var(--org)}
+html:not(.eink) .hf{color:#000;background:var(--org);border-radius:4px;margin-top:1px}
+html:not(.eink) .wp.nx .bx{background:var(--grn);border-color:var(--grn);color:#fff}html:not(.eink) .wp.nx .hf{background:#fff;color:#000}
+html:not(.eink) .wp.nx.ho .bx{box-shadow:0 0 0 3px var(--org)}
+html:not(.eink) .wp.nx{background:#dff3e6}html:not(.eink) .wp.nx .m .t{color:var(--grn)}
+html:not(.eink) .wp .m .t{color:#000}
+html:not(.eink) .wp.past .bx{border-color:#c4c4c4;color:#a0a0a0;background:#f2f2f2}html:not(.eink) .wp.past .hf{background:#ddd;color:#999}
+html:not(.eink) #sinfo{border-top:3px solid var(--navy)}
+html:not(.eink) .si.ho,html:not(.eink) .si.ho span{color:#000}html:not(.eink) .si.ho{border-left:6px solid var(--org)}
+html:not(.eink) .si.soon{background:var(--org);color:#000}html:not(.eink) .si.soon span{color:#000}
+html:not(.eink) .si.caution{border-left:6px solid #e00000;color:#000}html:not(.eink) .si.info{border-left:6px solid var(--blu)}
+html:not(.eink) .si.warning{background:#e00000}
+html:not(.eink) #firl{background:var(--org);border:0;color:#000;padding:2px 8px;border-radius:8px}
+html:not(.eink) #gpsb{background:#fff;border:2px solid var(--navy);color:var(--navy)}html:not(.eink) #gpsb.gps{background:var(--grn);border-color:var(--grn);color:#fff}
+html:not(.eink) .zb,html:not(.eink) .fab{background:#fff;border:2.5px solid var(--navy);color:var(--navy)}
+html:not(.eink) #st{color:#000;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+html:not(.eink) #alc{border-color:#e00000}html:not(.eink) #alc .ah{background:#e00000}
+html:not(.eink) .it{border-left:6px solid var(--blu)}html:not(.eink) .it.red{border-color:#e00000;color:#c00000}
+html:not(.eink) #board h3{background:var(--navy);color:#fff;border-radius:8px;padding:4px 8px}
+html:not(.eink) .zfwb{border-color:var(--navy)}
+html:not(.eink) .tli.nx{background:#dff3e6}html:not(.eink) .tl{border-left-color:var(--navy)}
+html:not(.eink) .lg.on{background:var(--navy)}
+html:not(.eink) #menu{border-color:var(--navy)}html:not(.eink) #menu .btn{border-color:var(--navy)}
+@media (orientation:landscape) and (min-width:700px){html:not(.eink) #top{border:0;box-shadow:0 0 0 3px var(--navy)}}
 </style>
 </head>
 <body>
@@ -513,10 +551,13 @@ function freeRect(cv, W, H) {
   const C = [[0, 0, W, y0], [0, y1, W, H], [0, 0, x0, H], [x1, 0, W, H]].map(q => [q, (q[2] - q[0]) * (q[3] - q[1])]).sort((p, q) => q[1] - p[1])[0][0];
   return [(C[0] + C[2]) / 2, (C[1] + C[3]) / 2];
 }
+// 地图配色：彩色墨水屏用饱和的纯色、粗线；黑白墨水屏保留原来的颜色（einkPix 按这些颜色换成黑白）
+const MC = EINK ? { sea: '#e6f1fb', land: '#f3ecd9', coast: '#a8946a', coastW: .8, bord: '#c2ad80', bordW: .7, route: '#000', routeW: 3.2, flown: '#999', flownW: 2, nx: '#0a8a3a', ho: '#e07000', hoBg: 'rgba(255,244,230,.92)', hoTx: '#c25a00', ac: '#d00000', wp: '#000' }
+  : { sea: '#6fb2ea', land: '#f4d98c', coast: '#7a5a1e', coastW: 1.3, bord: '#b0453a', bordW: 1.2, route: '#d4008a', routeW: 5, flown: '#5c5c5c', flownW: 3, nx: '#00a04a', ho: '#ff7a00', hoBg: '#ff7a00', hoTx: '#000', ac: '#ffd21f', wp: '#000' };
 function drawMap(L, el, ph, S, hot) {
   const cv = $('map'), W = cv.clientWidth, H = cv.clientHeight; if (!W || !H) return;
   const dpr = window.devicePixelRatio || 1; if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#e6f1fb'; g.fillRect(0, 0, W, H);   // 海：浅蓝
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = MC.sea; g.fillRect(0, 0, W, H);   // 海
   const N = (L.n || []).filter(w => w.length >= 4); if (!N.length) { g.fillStyle = '#000'; g.font = '14px sans-serif'; g.fillText(X('没有航路坐标', 'No route coordinates'), 10, 24); return; }
   const P = (S && S.P) || wpos(L, ph === 0 ? -1 : ph === 2 ? 1e9 : el).p, c0 = FOCUS ? FOCUS.c : [P[0], P[1]], k = Math.cos(c0[0] * Math.PI / 180), s = W / ZOOM;   // 像素 / 海里；看通告区域时中心在区域上
   $('zfoc').style.display = FOCUS ? '' : 'none';
@@ -525,9 +566,9 @@ function drawMap(L, el, ph, S, hot) {
   const vis = (bb) => { const sc = (LAND && LAND.s) || 20, la0 = bb[1] / sc, la1 = bb[3] / sc, lo0 = bb[0] / sc, lo1 = bb[2] / sc, hw = ZOOM / 60 / Math.max(.2, k) * .8, hh = ZOOM / 60 * H / W;
     return !(la1 < c0[0] - hh || la0 > c0[0] + hh) && (lo1 - lo0 > 300 || !(dlon(lo1, c0[1]) < -hw || dlon(lo0, c0[1]) > hw)); };
   // 陆地
-  if (LAND) { const sc = LAND.s || 20; g.fillStyle = '#f3ecd9'; g.strokeStyle = '#a8946a'; g.lineWidth = .8;   // 陆地：沙色
+  if (LAND) { const sc = LAND.s || 20; g.fillStyle = MC.land; g.strokeStyle = MC.coast; g.lineWidth = MC.coastW;   // 陆地：沙色
     LAND.land.forEach((r, i) => { if (!vis(LAND.bb[i])) return; g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.closePath(); g.fill(); g.stroke(); });
-    g.strokeStyle = '#c2ad80'; g.setLineDash([3, 3]); g.lineWidth = .7;
+    g.strokeStyle = MC.bord; g.setLineDash([4, 3]); g.lineWidth = MC.bordW;
     LAND.border.forEach((r, i) => { if (!vis(LAND.bbb[i])) return; g.beginPath(); for (let j = 0; j < r.length; j += 2) { const q = xy(r[j + 1] / sc, r[j] / sc); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.stroke(); }); g.setLineDash([]); }
   fiDrawMap(g, xy, hot || {}, W, H);   // Flight Intelligence 区域（紫色虚线；正在提醒的变红）
   // 通告区域（红色）
@@ -540,19 +581,20 @@ function drawMap(L, el, ph, S, hot) {
   const cur = ph === 1 ? wpos(L, el) : null;
   g.lineJoin = 'round'; g.lineCap = 'round';
   const line = (pts, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach((p, i) => { const q = xy(p[0], p[1]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.stroke(); };
-  if (cur && cur.i > 0 && cur.i < N.length) { line(N.slice(0, cur.i).map(w => [w[2], w[3]]).concat([cur.p]), '#999', 2); line([cur.p].concat(N.slice(cur.i).map(w => [w[2], w[3]])), '#000', 3.2); }
-  else line(N.map(w => [w[2], w[3]]), ph === 2 ? '#999' : '#000', ph === 2 ? 2 : 3.2);
+  const ahead = pts => { if (!EINK) line(pts, '#fff', MC.routeW + 3); line(pts, MC.route, MC.routeW); };   // 彩色：品红航线加白边，海上陆上都清楚
+  if (cur && cur.i > 0 && cur.i < N.length) { g.setLineDash(EINK ? [] : [6, 5]); line(N.slice(0, cur.i).map(w => [w[2], w[3]]).concat([cur.p]), MC.flown, MC.flownW); g.setLineDash([]); ahead([cur.p].concat(N.slice(cur.i).map(w => [w[2], w[3]]))); }
+  else if (ph === 2) line(N.map(w => [w[2], w[3]]), MC.flown, MC.flownW); else ahead(N.map(w => [w[2], w[3]]));
   // 航路点（名字太挤就不写）
   g.font = 'bold 11px sans-serif'; let lastLab = null; const FIRWP = new Set((L.fi || []).map(f => f[2]));
   const nxt = ph === 1 ? N.find(w => w[1] > el) : null, FIRAT = {}; (L.fi || []).forEach(f => FIRAT[f[2]] = f);
   N.forEach((w, i) => { const q = xy(w[2], w[3]); if (q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) return;
     const fw = FIRWP.has(w[0]), soon = fw && ph === 1 && w[1] - el > 0 && w[1] - el <= 10;
-    if (nxt && w === nxt) { g.strokeStyle = '#0a8a3a'; g.lineWidth = 3.5; g.beginPath(); g.arc(q[0], q[1], 10, 0, 7); g.stroke(); }   // 下一个点：绿色圆圈
+    if (nxt && w === nxt) { g.strokeStyle = MC.nx; g.lineWidth = EINK ? 3.5 : 5; g.beginPath(); g.arc(q[0], q[1], EINK ? 10 : 12, 0, 7); g.stroke(); }   // 下一个点：绿色圆圈
     if (fw) { const f = FIRAT[w[0]], lab = '→ ' + f[0] + ' ' + f[1];   // 移交点：橙色，旁边写管制区；快到（10 分钟内）变红并闪
-      if (!(soon && BLINK)) { g.font = 'bold 12px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? '#e07000' : 'rgba(255,244,230,.92)'; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); g.fillStyle = soon ? '#fff' : '#c25a00'; g.fillText(lab, q[0] - tw / 2, q[1] + 22); g.font = 'bold 11px sans-serif'; } }
-    g.fillStyle = '#000';
-    if (fw) { g.strokeStyle = '#e07000'; g.lineWidth = 3; g.fillStyle = soon ? '#e07000' : '#fff'; g.beginPath(); g.arc(q[0], q[1], 6, 0, 7); g.fill(); g.stroke(); } else g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5);   // 移交点：橙色圆圈
-    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); g.fillStyle = fw ? '#c25a00' : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
+      if (!(soon && BLINK)) { g.font = 'bold 12px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? (EINK ? '#e07000' : '#e00000') : MC.hoBg; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); if (!EINK) { g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); } g.fillStyle = soon ? '#fff' : MC.hoTx; g.fillText(lab, q[0] - tw / 2, q[1] + 22); g.font = 'bold 11px sans-serif'; } }
+    g.fillStyle = MC.wp;
+    if (fw) { g.strokeStyle = MC.ho; g.lineWidth = EINK ? 3 : 4; g.fillStyle = soon ? MC.ho : '#fff'; g.beginPath(); g.arc(q[0], q[1], 6, 0, 7); g.fill(); g.stroke(); } else if (EINK) g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5); else { g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.moveTo(q[0], q[1] - 6); g.lineTo(q[0] + 5.5, q[1] + 4); g.lineTo(q[0] - 5.5, q[1] + 4); g.closePath(); g.fill(); g.stroke(); }   // 移交点：橙色圆圈；普通航路点：白色三角
+    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = EINK ? 'rgba(255,255,255,.8)' : '#fff'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); if (!EINK) { g.strokeStyle = fw ? MC.ho : '#000'; g.lineWidth = 1; g.strokeRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); } g.fillStyle = fw ? (EINK ? '#c25a00' : '#000') : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
   // 飞机
   const ac = xy(P[0], P[1]); let hdg = 0;
   if (S && S.src === 'GPS' && GPS.fix && GPS.fix.trk >= 0 && GPS.fix.gs > 50) hdg = GPS.fix.trk * Math.PI / 180;
@@ -560,10 +602,10 @@ function drawMap(L, el, ph, S, hot) {
   // 有警告的管制区：在移交点画红色「!」
   const rf = new Set(((L.R && L.R.enr) || []).map(r => r[2].loc)); (L.fi || []).forEach(f => { if (!rf.has(FIRALIAS[f[1]] || f[1])) return; const w = N.find(x => x[0] === f[2]); if (!w) return; const q = xy(w[2], w[3]);
     g.fillStyle = '#d00000'; g.beginPath(); g.arc(q[0], q[1] - 18, 9, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 14px sans-serif'; g.fillText('!', q[0] - 2.5, q[1] - 13); });
-  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = '#d00000'; g.strokeStyle = '#000'; g.lineWidth = 1.5;   // 飞机：红色
-  g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.stroke(); g.fill(); g.restore();
+  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = MC.ac; g.strokeStyle = '#000'; g.lineWidth = EINK ? 1.5 : 2.5;   // 飞机：墨水屏红色，彩色屏黄色加黑边
+  const z = EINK ? 1 : 1.35; g.scale(z, z); g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.fill(); g.stroke(); g.restore();
   // 比例尺 + 北
-  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = '11px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
+  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; if (!EINK) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(W - px - 56, H - 32, px + 8, 24); } g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = 'bold 11px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
 }
 
 /* =====================================================================
