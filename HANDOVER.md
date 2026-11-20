@@ -4,7 +4,7 @@ Owner: Emirates B777 pilot. Replies in Chinese, plain language. All times UTC. E
 
 ## Repos and publishing
 - `chunhua1780/flight-clock` = source. `chunhua1780/flight-cloch` = GitHub Pages site (published copy). Push both to `main`.
-- `chunhua1780/flight-box` = PRIVATE cloud storage (OFPs, translations, DB). Only the backend writes it (via its GitHub token). Do not try to attach it.
+- `chunhua1780/flight-box` = PRIVATE cloud storage (OFPs, translations, DB). The backend writes it (via its GitHub token). Since 2026-11-20 it also holds the **cloud brief**: `.github/workflows/brief.yml` + `tools/brief.mjs` run on every push of `ofpdata/*.txt.gz` (or by hand: Actions → Cloud brief → only / force), open the public Flight Assist page in headless Chrome, load the OFP (+ `ofpdata/ZZEKTABLE.sb.html`), and commit `ofpdata/<k>.sb.html` + `<k>.full.html` with `sb` / `full` times in `index.json`. The phone panel downloads both (📋 short ⇄ 📄 full). The user allowed attaching it for this; never copy its contents into the public repos.
 - Never put passwords, API keys, company manuals/OFPs in the two public repos. Grep before pushing.
 - Publish steps:
   - Home clock: `V=$(date -u +%Y%m%d%H%M%S); sed "s/__APP_VER__/$V/g" ../flight-clock/app.html > app.html; printf %s $V > version.txt` (in flight-cloch).

@@ -374,7 +374,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611202108';
+const PAGEV = '202611202205';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -440,6 +440,9 @@ async function cloudSync(now) {
   // iPad 生成的简洁版简报（Today Brief）
   for (const x of idx) { if (!x.sb || +(ls('sbn.' + x.k) || 0) >= x.sb) continue; if (!LEGS.some(l => l.k.replace(/[^\w.-]/g, '') === x.k)) continue;
     try { const t = await ghRaw('ofpdata/' + x.k + '.sb.html'); if (t) { ls('sb.' + x.k, await t.text()); ls('sbn.' + x.k, String(x.sb)); } } catch (e) {} }
+  // 云端生成的完整版简报（GitHub 自动任务，和 iPad 上的一样）
+  for (const x of idx) { if (!x.full || +(ls('fulln.' + x.k) || 0) >= x.full) continue; if (!LEGS.some(l => l.k.replace(/[^\w.-]/g, '') === x.k)) continue;
+    try { const t = await ghRaw('ofpdata/' + x.k + '.full.html'); if (t) { ls('full.' + x.k, await t.text()); ls('fulln.' + x.k, String(x.full)); } } catch (e) {} }
   // 云端已经翻好的通告译文（AI 整段翻译）
   for (const x of idx) { if (!x.tr || +(ls('trn.' + x.k) || 0) >= x.tr) continue; const lg = LEGS.find(l => l.k.replace(/[^\w.-]/g, '') === x.k); if (!lg) continue;
     try { const t = await ghRaw('ofpdata/' + x.k + '.tr.json'); if (t) { ls('tr.' + x.k, JSON.stringify(await t.json())); ls('trn.' + x.k, String(x.tr)); } } catch (e) {} }
@@ -897,6 +900,7 @@ function sbReflow(html) {
     if (el.classList.contains('note')) return;
     if (el.classList.contains('b1')) { out.push('<div class="hd2">' + [].map.call(el.children, c => '<span>' + esc(txt(c)) + '</span>').join('') + '</div>'); return; }
     if (el.classList.contains('bh') && el.nextElementSibling && el.nextElementSibling.classList.contains('note') && !txt(el.nextElementSibling)) return;   // 机组补充是空的：标题也不要
+    if (/^H[1-4]$/.test(el.tagName)) { out.push('<h3 class="s2">' + inner(el) + '</h3>'); return; }
     if (el.classList.contains('bh')) { out.push('<h3 class="s2">' + inner(el) + '</h3>'); return; }
     if (el.classList.contains('foot')) { out.push('<div class="ft2">' + inner(el) + '</div>'); return; }
     if (el.tagName !== 'TABLE') { out.push('<div class="bk2">' + inner(el) + '</div>'); return; }
@@ -920,14 +924,15 @@ function sbReflow(html) {
   });
   return '<div class="rf">' + out.join('') + '</div>';
 }
-function openShort() { const L = CUR; if (!L || L.noOfp) return; const h = ls('sb.' + String(L.k).replace(/[^\w.-]/g, '')), sh = $('sheet');
+function openShort(full) { const L = CUR; if (!L || L.noOfp) return; const kk = String(L.k).replace(/[^\w.-]/g, ''), hs = ls('sb.' + kk), hf = ls('full.' + kk); if (full === undefined) full = openShort.full && !!hf; openShort.full = full; const h = full ? hf : hs, sh = $('sheet');
   let orig = false; try { orig = ls('sbo') === '1'; } catch (e) {}
-  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px">📋 ' + XS('简报（简洁版）', 'Short brief') + '</b><span style="flex:1"></span>' + (h ? '<span class="btn" id="sb-z">' + (orig ? XS('📱 手机版', '📱 Phone') : XS('🔍 原版', '🔍 Original')) + '</span>' : '') + '<span class="btn" id="sb-c">👥 ' + XS('机组简报', 'Crew brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
-    + (!h ? '<div class="ok">' + XS('还没有：在 iPad 上打开这一班的 OFP（或 Today Brief），会自动传一份过来；有网时手机自动下载。', 'Not yet — open this OFP / Today Brief on the iPad; it uploads a copy automatically.') + '</div>'
+  sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:16px">📋 ' + (full ? XS('完整版', 'Full brief') : XS('简洁版', 'Short brief')) + '</b><span style="flex:1"></span>' + (hf ? '<span class="btn" id="sb-m">' + (full ? XS('📋 简洁', '📋 Short') : XS('📄 完整', '📄 Full')) + '</span>' : '') + (h ? '<span class="btn" id="sb-z">' + (orig ? XS('📱 手机版', '📱 Phone') : XS('🔍 原版', '🔍 Original')) + '</span>' : '') + '<span class="btn" id="sb-c">👥 ' + XS('机组简报', 'Crew brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
+    + (!h ? '<div class="ok">' + XS('还没有：OFP 传到云端后约 2 分钟自动生成（手机或 iPad 收到 OFP 都会传）；有网时点 ☰ → 🔄 更新。', 'Not yet — generated in the cloud about 2 minutes after the OFP is uploaded; tap ☰ → 🔄 Update when online.') + '</div>'
       : orig ? '<iframe id="sb-f" style="width:100%;height:calc(100vh - 60px);border:1px solid #999;background:#fff"></iframe>' : (() => { try { return sbReflow(h); } catch (e) { return '<div class="ok">⚠️ ' + esc(e.message) + '</div>'; } })());
   sh.style.display = 'block'; sh.scrollTop = 0;
   if (h && orig) { $('sb-f').onload = () => { try { const d = $('sb-f').contentDocument, w = d.documentElement.scrollWidth, W = $('sb-f').clientWidth; if (w > W + 4) d.body.style.zoom = (W / w).toFixed(3); } catch (e) {} }; $('sb-f').srcdoc = h; }
-  if (h) $('sb-z').onclick = () => { ls('sbo', orig ? '0' : '1'); openShort(); };
+  if (h) $('sb-z').onclick = () => { ls('sbo', orig ? '0' : '1'); openShort(full); };
+  if (hf) $('sb-m').onclick = () => openShort(!full);
   $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('sb-c').onclick = () => openCrew(); }
 // 机组简报（STD−83 分钟）：给乘务组的简单卡片 —— 去程、回程各自的飞行时间、高度、到达天气
 const CB_MIN = 83;
