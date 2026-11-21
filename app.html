@@ -444,9 +444,17 @@ const AP = {
   DXB: { lat: 25.253, lon: 55.364, tz: 'Asia/Dubai', city: 'Dubai' },
   DWC: { lat: 24.897, lon: 55.161, tz: 'Asia/Dubai', city: 'Dubai DWC' },
 };
-const apReady = fetchT('airports.json', 20000).then(r => r.json()).then(j => {
-  for (const k in j.ap) if (!AP[k]) { const v = j.ap[k]; AP[k] = { lat: v[0], lon: v[1], tz: j.tz[v[2]], city: v[3] }; }
-}).catch(() => {});
+// 机场资料（7900 多个）：先用存在本机的（不等网络），再从网上取新的；取不到就过一会儿再试，取到了马上重画
+const apUse = j => { for (const k in j.ap) if (!AP[k] || !AP[k].tz || AP[k].tmp || k === 'DXB' || k === 'DWC') { const v = j.ap[k]; AP[k] = { lat: v[0], lon: v[1], tz: j.tz[v[2]], city: v[3] }; } };
+let AP_OK = false; try { const c = localStorage.getItem('fc.airports'); if (c) { apUse(JSON.parse(c)); AP_OK = true; } } catch (e) {}
+function apFetch(n) {
+  return fetchT('airports.json', 60000).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(t => { const j = JSON.parse(t); apUse(j); AP_OK = true; try { localStorage.setItem('fc.airports', t); } catch (e) {} })
+    .catch(() => { if ((n || 0) < 30) setTimeout(() => apFetch((n || 0) + 1).then(apLate), Math.min(5 * 60e3, 10e3 * ((n || 0) + 1))); });
+}
+const apReady = AP_OK ? (apFetch(0), Promise.resolve()) : apFetch(0);
+// 机场资料晚到了：航班、时区都要重新算一遍
+function apLate() { if (!AP_OK) return; try { S.view = null; loadFlights().then(() => render(true)); } catch (e) {} }
+addEventListener('online', () => { if (!AP_OK) apFetch(0).then(apLate); });
 const apCity = c => (AP[c] && AP[c].city) || c;
 const apTz = c => (AP[c] && AP[c].tz) || HOME_TZ;
 
@@ -1308,8 +1316,11 @@ const PHASE = { boarding: 'Boarding', waiting: 'Waiting to depart', taxi: 'Taxii
 
 function renderFlight(st, light) {
   const f = st.cur, now = Date.now();
-  const A = AP[f.origin], B = AP[f.dest];
-  if (!A || !B) { $('f-panel').innerHTML = '<div class="empty">Unknown airport ' + f.origin + ' / ' + f.dest + '</div>'; return; }
+  let A = AP[f.origin], B = AP[f.dest];
+  // 机场资料还没下载到：用飞行计划里航路的起点 / 终点坐标先画出来（时区暂时按迪拜）
+  if (!A || !B) { const pl = planOf(f), pt = pl && Array.isArray(pl.pts) && pl.pts.length > 1 ? pl.pts : null;
+    if (pt) { if (!A) A = AP[f.origin] = { lat: pt[0][0], lon: pt[0][1], tz: HOME_TZ, city: f.origin, tmp: 1 }; if (!B) B = AP[f.dest] = { lat: pt[pt.length - 1][0], lon: pt[pt.length - 1][1], tz: HOME_TZ, city: f.dest, tmp: 1 }; } }
+  if (!A || !B) { $('f-panel').innerHTML = '<div class="empty">Loading airport data… ' + f.origin + ' / ' + f.dest + '<br><small>' + (navigator.onLine ? 'retrying automatically' : 'offline — will load when the network is back') + '</small></div>'; if (!renderFlight.retry) renderFlight.retry = setTimeout(() => { renderFlight.retry = 0; apFetch(0).then(apLate); }, 15000); return; }
   ensureMap();
   const pos = flightPos(f, now);
   const T = S.track[f.id] || { pts: [] };
