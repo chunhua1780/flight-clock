@@ -1357,7 +1357,16 @@ function renderFlight(st, light) {
     const ref = line[Math.min(line.length - 1, Math.round(pos.frac * (line.length - 1)))].lng;
     const plon = unwrap(pos.lon, ref);
     L_plane.setLatLng([pos.lat, plon]);
-    { const i = Math.min(line.length - 1, Math.ceil(pos.frac * (line.length - 1)) + (pos.frac > 0 ? 0 : 0)), rest = pos.frac >= 1 ? [] : pos.frac > 0 ? [[pos.lat, plon]].concat(line.slice(i)) : line; L_route.setLatLngs(rest); L_routeGlow.setLatLngs(rest); }   // 未飞：只画飞机前面那一段
+    { // 未飞：从飞机往前画。起点 = 航路上离飞机最近、而且在飞机前面（离目的地比飞机近）的点 —— 实际航迹偏离计划航路时不会往回长出一截
+      let rest = line;
+      if (pos.frac >= 1) rest = [];
+      else if (pos.frac > 0) {
+        const P = { lat: pos.lat, lon: plon }, E = line[line.length - 1], dE = q => dist({ lat: q.lat, lon: q.lng }, { lat: E.lat, lon: E.lng }), dP = dE({ lat: P.lat, lng: P.lon });
+        let k = 0, best = 1e12; line.forEach((q, j) => { const d = dist({ lat: q.lat, lon: q.lng }, P); if (d < best) { best = d; k = j; } });
+        while (k < line.length - 1 && dE(line[k]) >= dP) k++;   // 这个点在飞机后面（或旁边）：往前找
+        rest = [[P.lat, P.lon]].concat(line.slice(k));
+      }
+      L_route.setLatLngs(rest); L_routeGlow.setLatLngs(rest); }
     const pe = document.getElementById('plane'); if (pe) pe.style.transform = 'rotate(' + Math.round(pos.hdg || 0) + 'deg)';
     // 已飞航段：有实时轨迹就画轨迹，否则画估算的大圆航段
     if (T.pts && T.pts.length > 1) {
