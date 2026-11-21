@@ -207,6 +207,11 @@ html.cbold #altl{border-top-color:#0f2c56}html.cbold #altl .ah{background:#0f2c5
 #mapw > #altl{position:absolute;right:8px;bottom:52px;width:min(250px,64%);max-height:42%;background:#fff;border:2.5px solid #000;border-radius:12px;overflow:hidden auto;z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 html.cbold #mapw > #altl{border-color:#0f2c56}
 }
+/* 左上角一行绿色小字：位置来源（GPS / 估算）+ 电量 */
+#sbar{position:absolute;left:8px;top:1px;z-index:4;font-size:11px;font-weight:800;color:#0a8a3a;letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none}#sbar:empty{display:none}#sbar .lo{color:var(--red)}#sbar .es{color:#4a7a5a}
+#top{padding-top:14px!important}
+@media not all and (orientation:landscape) and (min-width:700px){#gpsb{display:none!important}}
+html.eink #sbar,html.eink #sbar .es{color:#000}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -263,7 +268,7 @@ html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.e
 </head>
 <body>
 <div id="app">
-  <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
+  <div id="top"><div id="sbar"></div><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="wps"></div><div id="legs"></div>
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><div id="gpsc"></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><div id="lyp"></div>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div><div id="altl"></div></div></div>
@@ -391,7 +396,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611210503';
+const PAGEV = '202611210627';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -704,6 +709,14 @@ function ovwShow(L, ph, el) {
   }
   if (o.innerHTML !== h) o.innerHTML = h; o.style.display = h ? 'block' : 'none'; if (h) fitFl();
 }
+// 左上角：位置来源 + 电量（浏览器的电量接口；没有就看 App 有没有给）
+let BAT = null, SBLS = null;
+function sbarShow(LS) { if (LS !== undefined) SBLS = LS; const S = SBLS, b = $('sbar'); let h = '';
+  if (S) h += S.src === 'GPS' ? '● GPS' + (S.gs != null ? ' ' + S.gs + 'kt' : '') + (S.alt != null ? ' FL' + String(Math.round(S.alt / 100)).padStart(3, '0') : '') : '<span class="es">○ ' + XS('估算位置', 'EST position') + '</span>';
+  if (BAT) h += (h ? '  ·  ' : '') + '<span' + (BAT.l < .2 && !BAT.c ? ' class="lo"' : '') + '>' + (BAT.c ? '⚡' : '🔋') + Math.round(BAT.l * 100) + '%</span>';
+  if (b.innerHTML !== h) b.innerHTML = h; }
+try { if (navigator.getBattery) navigator.getBattery().then(bt => { const u = () => { BAT = { l: bt.level, c: bt.charging }; sbarShow(); }; u(); bt.addEventListener('levelchange', u); bt.addEventListener('chargingchange', u); }).catch(() => {}); } catch (e) {}
+try { if (!navigator.getBattery && window.AndroidPanel && AndroidPanel.battery) { const u = () => { try { const v = +AndroidPanel.battery(); if (v >= 0) { BAT = { l: v / 100, c: false }; sbarShow(); } } catch (e) {} }; u(); setInterval(u, 60000); } } catch (e) {}
 let BOARDV = false, wpsTouch = 0;   // 手动滑过航路点那一行：20 秒内不自动滚回去
    // 起飞前提醒板开着没有
 let CUR = null, wplTouch = 0, HOV = null, ALSIG = '', FLASHED = {};
@@ -815,6 +828,7 @@ function draw() {
   if (!DEMO) setNight(MODE === 'night' || (MODE === 'auto' && P && isDark(now, [0, P.p[0], P.p[1]], LS.alt != null ? LS.alt : altAt(L, ph, el))));
   // 地图角上：现在在哪个管制区（离线边界数据库）、位置来源
   const FH = P && P.p ? firHere(P.p[0], P.p[1], L) : null; $('firl').textContent = FH && !L.noOfp ? FH.label : '';
+  sbarShow(L.noOfp ? null : LS);
   $('gpsb').className = LS.src === 'GPS' ? 'gps' : ''; $('gpsb').textContent = L.noOfp ? '' : LS.src === 'GPS' ? 'GPS' + (LS.gs != null ? ' ' + LS.gs + 'kt' : '') + (LS.alt != null ? ' ' + Math.round(LS.alt / 100) * 100 + 'ft' : '') : X('计划位置', 'PLAN');
   $('demob').style.display = DEMO ? 'block' : 'none'; if (DEMO) $('demob').textContent = '▶ ' + X('演示中 ', 'Demo ') + hmZ(now) + 'Z · ' + X('点这里结束', 'tap to stop');
   // 一行四格
