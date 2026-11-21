@@ -164,7 +164,21 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .ap-lbl:before{display:none}
 .wp-lbl{background:none;border:none;box-shadow:none;color:#f3d99c;font-size:9.5px;font-weight:600;letter-spacing:.06em;text-shadow:0 0 3px #000,0 0 6px #000;padding:0}
 .wp-lbl:before{display:none}
-.plane{filter:drop-shadow(0 0 6px rgba(210,173,98,.8))}
+.plane{filter:drop-shadow(0 0 6px rgba(255,214,120,.95)) drop-shadow(0 0 14px rgba(255,190,80,.6));position:relative;z-index:2}
+/* 航线：已飞 = 亮金色实线 + 光晕；未飞 = 青色光点虚线，朝目的地流动 */
+.rt-next{stroke-dasharray:1 11;stroke-linecap:round;animation:rtflow 1.4s linear infinite;filter:drop-shadow(0 0 3px rgba(95,224,255,.9))}
+.rt-next-glow{filter:blur(3px)}
+@keyframes rtflow{to{stroke-dashoffset:-24}}
+.rt-done{stroke-linecap:round;filter:drop-shadow(0 0 4px rgba(255,200,90,.95)) drop-shadow(0 0 10px rgba(255,170,60,.55))}
+.rt-done-glow{filter:blur(5px)}
+/* 飞机下面的雷达光环 */
+.ping{position:absolute;left:50%;top:50%;width:38px;height:38px;margin:-19px 0 0 -19px;border-radius:50%;border:2px solid rgba(95,224,255,.85);animation:ping 2.4s ease-out infinite;z-index:1;pointer-events:none}
+.ping.b{animation-delay:1.2s}
+@keyframes ping{0%{transform:scale(.4);opacity:.9}100%{transform:scale(2.6);opacity:0}}
+/* 目的地：青色光点慢慢脉动 */
+.ap-dst{stroke:#5fe0ff;filter:drop-shadow(0 0 5px rgba(95,224,255,.95));animation:apb 2s ease-in-out infinite}
+@keyframes apb{50%{stroke-opacity:.35}}
+body.dim .rt-next,body.dim .ping,body.dim .ap-dst{animation-duration:4s}
 .fpanel{position:absolute;z-index:500;top:max(14px,env(safe-area-inset-top));left:var(--pad);bottom:max(14px,env(safe-area-inset-bottom));width:min(390px,38vw);
   background:var(--panel);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;padding:clamp(14px,2.4vmin,24px);
   display:flex;flex-direction:column;gap:clamp(10px,1.8vh,18px);overflow:hidden}
@@ -1025,7 +1039,7 @@ function renderLayover(st) {
 
 /* ---------- flight ---------- */
 let mapRouteKey = '';
-let map = null, mapFlightId = null, L_route, L_done, L_trail, L_plane, L_aps = [];
+let map = null, mapFlightId = null, L_route, L_routeGlow, L_done, L_doneGlow, L_trail, L_trailGlow, L_plane, L_aps = [];
 const PLANE_SVG = '<svg viewBox="0 0 64 64" width="38" height="38"><path fill="#d2ad62" stroke="#000" stroke-width="1.5" d="M32 3c2.2 0 3.6 3 3.6 6.6v14.6l22.2 12.6v5.6L35.6 35v13.4l7.2 5.4V58L32 54.8 21.2 58v-4.2l7.2-5.4V35L6.2 42.4v-5.6l22.2-12.6V9.6C28.4 6 29.8 3 32 3z"/></svg>';
 
 let leafletState = 0; // 0 未加载 1 加载中 2 好了 3 失败
@@ -1303,15 +1317,20 @@ function renderFlight(st, light) {
   if (map) {
     const rk = routeOf(f) ? 'ofp' + routeOf(f).nodes.length : 'gc';
     if (mapFlightId !== f.id || rk !== mapRouteKey) {   // 航班变了，或 OFP 航路刚收到
-      [L_route, L_done, L_trail, L_plane].concat(L_aps).forEach(l => l && map.removeLayer(l));
+      [L_route, L_routeGlow, L_done, L_doneGlow, L_trail, L_trailGlow, L_plane].concat(L_aps).forEach(l => l && map.removeLayer(l));
       const RT = routeOf(f);
       const line = RT ? RT.line : gcLine(A, B, 160);
       mapRouteKey = RT ? 'ofp' + RT.nodes.length : 'gc';
-      L_route = L.polyline(line, { color: '#d2ad62', weight: 2, opacity: .45, dashArray: '6 8' }).addTo(map);
-      L_done = L.polyline([], { color: '#d2ad62', weight: 3, opacity: .95 }).addTo(map);
-      L_trail = L.polyline([], { color: '#45d483', weight: 3, opacity: .9 }).addTo(map);
+      // 未飞：青色光晕 + 流动的光点；已飞：金色光晕 + 亮金色实线（实时轨迹也一样，更亮一点）
+      L_routeGlow = L.polyline(line, { color: '#5fe0ff', weight: 7, opacity: .16, className: 'rt-next-glow', interactive: false }).addTo(map);
+      L_route = L.polyline(line, { color: '#9cefff', weight: 3.2, opacity: .95, className: 'rt-next', interactive: false }).addTo(map);
+      L_route.__full = L_route.getLatLngs();   // 整条航线（放地图、算位置用）；画出来的只是飞机前面那一段
+      L_doneGlow = L.polyline([], { color: '#ffb347', weight: 11, opacity: .32, className: 'rt-done-glow', interactive: false }).addTo(map);
+      L_done = L.polyline([], { color: '#ffd27a', weight: 3.6, opacity: 1, className: 'rt-done', interactive: false }).addTo(map);
+      L_trailGlow = L.polyline([], { color: '#ffb347', weight: 11, opacity: .32, className: 'rt-done-glow', interactive: false }).addTo(map);
+      L_trail = L.polyline([], { color: '#ffe3a3', weight: 3.6, opacity: 1, className: 'rt-done', interactive: false }).addTo(map);
       L_aps = [[A, f.origin, line[0]], [B, f.dest, line[line.length - 1]]].map(([ap, code, ll]) =>
-        L.circleMarker(ll, { radius: 5, color: '#d2ad62', weight: 2, fillColor: '#000', fillOpacity: 1 })
+        L.circleMarker(ll, code === f.dest ? { radius: 6, color: '#5fe0ff', weight: 2.5, fillColor: '#04131a', fillOpacity: 1, className: 'ap-dst' } : { radius: 5, color: '#ffd27a', weight: 2.5, fillColor: '#1a1204', fillOpacity: 1 })
           .bindTooltip(code, { permanent: true, direction: 'right', className: 'ap-lbl', offset: [8, 0] }).addTo(map));
       // OFP 航路点：小点 + 名字
       if (RT) RT.nodes.slice(1, -1).filter(n => n.id).forEach(n => {
@@ -1319,28 +1338,29 @@ function renderFlight(st, light) {
         L_aps.push(L.circleMarker(ll, { radius: 2.5, color: '#f3d99c', weight: 1, fillColor: '#f3d99c', fillOpacity: .9, interactive: false })
           .bindTooltip(n.id, { permanent: true, direction: 'top', className: 'wp-lbl', offset: [0, -3] }).addTo(map));
       });
-      L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<div class="plane" id="plane">' + PLANE_SVG + '</div>', iconSize: [38, 38], iconAnchor: [19, 19] }), interactive: false }).addTo(map);
+      L_plane = L.marker(line[0], { icon: L.divIcon({ className: '', html: '<span class="ping"></span><span class="ping b"></span><div class="plane" id="plane">' + PLANE_SVG + '</div>', iconSize: [38, 38], iconAnchor: [19, 19] }), interactive: false }).addTo(map);
       mapFlightId = f.id;
       fitMap(line);
       updateNight();
     }
-    const line = L_route.getLatLngs();
+    const line = L_route.__full;
     const ref = line[Math.min(line.length - 1, Math.round(pos.frac * (line.length - 1)))].lng;
     const plon = unwrap(pos.lon, ref);
     L_plane.setLatLng([pos.lat, plon]);
+    { const i = Math.min(line.length - 1, Math.ceil(pos.frac * (line.length - 1)) + (pos.frac > 0 ? 0 : 0)), rest = pos.frac >= 1 ? [] : pos.frac > 0 ? [[pos.lat, plon]].concat(line.slice(i)) : line; L_route.setLatLngs(rest); L_routeGlow.setLatLngs(rest); }   // 未飞：只画飞机前面那一段
     const pe = document.getElementById('plane'); if (pe) pe.style.transform = 'rotate(' + Math.round(pos.hdg || 0) + 'deg)';
     // 已飞航段：有实时轨迹就画轨迹，否则画估算的大圆航段
     if (T.pts && T.pts.length > 1) {
       let prev = line[0].lng;
       const tr = T.pts.map(p => { const lo = unwrap(p[1], prev); prev = lo; return [p[0], lo]; });
-      L_trail.setLatLngs(tr);
+      L_trail.setLatLngs(tr); L_trailGlow.setLatLngs(tr);
       // 轨迹开始前的部分（屏幕没开时）用大圆航段补上
       const p0 = { lat: T.pts[0][0], lon: T.pts[0][1] };
-      L_done.setLatLngs(dist(A, p0) > 50 ? gcLine(A, p0, 80) : []);
+      L_done.setLatLngs(dist(A, p0) > 50 ? gcLine(A, p0, 80) : []); L_doneGlow.setLatLngs(L_done.getLatLngs());
     } else {
-      L_trail.setLatLngs([]);
+      L_trail.setLatLngs([]); L_trailGlow.setLatLngs([]);
       const n = Math.max(1, Math.round(pos.frac * 160));
-      L_done.setLatLngs(pos.done ? pos.done : pos.frac > 0 ? gcLine(A, { lat: pos.lat, lon: pos.lon }, n) : []);
+      L_done.setLatLngs(pos.done ? pos.done : pos.frac > 0 ? gcLine(A, { lat: pos.lat, lon: pos.lon }, n) : []); L_doneGlow.setLatLngs(L_done.getLatLngs());
     }
   }
 
@@ -1411,7 +1431,7 @@ function render(force) {
   if (st.mode === 'home') renderHome(st);
   else if (st.mode === 'layover') renderLayover(st);
   else {
-    if (changed) setTimeout(() => { if (map) { map.invalidateSize(); if (L_route) fitMap(L_route.getLatLngs()); } }, 60);
+    if (changed) setTimeout(() => { if (map) { map.invalidateSize(); if (L_route) fitMap(L_route.__full); } }, 60);
     renderFlight(st);
   }
   renderScenes(st);
@@ -1710,7 +1730,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { ke
 // 防烧屏：每 2 分钟轻微移动
 setInterval(() => { $('app').style.transform = 'translate(' + (Math.round(Math.random() * 6) - 3) + 'px,' + (Math.round(Math.random() * 6) - 3) + 'px)'; }, 120000);
 addEventListener('resize', () => { S.view = null; render(true); });
-addEventListener('resize', () => { if (map && L_route && document.body.dataset.mode === 'flight') fitMap(L_route.getLatLngs()); });
+addEventListener('resize', () => { if (map && L_route && document.body.dataset.mode === 'flight') fitMap(L_route.__full); });
 
 /* ---------- 自动更新：发现新版本就自己刷新（kiosk 里不用手动刷新） ---------- */
 const APP_VER = '__APP_VER__';
