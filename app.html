@@ -1372,6 +1372,8 @@ function renderFlight(st, light) {
     if (T.pts && T.pts.length > 1) {
       let prev = line[0].lng;
       const tr = T.pts.map(p => { const lo = unwrap(p[1], prev); prev = lo; return [p[0], lo]; });
+      // 实际轨迹接到飞机现在的位置：出了 ADS-B 覆盖（海上）以后飞机位置是估算往前推的，中间不能断开
+      const lp = tr[tr.length - 1]; if (lp && (Math.abs(lp[0] - pos.lat) > 1e-4 || Math.abs(lp[1] - plon) > 1e-4)) { const g = dist({ lat: lp[0], lon: lp[1] }, { lat: pos.lat, lon: plon }); if (g > 300) { const seg = gcLine({ lat: lp[0], lon: lp[1] }, { lat: pos.lat, lon: plon }, Math.min(60, Math.ceil(g / 100))); let pv = lp[1]; seg.slice(1).forEach(q => { const lo = unwrap(q[1], pv); pv = lo; tr.push([q[0], lo]); }); } else tr.push([pos.lat, plon]); }
       L_trail.setLatLngs(tr); L_trailGlow.setLatLngs(tr);
       // 轨迹开始前的部分（屏幕没开时）用大圆航段补上
       const p0 = { lat: T.pts[0][0], lon: T.pts[0][1] };
