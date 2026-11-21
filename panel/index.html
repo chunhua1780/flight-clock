@@ -400,7 +400,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611210633';
+const PAGEV = '202611210644';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -679,7 +679,7 @@ function drawMap(L, el, ph, S, hot) {
   // 有警告的管制区：在移交点画红色「!」
   const rf = new Set(((L.R && L.R.enr) || []).map(r => r[2].loc)); (L.fi || []).forEach(f => { if (!rf.has(FIRALIAS[f[1]] || f[1])) return; const w = N.find(x => x[0] === f[2]); if (!w) return; const q = xy(w[2], w[3]);
     g.fillStyle = '#d00000'; g.beginPath(); g.arc(q[0], q[1] - 18, 9, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 14px sans-serif'; g.fillText('!', q[0] - 2.5, q[1] - 13); });
-  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = MC.ac; g.strokeStyle = '#000'; g.lineWidth = LT ? 1.5 : 2.5;   // 飞机：墨水屏红色，彩色屏黄色加黑边
+  g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = S && S.src === 'GPS' ? '#00c853' : MC.ac; g.strokeStyle = '#000'; g.lineWidth = LT ? 1.5 : 2.5;   // 飞机：有 GPS = 绿色；估算 = 彩色屏黄色 / 浅色红色，加黑边
   const z = LT ? 1 : 1.35; g.scale(z, z); g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.fill(); g.stroke(); g.restore();
   CUR_POS = P; drawLayers(L, P, xy, s, W, H, NOW());
   // 比例尺 + 北
