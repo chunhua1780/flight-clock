@@ -166,17 +166,16 @@ body:not(.nocal) #v-home .bigclock .t{font-size:min(27vw,46vh)}
 .wp-lbl:before{display:none}
 .plane{filter:drop-shadow(0 0 6px rgba(255,214,120,.95)) drop-shadow(0 0 14px rgba(255,190,80,.6));position:relative;z-index:2}
 /* 航线：已飞 = 亮金色实线 + 光晕；未飞 = 青色光点虚线，朝目的地流动 */
-.rt-next{stroke-dasharray:1 11;stroke-linecap:round;animation:rtflow 1.4s linear infinite;filter:drop-shadow(0 0 3px rgba(95,224,255,.9))}
-.rt-next-glow{filter:blur(3px)}
+.rt-next{stroke-dasharray:1 11;stroke-linecap:round;animation:rtflow 1.4s linear infinite}
+/* 光晕不用 CSS 滤镜（iPad / iPhone 的 Safari 上，加了滤镜的线每秒更新时会消失）：宽的半透明线 + 细的亮线叠起来 */
+.rt-next-glow,.rt-done-glow,.rt-done{stroke-linecap:round;stroke-linejoin:round}
 @keyframes rtflow{to{stroke-dashoffset:-24}}
-.rt-done{stroke-linecap:round;filter:drop-shadow(0 0 4px rgba(255,200,90,.95)) drop-shadow(0 0 10px rgba(255,170,60,.55))}
-.rt-done-glow{filter:blur(5px)}
 /* 飞机下面的雷达光环 */
 .ping{position:absolute;left:50%;top:50%;width:38px;height:38px;margin:-19px 0 0 -19px;border-radius:50%;border:2px solid rgba(95,224,255,.85);animation:ping 2.4s ease-out infinite;z-index:1;pointer-events:none}
 .ping.b{animation-delay:1.2s}
 @keyframes ping{0%{transform:scale(.4);opacity:.9}100%{transform:scale(2.6);opacity:0}}
 /* 目的地：青色光点慢慢脉动 */
-.ap-dst{stroke:#5fe0ff;filter:drop-shadow(0 0 5px rgba(95,224,255,.95));animation:apb 2s ease-in-out infinite}
+.ap-dst{stroke:#5fe0ff;animation:apb 2s ease-in-out infinite}
 @keyframes apb{50%{stroke-opacity:.35}}
 body.dim .rt-next,body.dim .ping,body.dim .ap-dst{animation-duration:4s}
 .fpanel{position:absolute;z-index:500;top:max(14px,env(safe-area-inset-top));left:var(--pad);bottom:max(14px,env(safe-area-inset-bottom));width:min(390px,38vw);
@@ -1333,12 +1332,12 @@ function renderFlight(st, light) {
       const line = RT ? RT.line : gcLine(A, B, 160);
       mapRouteKey = RT ? 'ofp' + RT.nodes.length : 'gc';
       // 未飞：青色光晕 + 流动的光点；已飞：金色光晕 + 亮金色实线（实时轨迹也一样，更亮一点）
-      L_routeGlow = L.polyline(line, { color: '#5fe0ff', weight: 7, opacity: .16, className: 'rt-next-glow', interactive: false }).addTo(map);
+      L_routeGlow = L.polyline(line, { color: '#5fe0ff', weight: 8, opacity: .14, className: 'rt-next-glow', interactive: false }).addTo(map);
       L_route = L.polyline(line, { color: '#9cefff', weight: 3.2, opacity: .95, className: 'rt-next', interactive: false }).addTo(map);
       L_route.__full = L_route.getLatLngs();   // 整条航线（放地图、算位置用）；画出来的只是飞机前面那一段
-      L_doneGlow = L.polyline([], { color: '#ffb347', weight: 11, opacity: .32, className: 'rt-done-glow', interactive: false }).addTo(map);
+      L_doneGlow = L.polyline([], { color: '#ffb347', weight: 12, opacity: .26, className: 'rt-done-glow', interactive: false }).addTo(map);
       L_done = L.polyline([], { color: '#ffd27a', weight: 3.6, opacity: 1, className: 'rt-done', interactive: false }).addTo(map);
-      L_trailGlow = L.polyline([], { color: '#ffb347', weight: 11, opacity: .32, className: 'rt-done-glow', interactive: false }).addTo(map);
+      L_trailGlow = L.polyline([], { color: '#ffb347', weight: 12, opacity: .26, className: 'rt-done-glow', interactive: false }).addTo(map);
       L_trail = L.polyline([], { color: '#ffe3a3', weight: 3.6, opacity: 1, className: 'rt-done', interactive: false }).addTo(map);
       L_aps = [[A, f.origin, line[0]], [B, f.dest, line[line.length - 1]]].map(([ap, code, ll]) =>
         L.circleMarker(ll, code === f.dest ? { radius: 6, color: '#5fe0ff', weight: 2.5, fillColor: '#04131a', fillOpacity: 1, className: 'ap-dst' } : { radius: 5, color: '#ffd27a', weight: 2.5, fillColor: '#1a1204', fillOpacity: 1 })
