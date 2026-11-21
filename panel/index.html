@@ -192,6 +192,21 @@ html.eink .ct{background:#fff!important;color:#000!important;border-color:#000!i
 html.cbold #altl{border-top-color:#0f2c56}html.cbold #altl .ah{background:#0f2c56}
 .apx h3{margin:4px 0 6px;font-size:20px}.apx .r3{font-size:17px;font-weight:800;margin:6px 0;line-height:1.4}.apx .r3 small{display:block;font-size:13px;font-weight:600;color:#444}.apx .nt3{border-left:5px solid #e07000;padding:3px 8px;margin:5px 0;font-size:16px;font-weight:700}.apx .nt3.red{border-color:#d00000;color:#b00000}
 #sheet > div:first-child .btn{padding:4px 7px;font-size:13px;margin:1px}
+/* ===== 竖屏（手机）：航路点放到航班号下面一行，左右滑动；下面整块都是地图，备降列表、警告有内容才弹出 ===== */
+#wps{display:none}
+@media not all and (orientation:landscape) and (min-width:700px){
+#top{height:19vh}
+#wps{display:flex;gap:5px;overflow-x:auto;overflow-y:hidden;padding:4px 6px 5px;border-bottom:1px solid #ccc;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:none;scroll-behavior:smooth}#wps::-webkit-scrollbar{display:none}
+#wps:empty{display:none}
+#wps .wp{flex:none;flex-direction:column;align-items:center;gap:1px;padding:2px 1px;border-radius:9px}
+#wps .bx{min-width:58px;max-width:none;font-size:14px}#wps .wp.nx .bx{font-size:16px}
+#wps .wp .m{flex:none;text-align:center;font-size:10px;line-height:1.15}#wps .wp .m .t{font-size:12px}#wps .wp.nx .m .t{font-size:13px}#wps .wp .m .tg{display:inline}
+#wps .fx{flex:none;display:flex;flex-direction:column;justify-content:center;padding:2px 8px;border-left:5px solid #e07000;font-size:11px;font-weight:800;line-height:1.25;color:#000;white-space:nowrap}#wps .fx b{font-size:14px}
+#side{display:none}
+#alc{right:4px}#warn{right:8px}
+#mapw > #altl{position:absolute;right:8px;bottom:52px;width:min(250px,64%);max-height:42%;background:#fff;border:2.5px solid #000;border-radius:12px;overflow:hidden auto;z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+html.cbold #mapw > #altl{border-color:#0f2c56}
+}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -249,7 +264,7 @@ html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.e
 <body>
 <div id="app">
   <div id="top"><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
-  <div id="legs"></div>
+  <div id="wps"></div><div id="legs"></div>
   <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><div id="gpsc"></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><div id="lyp"></div>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div><div id="altl"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
@@ -376,7 +391,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611202248';
+const PAGEV = '202611210503';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -689,7 +704,8 @@ function ovwShow(L, ph, el) {
   }
   if (o.innerHTML !== h) o.innerHTML = h; o.style.display = h ? 'block' : 'none'; if (h) fitFl();
 }
-let BOARDV = false;   // 起飞前提醒板开着没有
+let BOARDV = false, wpsTouch = 0;   // 手动滑过航路点那一行：20 秒内不自动滚回去
+   // 起飞前提醒板开着没有
 let CUR = null, wplTouch = 0, HOV = null, ALSIG = '', FLASHED = {};
 let WARN = { list: [] }, WSIG = '', wTimer = null;
 // ---------- 演示：把这个航班快放一遍（大约 90 秒），看看哪里有问题 ----------
@@ -831,6 +847,17 @@ function draw() {
         + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? '<span class="tg"> ' + dur(w[1] - el) + '</span>' : '') + '</span></div>';
     });
     if ($('wpl').innerHTML !== h) { $('wpl').innerHTML = h; }
+    // 竖屏：航班号下面一行，左右滑动：前一个点 + 后面最多 30 个；最前面是下一个管制区
+    { const b0 = Math.max(0, ni - (ph === 1 ? 1 : 0)), b1 = Math.min(N.length, b0 + 30), hx0 = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el));
+      let hs = hx0 ? '<div class="fx">' + XS('下一个管制区', 'Next FIR') + '<b>' + esc(hx0[1]) + '</b>' + dur(hx0[3] - Math.max(0, el)) + '</div>' : '';
+      N.slice(b0, b1).forEach(w => {
+        const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
+        const dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
+        hs += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + '</span>'
+          + (f ? '<span class="hf" data-fir="' + esc(code) + '"><span class="h1">' + (riskFir.has(code) ? '⚠' : '') + esc(f[0]) + '</span><span class="h2">' + esc(f[1]) + '</span></span>' : '') + '</span>'
+          + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? '<span class="tg"> ' + dur(w[1] - el) + '</span>' : '') + '</span></div>';
+      });
+      const ws = $('wps'); if (ws.innerHTML !== hs) { ws.innerHTML = hs; if (Date.now() - wpsTouch > 20000) { const e = ws.querySelector('.wp.nx') || ws.querySelector('.wp:not(.past)'); ws.scrollLeft = e ? Math.max(0, e.offsetLeft - ws.offsetLeft - ((ws.querySelector('.fx') || {}).offsetWidth || 0) - 70) : 0; } } }
     // 现在的管制区 → 下一个管制区（剩余时间、距离）
     const hx = ph === 2 ? null : FI.find(f => f[3] > Math.max(0, el)), cf = FI.filter(f => f[3] <= Math.max(0, el)).slice(-1)[0];
     HOV = hx ? { f: hx, min: hx[3] - Math.max(0, el), nm: Math.round(alongNm(Nc, cum, hx[3]) - dNow), t: off + hx[3] * MIN } : null;
@@ -838,7 +865,7 @@ function draw() {
     const fh = '<span class="fc">' + XS('现在 ', 'Now ') + '<b>' + esc(curF[0]) + '</b> ' + esc(curF[1]) + '</span>' + (HOV ? '<span class="fn">' + XS('下一个 ', 'Next ') + '<b>' + esc(HOV.f[1]) + '</b> ' + esc(HOV.f[0]) + ' · ' + dur(HOV.min) + ' · ' + HOV.nm + ' NM</span>' : '');
     if ($('fhdr').innerHTML !== fh) $('fhdr').innerHTML = fh;
     $('hov').textContent = HOV ? '▸ ' + XS('下一个移交 ', 'Next handover ') + HOV.f[1] + ' ' + HOV.f[0] + ' · ' + dur(HOV.min) + ' · ' + HOV.nm + ' NM · ' + hmZ(HOV.t) + 'Z' : '';
-  } else { $('wpl').innerHTML = ''; $('fhdr').innerHTML = ''; HOV = null; $('hov').textContent = ''; }
+  } else { $('wpl').innerHTML = ''; $('wps').innerHTML = ''; $('fhdr').innerHTML = ''; HOV = null; $('hov').textContent = ''; }
   // 警告：独立的弹出卡片。没有警告就什么都不显示；有新的才弹出，可以手动关（关了以后地图上留一个小「⚠ n」可以再打开）
   let list = [], title = '';
   if (!L.noOfp) {
@@ -1070,6 +1097,7 @@ function altlShow(L, pos, t, ph) {
     h = '<div class="ah"><span>🛬 ' + XS('1 小时内备降', 'Altn ≤ 1 h') + '</span>' + (EKT ? '' : '<small style="font-weight:600">' + XS('无授权表', 'no EK table') + '</small>') + '</div>'
       + (A.length ? A.map(x => '<div class="ar" data-ap="' + x.a.icao + '"><span class="wd ' + x.rate + '"></span>' + ctTag(x.cat) + '<b>' + x.a.icao + '</b><span class="d">' + Math.round(x.d) + 'nm · ' + Math.round(x.d / R1NM * 60) + "'</span></div>").join('') : '<div class="ar" style="cursor:default;color:#c00000">' + XS('1 小时内没有合适的机场', 'None within 1 h') + '</div>'); }
   if (b.innerHTML !== h) b.innerHTML = h;
+  requestAnimationFrame(() => { const c = $('alc'), up = b.parentNode === $('mapw') && c && c.style.display === 'block'; b.style.bottom = up ? (c.getBoundingClientRect().height + 62) + 'px' : ''; });   // 竖屏：警告卡片开着时，备降列表往上让开
 }
 $('altl').onclick = e => { const r = e.target.closest('[data-ap]'); if (r) openApt(r.dataset.ap); };
 // 点一个机场：类别、距离、天气、最重要的通告（最多 4 条）、公司备注（最多 2 条）——越短越好
@@ -1097,6 +1125,10 @@ function drawLayers(L, P, xy, s, W, H, t) {
       if (c[1] - r > 14) { g.font = 'bold 11px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(c[0] - tw / 2 - 3, c[1] - r - 7, tw + 6, 14); g.fillStyle = col; g.fillText(lab, c[0] - tw / 2, c[1] - r + 4); } }); }
 }
 function lypShow() { $('lyp').innerHTML = [['r', XS('◯ 1h / 2h 距离圈', '◯ 1h / 2h rings')], ['a', XS('🛬 航路机场', '🛬 Route airports')], ['l', XS('📋 合适备降列表', '📋 Suitable alternates')]].map(([k, t]) => '<span class="btn' + (LAY[k] ? ' on' : '') + '" data-ly="' + k + '">' + t + '</span>').join(''); }
+['touchstart', 'pointerdown', 'wheel'].forEach(ev => $('wps').addEventListener(ev, () => { wpsTouch = Date.now(); }, { passive: true }));
+// 竖屏：「1 小时内备降」放到地图右下角（有内容才出现）；横屏放回右边栏
+const altlPlace = () => { const port = !matchMedia('(orientation:landscape) and (min-width:700px)').matches, a = $('altl'); if (port && a.parentNode !== $('mapw')) $('mapw').appendChild(a); else if (!port && a.parentNode !== $('side')) $('side').appendChild(a); };
+altlPlace(); addEventListener('resize', altlPlace);
 $('zbd').onclick = () => { BOARDV = !BOARDV; draw(); };
 $('zly').onclick = () => { const p = $('lyp'); if (p.style.display === 'block') { p.style.display = 'none'; return; } lypShow(); p.style.display = 'block'; };
 $('lyp').onclick = e => { const b = e.target.closest('[data-ly]'); if (!b) return; LAY[b.dataset.ly] = LAY[b.dataset.ly] ? 0 : 1; ls('lay', JSON.stringify(LAY)); lypShow(); draw(); };
