@@ -396,7 +396,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611210627';
+const PAGEV = '202611210629';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -712,7 +712,7 @@ function ovwShow(L, ph, el) {
 // 左上角：位置来源 + 电量（浏览器的电量接口；没有就看 App 有没有给）
 let BAT = null, SBLS = null;
 function sbarShow(LS) { if (LS !== undefined) SBLS = LS; const S = SBLS, b = $('sbar'); let h = '';
-  if (S) h += S.src === 'GPS' ? '● GPS' + (S.gs != null ? ' ' + S.gs + 'kt' : '') + (S.alt != null ? ' FL' + String(Math.round(S.alt / 100)).padStart(3, '0') : '') : '<span class="es">○ ' + XS('估算位置', 'EST position') + '</span>';
+  if (S) h += S.src === 'GPS' ? 'GPS' : '<span class="es">EST</span>';   // 只要三个字母
   if (BAT) h += (h ? '  ·  ' : '') + '<span' + (BAT.l < .2 && !BAT.c ? ' class="lo"' : '') + '>' + (BAT.c ? '⚡' : '🔋') + Math.round(BAT.l * 100) + '%</span>';
   if (b.innerHTML !== h) b.innerHTML = h; }
 try { if (navigator.getBattery) navigator.getBattery().then(bt => { const u = () => { BAT = { l: bt.level, c: bt.charging }; sbarShow(); }; u(); bt.addEventListener('levelchange', u); bt.addEventListener('chargingchange', u); }).catch(() => {}); } catch (e) {}
