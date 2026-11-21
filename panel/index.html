@@ -400,7 +400,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611210724';
+const PAGEV = '202611210725';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -1127,7 +1127,7 @@ function altlShow(L, pos, t, ph) {
   const b = $('altl'); let h = '';
   if (LAY.l && !L.noOfp && pos && ph !== 2) { const A = altNow(L, pos, t);
     h = '<div class="ah"><span>🛬 ' + XS('1 小时内备降', 'Altn ≤ 1 h') + '</span>' + (EKT ? '' : '<small style="font-weight:600">' + XS('无授权表', 'no EK table') + '</small>') + '</div>'
-      + (A.length ? A.map(x => '<div class="ar" data-ap="' + x.a.icao + '"><span class="wd ' + x.rate + '"></span>' + ctTag(x.cat) + '<b>' + x.a.icao + '</b><span class="d"><i class="ba" style="transform:rotate(' + Math.round(x.brg - ACTRK) + 'deg)">↑</i>' + String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d) + 'nm · ' + Math.round(x.d / R1NM * 60) + "'</span></div>").join('') : '<div class="ar" style="cursor:default;color:#c00000">' + XS('1 小时内没有合适的机场', 'None within 1 h') + '</div>'); }
+      + (A.length ? A.map(x => '<div class="ar" data-ap="' + x.a.icao + '"><span class="wd ' + x.rate + '"></span>' + ctTag(x.cat) + '<b>' + x.a.icao + '</b><span class="d"><i class="ba" style="transform:rotate(' + Math.round(x.brg) + 'deg)">↑</i>' + String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d) + 'nm · ' + Math.round(x.d / R1NM * 60) + "'</span></div>").join('') : '<div class="ar" style="cursor:default;color:#c00000">' + XS('1 小时内没有合适的机场', 'None within 1 h') + '</div>'); }
   if (b.innerHTML !== h) b.innerHTML = h;
   requestAnimationFrame(() => { const c = $('alc'), up = b.parentNode === $('mapw') && c && c.style.display === 'block'; b.style.bottom = up ? (c.getBoundingClientRect().height + 62) + 'px' : ''; });   // 竖屏：警告卡片开着时，备降列表往上让开
 }
