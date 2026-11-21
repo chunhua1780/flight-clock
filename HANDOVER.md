@@ -31,6 +31,7 @@ Owner: Emirates B777 pilot. Replies in Chinese, plain language. All times UTC. E
 
 - Country contingency (WAC) in Chinese (2026-11-21): backend action `waczh` (names = country names, regions as `R:name`) has Gemini rewrite each section as short plain-Chinese bullets (codes / frequencies / numbers kept), caches in flight-box `fidata/wac.zh.json` keyed `country|heading` with a hash of the English. Panel (`WACZ`, `waczhSync` for countries on legs in the next 48 h) and Flight Assist (`Z2`, on opening the route card) download and show: zh = Chinese only, both = Chinese + small English, en = English. Needs backend ≥ 2026-11-21a (auto-loads within an hour, or POST reload).
 - Panel portrait layout (2026-11-21): waypoints in a horizontally scrolling row under the flight number (`#wps`, next FIR first, auto-scrolls to the next point unless swiped in the last 20 s); the right column is hidden so the map is full width; the 1 h alternates list pops up at the map's bottom right and moves above the warning card. Landscape unchanged.
+- Panel e-ink ghosting (2026-11-21): `inkFlash()` covers the screen black → white → off (~0.45 s) to force a full e-ink refresh; automatic every N min (⚙︎: off / 5 / 10 / 15, default 10, `pnl.ghost`), after closing the sheet / settings / pre-departure board, and ☰ → ◼︎ Refresh screen. When on, html.calm stops the alternating FIR names and other animations.
 - Panel before take-off shows the map; the pre-departure board opens with the 🛫 map button (`BOARDV`).
 
 ## Open items

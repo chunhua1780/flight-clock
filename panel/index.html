@@ -212,6 +212,9 @@ html.cbold #mapw > #altl{border-color:#0f2c56}
 #top{padding-top:14px!important}
 @media not all and (orientation:landscape) and (min-width:700px){#gpsb{display:none!important}}
 html.eink #sbar,html.eink #sbar .es{color:#000}
+#flash{position:fixed;inset:0;z-index:99999;background:#000;display:none}
+/* 防残影：不要一直在动的东西（名字固定显示、不闪） */
+html.calm .h1,html.calm .h2,html.calm #alc.flash,html.calm .rt-next,html.calm #tlc{animation:none!important}html.calm .h2{display:none}html.calm .h1{opacity:1!important}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -275,13 +278,14 @@ html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.e
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div><div id="chk"></div>
   <div id="empty"></div>
-  <div id="menu"><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-zfw">⚖ <span data-i="无油重量 ZFW|Zero fuel weight"></span></span><span class="btn" id="b-sb">📋 <span data-i="简报（简洁版）|Short brief"></span></span><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
+  <div id="menu"><span class="btn" id="b-flash">◼︎ <span data-i="刷新屏幕（清残影）|Refresh screen"></span></span><span class="btn" id="b-up">🔄 <span data-i="更新|Update"></span></span><span class="btn" id="b-mode"></span><span class="btn" id="b-lang"></span><span class="btn" id="b-perm" style="display:none;color:var(--red)">🔆 <span data-i="允许控制背光|Backlight access"></span></span><span class="btn" id="b-pick">📂 <span data-i="选择飞行计划|Choose OFP"></span></span><input type="file" id="f-ofp" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"><span class="btn" id="b-zfw">⚖ <span data-i="无油重量 ZFW|Zero fuel weight"></span></span><span class="btn" id="b-sb">📋 <span data-i="简报（简洁版）|Short brief"></span></span><span class="btn" id="b-pkg">📑 <span data-i="简报包|Brief pack"></span></span><span class="btn" id="b-log">📒 <span data-i="飞行记录本|Logbook"></span></span><span class="btn" id="b-fi">🛰 <span data-i="区域数据库|Intel DB"></span></span><span class="btn" id="b-snd"></span><span class="btn" id="b-gps" style="display:none;color:var(--red)">📍 <span data-i="允许 GPS|Allow GPS"></span></span><span class="btn" id="b-demo">▶ <span data-i="演示|Demo"></span></span><span class="btn" id="b-eink">◐ <span data-i="墨水屏 黑白|E-ink B/W"></span></span><span class="btn" id="b-upd">⬇︎ <span data-i="检查更新|Update app"></span></span><span class="btn" id="b-set">⚙︎ <span data-i="设置|Settings"></span></span></div>
 </div>
-<div id="sheet"></div>
+<div id="sheet"></div><div id="flash"></div>
 <div id="set">
   <b>⚙︎ <span data-i="设置|Settings"></span></b><br>
   <span data-i="口令|Password"></span><br><input id="s-key" type="password" autocomplete="off">
   <span data-i="夜间背光 5–30%|Night backlight 5–30%"></span><br><input id="s-bl" type="number" min="5" max="30">
+  <span data-i="墨水屏防残影：自动全屏刷新|E-ink ghosting: full refresh every"></span><br><span class="btn sg" data-gh="0" data-i="关|Off"></span><span class="btn sg" data-gh="5" data-i="5 分钟|5 min"></span><span class="btn sg" data-gh="10" data-i="10 分钟|10 min"></span><span class="btn sg" data-gh="15" data-i="15 分钟|15 min"></span><br><br>
   <span data-i="地图颜色|Map colours"></span><br><span class="btn sg" id="s-mc-b" data-i="深色|Strong"></span><span class="btn sg" id="s-mc-l" data-i="浅色|Light"></span><br><br>
   <span class="btn" id="s-ok">✓ <span data-i="保存|Save"></span></span> <span class="btn" id="s-x">✕</span>
   <p style="color:var(--dim)" data-i="有网时自动读日历、云端和邮箱的 OFP，存在手机上离线用。|OFPs are fetched automatically when online and kept for offline use."></p>
@@ -396,7 +400,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611210629';
+const PAGEV = '202611210633';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -717,6 +721,18 @@ function sbarShow(LS) { if (LS !== undefined) SBLS = LS; const S = SBLS, b = $('
   if (b.innerHTML !== h) b.innerHTML = h; }
 try { if (navigator.getBattery) navigator.getBattery().then(bt => { const u = () => { BAT = { l: bt.level, c: bt.charging }; sbarShow(); }; u(); bt.addEventListener('levelchange', u); bt.addEventListener('chargingchange', u); }).catch(() => {}); } catch (e) {}
 try { if (!navigator.getBattery && window.AndroidPanel && AndroidPanel.battery) { const u = () => { try { const v = +AndroidPanel.battery(); if (v >= 0) { BAT = { l: v / 100, c: false }; sbarShow(); } } catch (e) {} }; u(); setInterval(u, 60000); } } catch (e) {}
+// ---------- 墨水屏防残影：模拟一次全屏刷新（整屏黑 → 白 → 恢复），墨水屏遇到整屏变化会走全刷，把残影清掉 ----------
+let GHOST = +(ls('ghost') == null ? 10 : ls('ghost')), lastFlash = Date.now();
+function inkFlash() { const f = $('flash'); if (!f || f.style.display === 'block') return; lastFlash = Date.now();
+  f.style.background = '#000'; f.style.display = 'block'; setTimeout(() => { f.style.background = '#fff'; setTimeout(() => { f.style.display = 'none'; }, 220); }, 220); }
+function ghostApply() { document.documentElement.classList.toggle('calm', GHOST > 0); document.querySelectorAll('[data-gh]').forEach(b => b.classList.toggle('on', +b.dataset.gh === GHOST)); }
+ghostApply();
+setInterval(() => { if (GHOST > 0 && Date.now() - lastFlash >= GHOST * MIN && !document.hidden) inkFlash(); }, 30000);
+// 关掉弹出的页面（简报、卡片、设置、起飞前提醒板）以后也刷一次：大块内容刚换掉，最容易留残影
+{ const seen = {}, vis = el => getComputedStyle(el).display !== 'none';
+  const ob = new MutationObserver(ms => ms.forEach(m => { const el = m.target, v = vis(el), was = seen[el.id]; seen[el.id] = v;
+    if (GHOST > 0 && was && !v) setTimeout(inkFlash, 120); }));
+  ['sheet', 'set', 'board'].forEach(id => { const el = $(id); if (el) { seen[id] = vis(el); ob.observe(el, { attributes: true, attributeFilter: ['style', 'class'] }); } }); }
 let BOARDV = false, wpsTouch = 0;   // 手动滑过航路点那一行：20 秒内不自动滚回去
    // 起飞前提醒板开着没有
 let CUR = null, wplTouch = 0, HOV = null, ALSIG = '', FLASHED = {};
@@ -1143,6 +1159,8 @@ function lypShow() { $('lyp').innerHTML = [['r', XS('◯ 1h / 2h 距离圈', '�
 // 竖屏：「1 小时内备降」放到地图右下角（有内容才出现）；横屏放回右边栏
 const altlPlace = () => { const port = !matchMedia('(orientation:landscape) and (min-width:700px)').matches, a = $('altl'); if (port && a.parentNode !== $('mapw')) $('mapw').appendChild(a); else if (!port && a.parentNode !== $('side')) $('side').appendChild(a); };
 altlPlace(); addEventListener('resize', altlPlace);
+$('b-flash').onclick = () => { $('menu').classList.remove('open'); setTimeout(inkFlash, 150); };
+document.querySelectorAll('[data-gh]').forEach(b => b.onclick = () => { GHOST = +b.dataset.gh; ls('ghost', String(GHOST)); ghostApply(); if (GHOST) inkFlash(); });
 $('zbd').onclick = () => { BOARDV = !BOARDV; draw(); };
 $('zly').onclick = () => { const p = $('lyp'); if (p.style.display === 'block') { p.style.display = 'none'; return; } lypShow(); p.style.display = 'block'; };
 $('lyp').onclick = e => { const b = e.target.closest('[data-ly]'); if (!b) return; LAY[b.dataset.ly] = LAY[b.dataset.ly] ? 0 : 1; ls('lay', JSON.stringify(LAY)); lypShow(); draw(); };
