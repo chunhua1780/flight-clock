@@ -6,8 +6,31 @@ let LBK = []; try { LBK = JSON.parse(ls('lb') || '[]'); } catch (e) {}
 let LBQ = {}; try { LBQ = JSON.parse(ls('lbq') || '{}'); } catch (e) {}   // changes not yet uploaded
 const lbSave = () => { ls('lb', JSON.stringify(LBK)); ls('lbq', JSON.stringify(LBQ)); };
 let lbMsg = '';
+// 家里时钟用 ADS-B 判断的起降时间（和 iPad 一样）。等级：手改 > ADS-B > 估算 > 计划；手改的不动
+const LBRK = { man: 3, adsb: 2, est: 1.5, fa: 1, plan: 0 };
+async function lbAdsb(e) {
+  if (!e || !navigator.onLine) return false;
+  try {
+    const j = await (await fetch(API + '?action=logtimes&o=' + encodeURIComponent(e.depI || '') + '&d=' + encodeURIComponent(e.arrI || '') + '&t=' + (e.std || e.date) + '&reg=' + encodeURIComponent(e.reg || '') + '&_=' + Date.now(), { cache: 'no-store' })).json();
+    if (!j || !j.ok || !j.found || !j.status || !(j.status.off || j.status.on)) return false;
+    const st = j.status, y = JSON.parse(JSON.stringify(e)); y.src = y.src || {}; let ch = false;
+    const put = (f, v, src) => { if (v && (LBRK[src] || 0) >= (LBRK[y.src[f]] || 0) && y.src[f] !== 'man' && (y[f] !== v || y.src[f] !== src)) { y[f] = v; y.src[f] = src; ch = true; } };
+    put('to', st.off, 'adsb'); put('ldg', st.on, 'adsb');
+    const ok1 = v => v && st.off && st.off - v > 0 && st.off - v < 180 * MIN, mv = ok1(st.move) ? st.move : ok1(st.taxi) ? st.taxi - 2 * MIN : null;
+    if (mv) put('offB', mv, 'adsb'); else if (st.off) put('offB', st.off - Math.min(30, e.taxiP || 15) * MIN, 'est');
+    const ib = st.in && st.on && st.in - st.on > 0 && st.in - st.on < 180 * MIN ? st.in : null, lg = st.lastGnd && st.on && st.lastGnd > st.on && st.lastGnd - st.on < 180 * MIN ? st.lastGnd + MIN : 0;
+    if (ib) put('onB', ib, 'adsb'); else if (st.on) put('onB', Math.max(st.on + 10 * MIN, lg), 'est');
+    if (st.reg && !y.reg) { y.reg = st.reg; ch = true; }
+    if (ch) lbPut(y); return ch;
+  } catch (x) { return false; }
+}
+// 最近 3 天落地了、时间还不是 ADS-B / 手改的记录：自动去取
+async function lbAutoAdsb() { const now = Date.now(); let n = 0;
+  for (const e of LBK.filter(x => x.std > now - 3 * 864e5 && now > (x.ldg || 0) + 20 * MIN && ['to', 'ldg', 'offB', 'onB'].some(f => !x.src || (LBRK[x.src[f]] || 0) < 2)).slice(0, 4)) { if (await lbAdsb(e)) n++; }
+  return n; }
 async function lbSync() {
   if (!navigator.onLine || !ls('key')) { lbMsg = '📵 ' + X('离线：显示手机里保存的记录，改动有网时再同步', 'Offline — showing saved records; changes sync when online'); return; }
+  try { await lbAutoAdsb(); } catch (x) {}
   const send = Object.keys(LBQ).map(k => LBQ[k]);
   const j = await postK({ action: 'lbsync', entries: send, set: null, setU: 0, table: null });
   if (!j || !j.ok) { lbMsg = '⚠️ ' + ((j && j.error) || '?'); return; }
@@ -52,7 +75,7 @@ const LBF = ['block', 'air', 'pic', 'cop', 'night', 'ifr', 'toD', 'toNn', 'ldD',
 function lbTable(S) {
   const R = LBK.slice().sort((a, b) => (a.offB || a.date) - (b.offB || b.date)).map(e => [e, lbCalc(e, S)]); if (!R.length) return '<div class="ok">' + XS('还没有记录', 'No records') + '</div>';
   const tot = k => R.reduce((s, x) => s + (x[1][k] || 0), 0), bf = k => k === 'air' ? 0 : ((S.bf || {})[k] || 0), hasBf = LBF.some(k => (S.bf || {})[k]);
-  const tc = (e, f) => '<td class="lbt" data-k="' + esc(e.k) + '" data-f="' + f + '">' + lbHC(e[f]) + (e.src && e.src[f] === 'plan' ? '<sup>P</sup>' : '') + '</td>';
+  const tc = (e, f) => '<td class="lbt" data-k="' + esc(e.k) + '" data-f="' + f + '">' + lbHC(e[f]) + (e.src && { plan: '<sup>P</sup>', est: '<sup>E</sup>', adsb: '<sup>A</sup>', man: '<sup>✎</sup>' }[e.src[f]] || '') + '</td>';
   if (S.fmt === 'caac') {
     const H = '<tr><th rowspan="2">日期</th><th rowspan="2">航班号</th><th rowspan="2">型别</th><th rowspan="2">登记号</th><th colspan="2">航段</th><th colspan="4">时刻（UTC）</th><th colspan="2">飞行时间</th><th colspan="2">资格时间</th><th rowspan="2">夜航</th><th rowspan="2">仪表</th><th colspan="2">起飞</th><th colspan="2">着陆</th><th rowspan="2">备注</th></tr>'
       + '<tr><th>起飞地点</th><th>着陆地点</th><th>撤轮挡</th><th>起飞</th><th>着陆</th><th>挡轮挡</th><th>总时间</th><th>空中</th><th>机长</th><th>副驾驶</th><th>昼</th><th>夜</th><th>昼</th><th>夜</th></tr>';
@@ -72,11 +95,12 @@ async function openLog() {
   const paint = () => {
     const L = CUR, S = lbSet(), have = L && !L.noOfp && LBK.some(x => x.k === String(L.k).replace(/[^\w.-]/g, ''));
     sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="font-size:17px">📒 ' + XS('飞行记录本', 'Logbook') + '</b><span style="flex:1"></span>'
-      + '<span class="btn sg' + (S.fmt === 'caac' ? ' on' : '') + '" data-fmt="caac">中国民航</span><span class="btn sg' + (S.fmt !== 'caac' ? ' on' : '') + '" data-fmt="jepp">Jeppesen</span><span class="btn" id="lb-x">✕</span></div>'
+      + '<span class="btn sg' + (S.fmt === 'caac' ? ' on' : '') + '" data-fmt="caac">中国民航</span><span class="btn sg' + (S.fmt !== 'caac' ? ' on' : '') + '" data-fmt="jepp">Jeppesen</span><span class="btn" id="lb-a">📡 ADS-B</span><span class="btn" id="lb-x">✕</span></div>'
       + '<div class="ok">' + esc(lbMsg) + (Object.keys(LBQ).length ? ' · ' + Object.keys(LBQ).length + XS(' 条改动等有网同步', ' change(s) waiting') : '') + '</div>'
       + (L && !L.noOfp && !have ? '<span class="btn" id="lb-add">＋ ' + XS('记下这班 ', 'Log this flight ') + esc(L.no) + ' ' + esc(L.ai) + '→' + esc(L.bi) + '</span>' : '')
-      + lbTable(S) + '<div class="ok" style="font-size:12px">' + XS('表格可以左右滑动（手机横过来看更舒服）。点时刻可以改（UTC，4 位）。P = 计划时间。导出、承前数据、个人信息在 iPad 记录本里设置，这里自动同步。', 'Tap a time to edit (UTC). P = planned. Export and settings are on the iPad.') + '</div>';
+      + lbTable(S) + '<div class="ok" style="font-size:12px">' + XS('表格可以左右滑动（手机横过来看更舒服）。点时刻可以改（UTC，4 位）。P = 计划、E = 估算、A = ADS-B、✎ = 手改；等级高的为准（手改 > ADS-B > 估算 > 计划），同一等级用最后改的。导出、承前数据、个人信息在 iPad 记录本里设置，这里自动同步。', 'Tap a time to edit (UTC). P = planned. Export and settings are on the iPad.') + '</div>';
     $('lb-x').onclick = () => { sh.style.display = 'none'; draw(); };
+    $('lb-a').onclick = async () => { lbMsg = '⏳ ' + XS('取 ADS-B 起降时间…', 'Loading ADS-B times…'); paint(); let n = 0; for (const e of LBK.filter(x => x.std > Date.now() - 7 * 864e5)) { if (await lbAdsb(e)) n++; } lbMsg = n ? '✅ ' + XS('更新了 ' + n + ' 条（手改的不动）', n + ' updated (edited times kept)') : XS('没有新的 ADS-B 时间', 'No new ADS-B times'); paint(); lbSync().then(paint); };
     sh.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { ls('lbfmt', b.dataset.fmt); paint(); });
     if ($('lb-add')) $('lb-add').onclick = () => { lbFromLeg(CUR); lbMsg = '✅ ' + XS('已记下（有网时同步到所有设备）', 'Logged (syncs when online)'); paint(); lbSync().then(paint); };
     sh.querySelectorAll('td.lbt').forEach(el => el.onclick = () => { const k = el.dataset.k, f = el.dataset.f, e = LBK.find(x => x.k === k); if (!e) return;

@@ -30,9 +30,10 @@
     + '#pdchk .cols{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}#pdchk .ci{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:17px;font-weight:700;cursor:pointer}'
     + '#pdchk .ci i{flex:none;width:26px;height:26px;border:2px solid var(--dim);border-radius:7px;font-style:normal;text-align:center;line-height:22px;font-size:18px}#pdchk .ci.on{opacity:.45}#pdchk .ci.on i{background:#3fcf7f;border-color:#3fcf7f;color:#04210f}'
     + '#pd-gps{display:none;flex-basis:100%;max-width:420px;background:var(--panel);border:2px solid #f3b13c;border-radius:14px;padding:7px 12px;box-shadow:0 4px 16px rgba(0,0,0,.4)}#pd-gps .gh{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:#f3b13c}#pd-gps .gh span{flex:1}#pd-gps .gh b{cursor:pointer;color:var(--text);font-size:18px;padding:0 4px}#pd-gps .gs{font-size:18px;font-weight:800;line-height:1.45}'
+    + '#pd-apn{display:none;flex-basis:100%;max-width:440px;background:var(--panel);border:2px solid #6fb4ff;border-radius:14px;padding:7px 12px;box-shadow:0 4px 16px rgba(0,0,0,.4)}#pd-apn .ah{font-size:14px;font-weight:800;color:#6fb4ff}#pd-apn .ax{font-size:17px;font-weight:700;line-height:1.45;margin:3px 0}'
     + '#pdsh .tl div{padding:7px 4px;border-bottom:1px solid var(--line);font-size:16px;font-weight:700}#pdsh .tl b{display:inline-block;width:3.2em}#pdsh .tl small{display:block;font-weight:500;font-size:13px;color:var(--dim);margin-left:3.6em}#pdsh .tl .done{opacity:.45}#pdsh .tl .now{background:rgba(63,207,127,.15)}';
   document.head.appendChild(css);
-  const box = document.createElement('div'); box.id = 'pdx'; box.innerHTML = '<span class="ch" id="pd-cb"></span><span class="ch" id="pd-tl"></span><div id="pd-gps"></div>';
+  const box = document.createElement('div'); box.id = 'pdx'; box.innerHTML = '<span class="ch" id="pd-cb"></span><span class="ch" id="pd-tl"></span><div id="pd-apn"></div><div id="pd-gps"></div>';
   (document.getElementById('mapwrap') || document.body).appendChild(box);
   const ck = document.createElement('div'); ck.id = 'pdchk'; (document.getElementById('mapwrap') || document.body).appendChild(ck);
   const sh = document.createElement('div'); sh.id = 'pdsh'; sh.innerHTML = '<div class="in"></div>'; document.body.appendChild(sh);
@@ -126,8 +127,15 @@
   ck.onclick = e => { const o = S.ofp; if (!o) return; const st = ckGet(o), it = e.target.closest('.ci');
     if (e.target.closest('[data-x]')) st.x = 1; else if (it) { const i = +it.dataset.i; st[i] = st[i] ? 0 : 1; } else return;
     try { localStorage.setItem(ckKey(o), JSON.stringify(st)); } catch (x) {} ckShow(); };
+  // 机场提醒（和手机一样）：飞往这些机场，起飞前 24 小时到起飞一直显示，点「✓ 已办好」就不再提醒这一班
+  const APN = { WADD: [{ zh: '巴厘岛：起飞前上网填写印尼入境健康声明，拿到二维码（落地要出示）', en: 'Bali: complete the online Indonesia arrival health declaration and get the QR code before departure (shown on arrival)' }] };
+  function apnShow() { const o = S.ofp, b = document.getElementById('pd-apn'); let h = '';
+    if (o && std(o)) { const N = APN[o.flight.arr], k = 'fa.apn.' + o.flight.no + o.flight.date, t = now(); let done = null; try { done = localStorage.getItem(k); } catch (e) {}
+      if (N && !done && t < offOf(o) && t > std(o) - 24 * 36e5) h = '<div class="ah">📌 ' + XS('起飞前要办', 'Before departure') + ' · ' + esc(o.flight.arr) + '</div>' + N.map(n => '<div class="ax">' + thb(esc(n.zh), esc(n.en)) + '</div>').join('') + '<button class="btn sm" data-apn="' + esc(k) + '">✓ ' + XS('已办好', 'Done') + '</button>'; }
+    if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'block' : 'none'; }
+  document.getElementById('pd-apn').onclick = e => { const k = e.target.closest('[data-apn]'); if (k) { try { localStorage.setItem(k.dataset.apn, '1'); } catch (x) {} apnShow(); } };
   function upd() {
-    ckShow(); gpsShow();
+    ckShow(); gpsShow(); apnShow();
     const o = S.ofp, cb = document.getElementById('pd-cb'), tl = document.getElementById('pd-tl'); let hc = '', ht = '';
     if (o && std(o)) {
       const t = now(), s0 = std(o), pre = t < offOf(o), bt = s0 - CB_MIN * MIN;

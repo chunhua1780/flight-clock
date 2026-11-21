@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-21a';
+const BACKEND_VER = '2026-11-21b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -964,6 +964,13 @@ function lbBook_() {
   }
   return ss;
 }
+// 飞行记录：两台设备的同一条记录合并。起降四个时间按来源等级：手改 > ADS-B > 估算 > 飞行助手确认 > 计划；同一等级用最后改的。其它栏目：整条较新的为准
+function lbMerge_(a, ua, b, ub) {
+  const RK = { man: 3, adsb: 2, est: 1.5, fa: 1, plan: 0 }, nw = ub >= ua ? b : a, od = ub >= ua ? a : b, out = JSON.parse(JSON.stringify(nw)); out.src = out.src || {};
+  ['offB', 'to', 'ldg', 'onB'].forEach(function (f) { const sn = (nw.src || {})[f], so = (od.src || {})[f];
+    if (od[f] && (!nw[f] || (RK[so] || 0) > (RK[sn] || 0))) { out[f] = od[f]; out.src[f] = so; } });
+  return out;
+}
 function lbSync_(j) {
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -973,8 +980,10 @@ function lbSync_(j) {
     // 收到的修改：比服务器上新的才收
     (j.entries || []).forEach(function (e) {
       if (!e || !e.k) return; const u = +e.u || Date.now(), i = idx[e.k];
-      const row = [e.k, u, e.del ? 1 : 0, e.del ? '' : JSON.stringify(e).slice(0, 49000)];
-      if (i == null) { idx[e.k] = rows.length; rows.push(row); } else if (u >= +rows[i][1]) rows[i] = row;
+      if (i == null) { idx[e.k] = rows.length; rows.push([e.k, u, e.del ? 1 : 0, e.del ? '' : JSON.stringify(e).slice(0, 49000)]); return; }
+      let old = null; try { old = +rows[i][2] ? null : JSON.parse(rows[i][3]); } catch (x) {}
+      const m = e.del || !old ? (u >= +rows[i][1] ? e : null) : lbMerge_(old, +rows[i][1], e, u);
+      if (m) rows[i] = [e.k, Math.max(u, +rows[i][1]), m.del ? 1 : 0, m.del ? '' : JSON.stringify(m).slice(0, 49000)];
     });
     if (rows.length) sh.getRange(2, 1, rows.length, 4).setValues(rows);
     // 设置
