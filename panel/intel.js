@@ -8,7 +8,11 @@
 const GPS = { fix: null, web: false };
 function gpsRead() {
   try { if (window.AndroidPanel && AndroidPanel.gps) { const s = AndroidPanel.gps(); if (s) GPS.fix = JSON.parse(s); } } catch (e) {}
-  const f = GPS.fix; return f && Date.now() - f.t < 3 * 60e3 && (f.acc < 0 || f.acc < 500) ? f : null;   // older than 3 minutes = not used
+  const f = GPS.fix; if (!f) return null;
+  // GPS 卡住了（位置 3 分钟都没变，地速却很大）：不用，改用估算
+  const key = f.lat.toFixed(4) + ',' + f.lon.toFixed(4); if (key !== GPS.lk) { GPS.lk = key; GPS.lkt = Date.now(); }
+  if (f.gs > 80 && Date.now() - GPS.lkt > 3 * 60e3) return null;
+  return Date.now() - f.t < 3 * 60e3 && (f.acc < 0 || f.acc < 500) ? f : null;   // older than 3 minutes = not used
 }
 (function webGps() {   // web version (iPad / computer): browser location, if the device has GPS
   if (window.AndroidPanel || !navigator.geolocation) return;

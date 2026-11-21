@@ -184,7 +184,7 @@ html.eink #gpsc{border-color:#000}html.eink #gpsc .gh{color:#000}
 html.cbold #lyp{border-color:#0f2c56}html.cbold #lyp .btn.on{background:#0f2c56;border-color:#0f2c56}
 #altl{flex:none;border-top:3px solid #000;font-size:12px;line-height:1.2;max-height:42%;overflow-y:auto}#altl:empty{display:none}
 #altl .ah{display:flex;align-items:center;gap:4px;padding:2px 4px;font-weight:900;font-size:11.5px;background:#000;color:#fff}#altl .ah span{flex:1}
-#altl .ar{display:flex;flex-wrap:wrap;align-items:center;gap:1px 4px;padding:3px 4px;border-bottom:1px solid #ccc;font-weight:800;cursor:pointer}#altl .ar b{font-size:14px;font-weight:900}#altl .ar .d{margin-left:auto;font-size:11px;font-weight:700;color:#444;white-space:nowrap;font-variant-numeric:tabular-nums}#altl .wd{flex:none}
+#altl .ar{display:flex;flex-wrap:wrap;align-items:center;gap:1px 4px;padding:3px 4px;border-bottom:1px solid #ccc;font-weight:800;cursor:pointer}#altl .ar b{font-size:14px;font-weight:900}#altl .ar .d{margin-left:auto;font-size:11px;font-weight:700;color:#444;white-space:nowrap;font-variant-numeric:tabular-nums}#altl .wd{flex:none}#altl .ba{display:inline-block;font-style:normal;font-weight:900;font-size:13px;margin-right:3px;color:#000}
 .ct{display:inline-block;min-width:22px;text-align:center;border-radius:5px;font-size:10.5px;font-weight:900;padding:0 3px;border:1.5px solid #000;color:#000}
 .ct.cD{background:#14a04f;color:#fff;border-color:#14a04f}.ct.cA1{background:#8ff0a8}.ct.cA2{background:#f7dc2a}.ct.cCA{background:#ff8c1a}.ct.cEA{background:#ff3b30;color:#fff;border-color:#ff3b30}.ct.cN{background:#eee;color:#666;border-color:#999}
 .wd{display:inline-block;width:10px;height:10px;border-radius:50%;border:1.5px solid #000}.wd.green{background:#14a04f}.wd.amber{background:#ffb000}.wd.red{background:#e00000}.wd.none{background:#fff}
@@ -400,7 +400,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611210644';
+const PAGEV = '202611210722';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -681,7 +681,7 @@ function drawMap(L, el, ph, S, hot) {
     g.fillStyle = '#d00000'; g.beginPath(); g.arc(q[0], q[1] - 18, 9, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 14px sans-serif'; g.fillText('!', q[0] - 2.5, q[1] - 13); });
   g.save(); g.translate(ac[0], ac[1]); g.rotate(hdg); g.fillStyle = S && S.src === 'GPS' ? '#00c853' : MC.ac; g.strokeStyle = '#000'; g.lineWidth = LT ? 1.5 : 2.5;   // 飞机：有 GPS = 绿色；估算 = 彩色屏黄色 / 浅色红色，加黑边
   const z = LT ? 1 : 1.35; g.scale(z, z); g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.fill(); g.stroke(); g.restore();
-  CUR_POS = P; drawLayers(L, P, xy, s, W, H, NOW());
+  CUR_POS = P; ACTRK = ((hdg * 180 / Math.PI) % 360 + 360) % 360; drawLayers(L, P, xy, s, W, H, NOW());
   // 比例尺 + 北
   const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; if (!LT) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(W - px - 56, H - 32, px + 8, 24); } g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = 'bold 11px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
 }
@@ -867,7 +867,7 @@ function draw() {
     const riskFir = new Set((L.R.enr || []).map(r => r[2].loc)), FIW = {}; FI.forEach(f => FIW[f[2]] = f);
     // 只显示最近的 7 个航路点。每个点的名字用框圈起来：正在飞向的 = 绿框；普通 = 蓝框；移交点 = 橙框，框里交替显示下一个管制区的名字和四字代码
     const Nc = N.filter(w => w.length >= 4), cum = cumNm(Nc), dNow = alongNm(Nc, cum, Math.max(0, el));
-    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), a0 = Math.max(0, Math.min(ni - (ph === 1 ? 1 : 0), N.length - 12)), a1 = Math.min(N.length, a0 + (matchMedia('(orientation:landscape) and (min-width:700px)').matches ? 40 : 6));   // 竖屏 6 个，横屏排满
+    const ni = Math.max(0, nx ? N.indexOf(nx) : ph === 2 ? N.length - 1 : 0), nShow = matchMedia('(orientation:landscape) and (min-width:700px)').matches ? 40 : 6, a0 = Math.max(0, Math.min(ni - (ph === 1 ? 1 : 0), N.length - Math.min(nShow, 12))), a1 = Math.min(N.length, a0 + nShow);   // 竖屏 6 个，横屏排满；快到目的地时也跟着往上走   // 竖屏 6 个，横屏排满
     let h = '';
     N.slice(a0, a1).forEach(w => {
       const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
@@ -1113,11 +1113,13 @@ function apCands(L) {
 }
 function apWx(L, icao, at) { const r = L.wx && L.wx[icao]; if (!r || !(r.m || r.t)) return null;
   try { const M = r.m ? WX.metar(r.m, at) : null, T = r.t ? WX.taf(String(r.t).replace(/^\s*TAF\s+((AMD|COR)\s+)?[A-Z]{4}\s+/, ''), at) : null; const w = (M || T) ? WX.atWin(T, M, at) : null; return w ? { w, rate: WX.rate(w) } : null; } catch (e) { return null; } }
+const brgOf = (a, b) => { const r = Math.PI / 180, y = Math.sin((b[1] - a[1]) * r) * Math.cos(b[0] * r), x = Math.cos(a[0] * r) * Math.sin(b[0] * r) - Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r); return (Math.atan2(y, x) / r + 360) % 360; };
+let ACTRK = 0;   // 飞机现在的航迹（真航向，度），画地图时更新
 // 1 小时圈以内的合适备降场：天气 → 类别 → 距离
 function altNow(L, pos, t) {
   if (!pos) return []; const ti = tyIdx(L), R = { green: 0, none: 1, amber: 2, red: 3 };
   return apCands(L).map(a => { const d = gcd(pos, a.pos); if (d > R1NM) return null; const cat = a.e ? ekCat(a.e, ti, t) : null; if (a.e && !(cat in CATO)) return null;
-    const wx = apWx(L, a.icao, t + d / R1NM * HOUR); return { a, d, cat, rate: wx ? wx.rate : 'none' }; }).filter(Boolean)
+    const wx = apWx(L, a.icao, t + d / R1NM * HOUR); return { a, d, cat, rate: wx ? wx.rate : 'none', brg: brgOf(pos, a.pos) }; }).filter(Boolean)
     .sort((x, y) => (R[x.rate] - R[y.rate]) || ((CATO[x.cat] == null ? 9 : CATO[x.cat]) - (CATO[y.cat] == null ? 9 : CATO[y.cat])) || (x.d - y.d)).slice(0, 6);
 }
 const ctTag = c => '<span class="ct c' + (c && c in CATO ? c : 'N') + '">' + (c && c in CATO ? c : '—') + '</span>';
@@ -1125,7 +1127,7 @@ function altlShow(L, pos, t, ph) {
   const b = $('altl'); let h = '';
   if (LAY.l && !L.noOfp && pos && ph !== 2) { const A = altNow(L, pos, t);
     h = '<div class="ah"><span>🛬 ' + XS('1 小时内备降', 'Altn ≤ 1 h') + '</span>' + (EKT ? '' : '<small style="font-weight:600">' + XS('无授权表', 'no EK table') + '</small>') + '</div>'
-      + (A.length ? A.map(x => '<div class="ar" data-ap="' + x.a.icao + '"><span class="wd ' + x.rate + '"></span>' + ctTag(x.cat) + '<b>' + x.a.icao + '</b><span class="d">' + Math.round(x.d) + 'nm · ' + Math.round(x.d / R1NM * 60) + "'</span></div>").join('') : '<div class="ar" style="cursor:default;color:#c00000">' + XS('1 小时内没有合适的机场', 'None within 1 h') + '</div>'); }
+      + (A.length ? A.map(x => '<div class="ar" data-ap="' + x.a.icao + '"><span class="wd ' + x.rate + '"></span>' + ctTag(x.cat) + '<b>' + x.a.icao + '</b><span class="d"><i class="ba" style="transform:rotate(' + Math.round(x.brg - ACTRK) + 'deg)">↑</i>' + String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d) + 'nm · ' + Math.round(x.d / R1NM * 60) + "'</span></div>").join('') : '<div class="ar" style="cursor:default;color:#c00000">' + XS('1 小时内没有合适的机场', 'None within 1 h') + '</div>'); }
   if (b.innerHTML !== h) b.innerHTML = h;
   requestAnimationFrame(() => { const c = $('alc'), up = b.parentNode === $('mapw') && c && c.style.display === 'block'; b.style.bottom = up ? (c.getBoundingClientRect().height + 62) + 'px' : ''; });   // 竖屏：警告卡片开着时，备降列表往上让开
 }
@@ -1150,6 +1152,10 @@ function drawLayers(L, P, xy, s, W, H, t) {
     apCands(L).forEach(a => { const q = xy(a.pos[0], a.pos[1]); if (q[0] < -10 || q[0] > W + 10 || q[1] < -10 || q[1] > H + 10) return; const cat = a.e ? ekCat(a.e, ti, t) : null; if (a.e && !(cat in CATO)) return;
       const big = a.icao === L.dep || a.icao === L.arr || (L.alt || []).includes(a.icao); g.beginPath(); g.arc(q[0], q[1], big ? 7 : 5, 0, 7); g.fillStyle = CATCOL[cat] || '#fff'; g.fill(); g.lineWidth = big ? 2.5 : 1.5; g.strokeStyle = '#000'; g.stroke();
       if (big || ZOOM <= 900) { g.font = 'bold 10.5px sans-serif'; const tw = g.measureText(a.icao).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(q[0] - tw / 2 - 2, q[1] + 7, tw + 4, 12); g.fillStyle = '#000'; g.fillText(a.icao, q[0] - tw / 2, q[1] + 17); } }); }
+  if (LAY.l && P && !L.noOfp) { const c = xy(P[0], P[1]); g.save(); g.setLineDash([3, 5]); g.lineWidth = 1.6;   // 飞机 → 1 小时内的备降场：虚线 + 方位 / 距离
+    altNow(L, P, t).slice(0, 4).forEach(x => { const q = xy(x.a.pos[0], x.a.pos[1]); g.strokeStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(q[0], q[1]); g.stroke();
+      const lab = String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d), mx = c[0] + (q[0] - c[0]) * .55, my = c[1] + (q[1] - c[1]) * .55; g.setLineDash([]); g.font = 'bold 10.5px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.88)'; g.fillRect(mx - tw / 2 - 3, my - 8, tw + 6, 13); g.fillStyle = '#000'; g.fillText(lab, mx - tw / 2, my + 2); g.setLineDash([3, 5]); });
+    g.restore(); }
   if (LAY.r && P) { const c = xy(P[0], P[1]);
     [[R1NM, '#d08a00', '1h · 410 nm'], [R2NM, '#5a6f99', '2h · 820 nm']].forEach(([nm, col, lab]) => { const r = nm * s; g.setLineDash([8, 7]); g.lineWidth = 2.2; g.strokeStyle = col; g.beginPath(); g.arc(c[0], c[1], r, 0, 7); g.stroke(); g.setLineDash([]);
       if (c[1] - r > 14) { g.font = 'bold 11px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(c[0] - tw / 2 - 3, c[1] - r - 7, tw + 6, 14); g.fillStyle = col; g.fillText(lab, c[0] - tw / 2, c[1] - r + 4); } }); }
