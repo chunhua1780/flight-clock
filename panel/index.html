@@ -225,7 +225,7 @@ html.eink #apn{border-color:#000}html.eink #apn .ah{color:#000}
 #depc .on{font-size:12px;font-weight:900;color:#444;letter-spacing:.06em}#depc .on b{display:block;font-size:52px;line-height:.95;color:#000;letter-spacing:-.02em}
 #depc .rw{font-size:22px;font-weight:900;line-height:1.15;margin-top:3px}#depc .rw small{font-size:13px;color:#444;margin-right:4px}#depc .sd{font-size:20px;font-weight:900;color:#1c5fc4}
 html.cbold #depc{border-color:#0f2c56}html.eink #depc .sd{color:#000}
-#tocd{display:none;position:absolute;top:8px;right:54px;z-index:6;background:#fff;border:3px solid var(--red);border-radius:12px;padding:3px 10px;font-size:30px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,.2)}#tocd small{font-size:13px;margin-right:5px}html.eink #tocd{border-color:#000;color:#000}
+#tocd{display:none;position:absolute;top:8px;right:54px;z-index:6;background:#fff;border:3px solid var(--red);border-radius:12px;padding:3px 10px 4px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,.2);text-align:right}#tocd .c1{font-size:30px}#tocd .c1 small{font-size:12px;margin-right:6px}#tocd .c2{font-size:13px;margin-top:2px}html.eink #tocd{border-color:#000;color:#000}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -411,7 +411,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611221137';
+const PAGEV = '202611221145';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -1192,16 +1192,19 @@ function apnShow(L, ph, now) {
   if (N && ph === 0 && now > L.std - 24 * HOUR && !ls(k)) h = '<div class="ah">📌 ' + XS('起飞前要办', 'Before departure') + ' · ' + esc(L.arr) + '</div>' + N.map(n => '<div class="ax">' + esc(LANG === 'en' ? n.en : n.zh) + (LANG === 'both' ? '<div style="font-size:12px;font-weight:600;color:#444">' + esc(n.en) + '</div>' : '') + '</div>').join('') + '<span class="btn" data-apn="' + esc(k) + '">✓ ' + XS('已办好', 'Done') + '</span>';
   if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'block' : 'none';
 }
+setInterval(() => { try { const L = CUR; if (L && !L.noOfp && !DEMO) { const now = Date.now(), off = offOf(L); depShow(L, now < off ? 0 : 1, off, now); } } catch (e) {} }, 30000);   // 倒计时每 30 秒更新
 $('apn').onclick = e => { const k = e.target.closest('[data-apn]'); if (k) { ls(k.dataset.apn, '1'); draw(); } };
 // ---------- 起飞前：OFP 编号（大数字）、起飞跑道、离场程序；航班号下面红色倒计时（到起飞） ----------
 function depShow(L, ph, off, now) {
   const b = $('depc'), c = $('tocd'); let h = '', t = '';
   if (ph === 0 && !L.noOfp) {
     h = (L.ofpn ? '<div class="on">OFP<b>' + L.ofpn + '</b></div>' : '') + (L.drw ? '<div class="rw"><small>' + esc(L.dep) + '</small>RWY ' + esc(L.drw) + '</div>' : '') + (L.sid ? '<div class="sd">' + esc(L.sid) + '</div>' : '');
-    const m = Math.max(0, Math.round((off - now) / MIN)); if (off - now < 24 * HOUR) t = '<small>T/O</small>' + Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
+    // 两个时间都写明：大字 = 到 STD（计划撤轮挡）；小字 = 到离地起飞（ATD 或 STD + 滑行）。剩余分钟往下取整
+    const hm = ms => { const m = Math.max(0, Math.floor(ms / MIN)); return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); }, sd = atdOf(L) ? 0 : L.std;
+    if (off - now < 24 * HOUR) t = (sd && sd > now ? '<div class="c1"><small>STD ' + hmZ(sd) + 'Z</small>' + hm(sd - now) + '</div>' : '') + '<div class="c2">T/O ' + hmZ(off) + 'Z · ' + XS('还有 ', 'in ') + hm(off - now) + '</div>';
   }
   if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'block' : 'none';
-  if (c.innerHTML !== t) c.innerHTML = t; c.style.display = t ? 'inline-block' : 'none';
+  if (c.innerHTML !== t) c.innerHTML = t; c.style.display = t ? 'block' : 'none';
 }
 // 出门检查单：接车前 20 分钟出现（接车 = STD 前 135 分钟），全部勾完就消失；没勾完一直显示到 STD 前 60 分钟。外站短停（人在机场）不显示
 const PICKUP_MIN = 135, CHK = [['📱', '手机', 'Phone'], ['👛', '钱包', 'Wallet'], ['🛂', '护照', 'Passport'], ['🪪', '执照', 'Licence'], ['🩺', '体检合格证', 'Medical'], ['📲', 'iPad', 'iPad'], ['🧢', '帽子', 'Hat'], ['👔', '制服', 'Uniform'], ['👟', '过夜的鞋', 'Overnight shoes'], ['👕', '过夜的衣服', 'Overnight clothes'], ['🥪', '吃的', 'Food']];
