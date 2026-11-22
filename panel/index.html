@@ -225,7 +225,7 @@ html.eink #apn{border-color:#000}html.eink #apn .ah{color:#000}
 #depc .on{font-size:12px;font-weight:900;color:#444;letter-spacing:.06em}#depc .on b{display:block;font-size:52px;line-height:.95;color:#000;letter-spacing:-.02em}
 #depc .rw{font-size:22px;font-weight:900;line-height:1.15;margin-top:3px}#depc .rw small{font-size:13px;color:#444;margin-right:4px}#depc .sd{font-size:20px;font-weight:900;color:#1c5fc4}
 html.cbold #depc{border-color:#0f2c56}html.eink #depc .sd{color:#000}
-#tocd{display:none;position:absolute;top:8px;right:54px;z-index:6;background:#fff;border:3px solid var(--red);border-radius:12px;padding:3px 10px 4px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,.2);text-align:right}#tocd .c1{font-size:30px}#tocd .c1 small{font-size:12px;margin-right:6px}#tocd .c2{font-size:13px;margin-top:2px}html.eink #tocd{border-color:#000;color:#000}
+#tocd{display:none;position:absolute;top:8px;right:54px;z-index:6;background:#fff;border:3px solid var(--red);border-radius:12px;padding:3px 10px 4px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,.2);text-align:right}#tocd{font-size:30px}#tocd small{font-size:12px;margin-right:6px}html.eink #tocd{border-color:#000;color:#000}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -411,7 +411,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611221145';
+const PAGEV = '202611221147';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -851,7 +851,7 @@ function draw() {
   const cs = csOf(L), dg = String(L.no || '').replace(/^[A-Z]{2}/, '').replace(/^0+(?=\d)/, '');
   const fl = '<small>EK</small>' + esc(dg) + '<span class="dd">▾</span>'; if ($('fl').innerHTML !== fl) { $('fl').innerHTML = fl; } fitFl();   // 航班号统一 EK 开头；ATC 呼号写在下面一行
   $('rt').innerHTML = '<b class="rr">' + (ph === 0 && L.dep && L.arr ? esc(L.ai) + '<small>/' + esc(L.dep) + '</small> → ' + esc(L.bi) + '<small>/' + esc(L.arr) + '</small>' : esc(L.ai) + ' → ' + esc(L.bi)) + '</b><span class="rc">' + esc(cs) + (ls('cs.' + L.k) ? '✎' : '') + (L.reg ? ' · ' + esc(L.reg) : '') + '</span><b id="phx"></b>';
-  $('ph').style.display = 'none'; $('phx').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : X('起飞前 ', 'T/O in ') + dur((off - now) / MIN)) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
+  $('ph').style.display = 'none'; $('phx').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : (L.std > now ? X('轮挡前 ', 'Off-blk in ') + dur((L.std - now) / MIN) : X('已过轮挡 ', 'Off-blk +') + dur((now - L.std) / MIN))) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
   const P = LS.P ? { p: LS.P } : wpos(L, ph === 0 ? -1 : ph === 2 ? 1e9 : el);
   if (!DEMO) setNight(MODE === 'night' || (MODE === 'auto' && P && isDark(now, [0, P.p[0], P.p[1]], LS.alt != null ? LS.alt : altAt(L, ph, el))));
   // 地图角上：现在在哪个管制区（离线边界数据库）、位置来源
@@ -1199,9 +1199,9 @@ function depShow(L, ph, off, now) {
   const b = $('depc'), c = $('tocd'); let h = '', t = '';
   if (ph === 0 && !L.noOfp) {
     h = (L.ofpn ? '<div class="on">OFP<b>' + L.ofpn + '</b></div>' : '') + (L.drw ? '<div class="rw"><small>' + esc(L.dep) + '</small>RWY ' + esc(L.drw) + '</div>' : '') + (L.sid ? '<div class="sd">' + esc(L.sid) + '</div>' : '');
-    // 两个时间都写明：大字 = 到 STD（计划撤轮挡）；小字 = 到离地起飞（ATD 或 STD + 滑行）。剩余分钟往下取整
-    const hm = ms => { const m = Math.max(0, Math.floor(ms / MIN)); return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); }, sd = atdOf(L) ? 0 : L.std;
-    if (off - now < 24 * HOUR) t = (sd && sd > now ? '<div class="c1"><small>STD ' + hmZ(sd) + 'Z</small>' + hm(sd - now) + '</div>' : '') + '<div class="c2">T/O ' + hmZ(off) + 'Z · ' + XS('还有 ', 'in ') + hm(off - now) + '</div>';
+    // 只倒数轮挡时间（STD 计划撤轮挡）；过了还没起飞就显示过了多久（+）。剩余分钟往下取整
+    const hm = ms => { const m = Math.floor(Math.abs(ms) / MIN); return Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0'); }, sd = L.std;
+    if (sd && sd - now < 24 * HOUR) t = '<small>' + XS('轮挡', 'OFF BLK') + ' ' + hmZ(sd) + 'Z</small>' + (sd >= now ? hm(sd - now) : '+' + hm(now - sd));
   }
   if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'block' : 'none';
   if (c.innerHTML !== t) c.innerHTML = t; c.style.display = t ? 'block' : 'none';
