@@ -411,7 +411,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611221147';
+const PAGEV = '202611221148';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -851,7 +851,7 @@ function draw() {
   const cs = csOf(L), dg = String(L.no || '').replace(/^[A-Z]{2}/, '').replace(/^0+(?=\d)/, '');
   const fl = '<small>EK</small>' + esc(dg) + '<span class="dd">▾</span>'; if ($('fl').innerHTML !== fl) { $('fl').innerHTML = fl; } fitFl();   // 航班号统一 EK 开头；ATC 呼号写在下面一行
   $('rt').innerHTML = '<b class="rr">' + (ph === 0 && L.dep && L.arr ? esc(L.ai) + '<small>/' + esc(L.dep) + '</small> → ' + esc(L.bi) + '<small>/' + esc(L.arr) + '</small>' : esc(L.ai) + ' → ' + esc(L.bi)) + '</b><span class="rc">' + esc(cs) + (ls('cs.' + L.k) ? '✎' : '') + (L.reg ? ' · ' + esc(L.reg) : '') + '</span><b id="phx"></b>';
-  $('ph').style.display = 'none'; $('phx').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : (L.std > now ? X('轮挡前 ', 'Off-blk in ') + dur((L.std - now) / MIN) : X('已过轮挡 ', 'Off-blk +') + dur((now - L.std) / MIN))) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
+  $('ph').style.display = 'none'; $('phx').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : (L.std > now ? X('轮挡前 ', 'Off-blk in ') + dur(Math.floor((L.std - now) / MIN)) : X('已过轮挡 ', 'Off-blk +') + dur(Math.floor((now - L.std) / MIN)))) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
   const P = LS.P ? { p: LS.P } : wpos(L, ph === 0 ? -1 : ph === 2 ? 1e9 : el);
   if (!DEMO) setNight(MODE === 'night' || (MODE === 'auto' && P && isDark(now, [0, P.p[0], P.p[1]], LS.alt != null ? LS.alt : altAt(L, ph, el))));
   // 地图角上：现在在哪个管制区（离线边界数据库）、位置来源
