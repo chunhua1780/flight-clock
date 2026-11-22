@@ -225,7 +225,7 @@ html.eink #apn{border-color:#000}html.eink #apn .ah{color:#000}
 #depc .on{font-size:12px;font-weight:900;color:#444;letter-spacing:.06em}#depc .on b{display:block;font-size:52px;line-height:.95;color:#000;letter-spacing:-.02em}
 #depc .rw{font-size:22px;font-weight:900;line-height:1.15;margin-top:3px}#depc .rw small{font-size:13px;color:#444;margin-right:4px}#depc .sd{font-size:20px;font-weight:900;color:#1c5fc4}
 html.cbold #depc{border-color:#0f2c56}html.eink #depc .sd{color:#000}
-#tocd{display:none;font-size:24px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1}#tocd small{font-size:12px;margin-right:4px}
+#tocd{display:none;position:absolute;top:8px;right:54px;z-index:6;background:#fff;border:3px solid var(--red);border-radius:12px;padding:3px 10px;font-size:30px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,.2)}#tocd small{font-size:13px;margin-right:5px}html.eink #tocd{border-color:#000;color:#000}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -282,9 +282,9 @@ html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.e
 </head>
 <body>
 <div id="app">
-  <div id="top"><div id="sbar"></div><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><span id="tocd"></span><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
+  <div id="top"><div id="sbar"></div><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="wps"></div><div id="legs"></div>
-  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><div id="mcards"><div id="depc"></div><div id="apn"></div><div id="gpsc"></div></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><div id="lyp"></div>
+  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span id="tocd"></span><div id="mcards"><div id="depc"></div><div id="apn"></div><div id="gpsc"></div></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><div id="lyp"></div>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div><div id="altl"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div><div id="chk"></div>
@@ -411,7 +411,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611221135';
+const PAGEV = '202611221137';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -884,7 +884,7 @@ function draw() {
     N.slice(a0, a1).forEach(w => {
       const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
       const dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
-      h += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
+      h += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (ph === 0 && w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (ph === 0 && w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
         + (f ? '<span class="hf" data-fir="' + esc(code) + '"><span class="h1">' + (riskFir.has(code) ? '⚠' : '') + esc(f[0]) + '</span><span class="h2">' + esc(f[1]) + '</span></span>' : '') + '</span>'
         + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? '<span class="tg"> ' + dur(w[1] - el) + '</span>' : '') + '</span></div>';
     });
@@ -896,7 +896,7 @@ function draw() {
       N.slice(b0, b1).forEach(w => {
         const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
         const dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
-        hs += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
+        hs += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (ph === 0 && w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (ph === 0 && w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
           + (f ? '<span class="hf" data-fir="' + esc(code) + '"><span class="h1">' + (riskFir.has(code) ? '⚠' : '') + esc(f[0]) + '</span><span class="h2">' + esc(f[1]) + '</span></span>' : '') + '</span>'
           + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? '<span class="tg"> ' + dur(w[1] - el) + '</span>' : '') + '</span></div>';
       });
