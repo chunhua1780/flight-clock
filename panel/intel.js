@@ -171,11 +171,11 @@ function fiDrawMap(g, xy, hot, W, H) {
   if (!FIDB || !FIDB.items) return; const t = NOW();
   // 上传的航路点（放大到 600 海里以内才画，灰色小三角）
   if (W && ZOOM <= 600 && WPTL.length) { const vis = []; for (const w of WPTL) { const q = xy(w.lat, w.lon); if (q[0] > -10 && q[0] < W + 10 && q[1] > -10 && q[1] < H + 10) { vis.push([q, w.name]); if (vis.length > 400) break; } }
-    g.fillStyle = '#888'; g.font = '10px sans-serif'; vis.forEach(([q, n]) => { g.beginPath(); g.moveTo(q[0], q[1] - 4); g.lineTo(q[0] + 3.5, q[1] + 2.5); g.lineTo(q[0] - 3.5, q[1] + 2.5); g.closePath(); g.fill(); if (vis.length < 120) g.fillText(n, q[0] + 5, q[1] + 3); }); }
+    g.fillStyle = '#888'; g.font = '700 12px sans-serif'; vis.forEach(([q, n]) => { g.beginPath(); g.moveTo(q[0], q[1] - 4); g.lineTo(q[0] + 3.5, q[1] + 2.5); g.lineTo(q[0] - 3.5, q[1] + 2.5); g.closePath(); g.fill(); if (vis.length < 120) g.fillText(n, q[0] + 5, q[1] + 3); }); }
   FIDB.items.forEach(x => { if (!fiUsable(x, t)) return; const G = fiGeom(x); if (!G || ((x.firOnly || BOUNDARY.test(x.type)) && !hot[x.id]) || G.bb[2] - G.bb[0] > 300) return;   // 环绕地球的纬度带（极区）不画
     const h = hot[x.id], big = x.firOnly || BOUNDARY.test(x.type); g.strokeStyle = h ? '#d00000' : '#7a3db8'; g.fillStyle = big ? 'rgba(0,0,0,0)' : h ? 'rgba(208,0,0,.10)' : 'rgba(122,61,184,.08)'; g.lineWidth = big ? 1.3 : h ? 2.5 : 1.6; g.setLineDash(big ? [8, 5] : h ? [] : [5, 3]);   // 整个 FIR 的提醒：只画细虚线边界，不铺颜色
     G.R.forEach(r => { g.beginPath(); r.forEach((p, i) => { const q = xy(p[1], p[0]); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); g.fill(); g.stroke(); });
-    g.setLineDash([]); const q = xy(G.R[0][0][1], G.R[0][0][0]); g.fillStyle = h ? '#d00000' : '#7a3db8'; g.font = 'bold 11px sans-serif'; g.fillText(x.name.slice(0, 22), q[0] + 3, q[1] - 3); });
+    g.setLineDash([]); const q = xy(G.R[0][0][1], G.R[0][0][0]); g.fillStyle = h ? '#d00000' : '#7a3db8'; g.font = '900 13px sans-serif'; g.fillText(x.name.slice(0, 22), q[0] + 3, q[1] - 3); });
 }
 
 fiIndex();

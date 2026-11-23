@@ -204,7 +204,7 @@ html.cbold #altl{border-top-color:#0f2c56}html.cbold #altl .ah{background:#0f2c5
 #wps .fx{flex:none;display:flex;flex-direction:column;justify-content:center;padding:2px 8px;border-left:5px solid #e07000;font-size:11px;font-weight:800;line-height:1.25;color:#000;white-space:nowrap}#wps .fx b{font-size:14px}
 #side{display:none}
 #alc{right:4px}#warn{right:8px}
-#mapw > #altl{position:absolute;right:8px;bottom:52px;width:min(250px,64%);max-height:42%;background:#fff;border:2.5px solid #000;border-radius:12px;overflow:hidden auto;z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#mapw > #altl{position:absolute;right:8px;bottom:52px;width:min(250px,64%);max-height:42%;background:#fff;border:2.5px solid #000;border-radius:12px;overflow:hidden auto;z-index:7;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 html.cbold #mapw > #altl{border-color:#0f2c56}
 }
 /* 左上角一行绿色小字：位置来源（GPS / 估算）+ 电量 */
@@ -226,6 +226,11 @@ html.eink #apn{border-color:#000}html.eink #apn .ah{color:#000}
 #depc .rw{font-size:22px;font-weight:900;line-height:1.15;margin-top:3px}#depc .rw small{font-size:13px;color:#444;margin-right:4px}#depc .sd{font-size:20px;font-weight:900;color:#1c5fc4}
 html.cbold #depc{border-color:#0f2c56}html.eink #depc .sd{color:#000}
 #tocd{display:none;position:absolute;top:8px;right:54px;z-index:6;background:#fff;border:3px solid var(--red);border-radius:12px;padding:3px 10px 4px;font-weight:900;color:var(--red);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,.2);text-align:right}#tocd{font-size:30px}#tocd small{font-size:12px;margin-right:6px}html.eink #tocd{border-color:#000;color:#000}
+/* 现在的管制区：不要底色，大一号粗字直接写在地图上（白色描边，墨水屏上也看得清） */
+#firl,html.cbold #firl,html.eink #firl{background:none!important;border:0!important;padding:0!important;font-size:19px!important;font-weight:900!important;color:#000!important;letter-spacing:.01em;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 4px #fff,1px 1px 0 #fff,-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff}
+/* 字更粗：离远一点也看得见 */
+.wp .m{font-weight:800!important}.wp .m .t{font-weight:900!important}.rt .rc{font-weight:800}.row .v .s{font-weight:800}.si span{font-weight:800}.al .at small,.al .am{font-weight:700}#st{font-weight:800}.ok{font-weight:700}.nt .zh{font-weight:800}#wps .fx{font-weight:900}#altl .ar .d{font-weight:900;color:#000}
+#altl .ah{cursor:grab;touch-action:none}#altl .ah .gr{font-size:14px;opacity:.75}
 #cbt .ex{display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--red);color:#fff;font-size:17px}
 html.cbold #cbt{border-color:#0f2c56}html.eink #cbt .ex{background:#000}
 .cc{border:2.5px solid #000;border-radius:14px;padding:8px 12px;margin:10px 0}.cc h4{margin:0 0 6px;font-size:19px}.cc h4 small{font-size:13px;color:#444;margin-left:6px}
@@ -411,7 +416,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611221148';
+const PAGEV = '202611230806';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -673,16 +678,16 @@ function drawMap(L, el, ph, S, hot) {
   if (cur && cur.i > 0 && cur.i < N.length) { g.setLineDash(LT ? [] : [6, 5]); line(N.slice(0, cur.i).map(w => [w[2], w[3]]).concat([cur.p]), MC.flown, MC.flownW); g.setLineDash([]); ahead([cur.p].concat(N.slice(cur.i).map(w => [w[2], w[3]]))); }
   else if (ph === 2) line(N.map(w => [w[2], w[3]]), MC.flown, MC.flownW); else ahead(N.map(w => [w[2], w[3]]));
   // 航路点（名字太挤就不写）
-  g.font = 'bold 11px sans-serif'; let lastLab = null; const FIRWP = new Set((L.fi || []).map(f => f[2]));
+  g.font = '900 13px sans-serif'; let lastLab = null; const FIRWP = new Set((L.fi || []).map(f => f[2]));
   const nxt = ph === 1 ? N.find(w => w[1] > el) : null, FIRAT = {}; (L.fi || []).forEach(f => FIRAT[f[2]] = f);
   N.forEach((w, i) => { const q = xy(w[2], w[3]); if (q[0] < -20 || q[0] > W + 20 || q[1] < -20 || q[1] > H + 20) return;
     const fw = FIRWP.has(w[0]), soon = fw && ph === 1 && w[1] - el > 0 && w[1] - el <= 10;
     if (nxt && w === nxt) { g.strokeStyle = MC.nx; g.lineWidth = LT ? 3.5 : 5; g.beginPath(); g.arc(q[0], q[1], LT ? 10 : 12, 0, 7); g.stroke(); }   // 下一个点：绿色圆圈
     if (fw) { const f = FIRAT[w[0]], lab = '→ ' + f[0] + ' ' + f[1];   // 移交点：橙色，旁边写管制区；快到（10 分钟内）变红并闪
-      if (!(soon && BLINK)) { g.font = 'bold 12px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? (LT ? '#e07000' : '#e00000') : MC.hoBg; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); if (!LT) { g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 17); } g.fillStyle = soon ? '#fff' : MC.hoTx; g.fillText(lab, q[0] - tw / 2, q[1] + 22); g.font = 'bold 11px sans-serif'; } }
+      if (!(soon && BLINK)) { g.font = '900 14px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = soon ? (LT ? '#e07000' : '#e00000') : MC.hoBg; g.fillRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 19); if (!LT) { g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(q[0] - tw / 2 - 4, q[1] + 9, tw + 8, 19); } g.fillStyle = soon ? '#fff' : MC.hoTx; g.fillText(lab, q[0] - tw / 2, q[1] + 24); g.font = '900 13px sans-serif'; } }
     g.fillStyle = MC.wp;
     if (fw) { g.strokeStyle = MC.ho; g.lineWidth = LT ? 3 : 4; g.fillStyle = soon ? MC.ho : '#fff'; g.beginPath(); g.arc(q[0], q[1], 6, 0, 7); g.fill(); g.stroke(); } else if (LT) g.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5); else { g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.moveTo(q[0], q[1] - 6); g.lineTo(q[0] + 5.5, q[1] + 4); g.lineTo(q[0] - 5.5, q[1] + 4); g.closePath(); g.fill(); g.stroke(); }   // 移交点：橙色圆圈；普通航路点：白色三角
-    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = LT ? 'rgba(255,255,255,.8)' : '#fff'; g.fillRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); if (!LT) { g.strokeStyle = fw ? MC.ho : '#000'; g.lineWidth = 1; g.strokeRect(q[0] + 5, q[1] - 13, g.measureText(w[0]).width + 4, 13); } g.fillStyle = fw ? (LT ? '#c25a00' : '#000') : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 3); lastLab = q; } });
+    if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = LT ? 'rgba(255,255,255,.8)' : '#fff'; g.fillRect(q[0] + 5, q[1] - 16, g.measureText(w[0]).width + 4, 16); if (!LT) { g.strokeStyle = fw ? MC.ho : '#000'; g.lineWidth = 1; g.strokeRect(q[0] + 5, q[1] - 16, g.measureText(w[0]).width + 4, 16); } g.fillStyle = fw ? (LT ? '#c25a00' : '#000') : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 4); lastLab = q; } });
   // 飞机
   const ac = xy(P[0], P[1]); let hdg = 0;
   if (S && S.src === 'GPS' && GPS.fix && GPS.fix.trk >= 0 && GPS.fix.gs > 50) hdg = GPS.fix.trk * Math.PI / 180;
@@ -694,7 +699,7 @@ function drawMap(L, el, ph, S, hot) {
   const z = LT ? 1 : 1.35; g.scale(z, z); g.beginPath(); g.moveTo(0, -13); g.lineTo(9, 10); g.lineTo(0, 5); g.lineTo(-9, 10); g.closePath(); g.fill(); g.stroke(); g.restore();
   CUR_POS = P; ACTRK = ((hdg * 180 / Math.PI) % 360 + 360) % 360; drawLayers(L, P, xy, s, W, H, NOW());
   // 比例尺 + 北
-  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; if (!LT) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(W - px - 56, H - 32, px + 8, 24); } g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = 'bold 11px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
+  const nm = ZOOM > 1200 ? 200 : ZOOM > 500 ? 100 : 50, px = nm * s; if (!LT) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(W - px - 56, H - 32, px + 8, 24); } g.fillStyle = '#000'; g.fillRect(W - px - 52, H - 14, px, 3); g.font = '900 13px sans-serif'; g.fillText(nm + ' NM', W - px - 52, H - 18); g.fillText('N↑', 8, 16);
 }
 
 /* =====================================================================
@@ -1139,11 +1144,23 @@ const ctTag = c => '<span class="ct c' + (c && c in CATO ? c : 'N') + '">' + (c 
 function altlShow(L, pos, t, ph) {
   const b = $('altl'); let h = '';
   if (LAY.l && !L.noOfp && pos && ph !== 2) { const A = altNow(L, pos, t);
-    h = '<div class="ah"><span>🛬 ' + XS('1 小时内备降', 'Altn ≤ 1 h') + '</span>' + (EKT ? '' : '<small style="font-weight:600">' + XS('无授权表', 'no EK table') + '</small>') + '</div>'
+    h = '<div class="ah"><span>🛬 ' + XS('1 小时内备降', 'Altn ≤ 1 h') + '</span><span class="gr">⠿</span>' + (EKT ? '' : '<small style="font-weight:600">' + XS('无授权表', 'no EK table') + '</small>') + '</div>'
       + (A.length ? A.map(x => '<div class="ar" data-ap="' + x.a.icao + '"><span class="wd ' + x.rate + '"></span>' + ctTag(x.cat) + '<b>' + x.a.icao + '</b><span class="d"><i class="ba" style="transform:rotate(' + Math.round(x.brg) + 'deg)">↑</i>' + String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d) + 'nm · ' + Math.round(x.d / R1NM * 60) + "'</span></div>").join('') : '<div class="ar" style="cursor:default;color:#c00000">' + XS('1 小时内没有合适的机场', 'None within 1 h') + '</div>'); }
   if (b.innerHTML !== h) b.innerHTML = h;
-  requestAnimationFrame(() => { const c = $('alc'), up = b.parentNode === $('mapw') && c && c.style.display === 'block'; b.style.bottom = up ? (c.getBoundingClientRect().height + 62) + 'px' : ''; });   // 竖屏：警告卡片开着时，备降列表往上让开
+  requestAnimationFrame(() => { if (b.parentNode === $('mapw') && altPos()) return; const c = $('alc'), up = b.parentNode === $('mapw') && c && c.style.display === 'block'; b.style.bottom = up ? (c.getBoundingClientRect().height + 62) + 'px' : ''; });   // 竖屏：警告卡片开着时，备降列表往上让开
 }
+// 竖屏：「1 小时内备降」可以按住标题拖到地图上任何地方（记住位置；双击标题回到右下角）
+const altPos = () => { try { return JSON.parse(ls('altpos') || 'null'); } catch (e) { return null; } };
+function altPlace() { const b = $('altl'), p = altPos(); if (b.parentNode !== $('mapw')) { b.style.left = b.style.top = ''; return; }
+  if (p) { const W = $('mapw').clientWidth, H = $('mapw').clientHeight; b.style.left = Math.max(0, Math.min(W - 60, p.x * W)) + 'px'; b.style.top = Math.max(0, Math.min(H - 40, p.y * H)) + 'px'; b.style.right = 'auto'; b.style.bottom = 'auto'; }
+  else { b.style.left = b.style.top = b.style.right = ''; } }
+{ let drag = null; const b = $('altl');
+  b.addEventListener('pointerdown', e => { if (!e.target.closest('.ah') || b.parentNode !== $('mapw')) return; const r = b.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; try { b.setPointerCapture(e.pointerId); } catch (x) {} e.preventDefault(); });
+  b.addEventListener('pointermove', e => { if (!drag) return; const m = $('mapw').getBoundingClientRect(); b.style.left = Math.max(0, Math.min(m.width - 60, e.clientX - m.left - drag.dx)) + 'px'; b.style.top = Math.max(0, Math.min(m.height - 40, e.clientY - m.top - drag.dy)) + 'px'; b.style.right = 'auto'; b.style.bottom = 'auto'; });
+  const end = () => { if (!drag) return; drag = null; const m = $('mapw').getBoundingClientRect(); ls('altpos', JSON.stringify({ x: parseFloat(b.style.left) / m.width, y: parseFloat(b.style.top) / m.height })); };
+  b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end);
+  b.addEventListener('dblclick', e => { if (e.target.closest('.ah')) { ls('altpos', ''); altPlace(); draw(); } }); }
+addEventListener('resize', () => setTimeout(altPlace, 50)); setTimeout(altPlace, 500);
 $('altl').onclick = e => { const r = e.target.closest('[data-ap]'); if (r) openApt(r.dataset.ap); };
 // 点一个机场：类别、距离、天气、最重要的通告（最多 4 条）、公司备注（最多 2 条）——越短越好
 function openApt(icao) { const L = CUR; if (!L) return; const sh = $('sheet'), t = NOW(), ti = tyIdx(L), a = apCands(L).find(x => x.icao === icao) || { icao, e: EKT && EKT.ap && EKT.ap[icao], pos: APT && APT[icao] };
@@ -1164,19 +1181,19 @@ function drawLayers(L, P, xy, s, W, H, t) {
   if (LAY.a && !L.noOfp) { const ti = tyIdx(L);
     apCands(L).forEach(a => { const q = xy(a.pos[0], a.pos[1]); if (q[0] < -10 || q[0] > W + 10 || q[1] < -10 || q[1] > H + 10) return; const cat = a.e ? ekCat(a.e, ti, t) : null; if (a.e && !(cat in CATO)) return;
       const big = a.icao === L.dep || a.icao === L.arr || (L.alt || []).includes(a.icao); g.beginPath(); g.arc(q[0], q[1], big ? 7 : 5, 0, 7); g.fillStyle = CATCOL[cat] || '#fff'; g.fill(); g.lineWidth = big ? 2.5 : 1.5; g.strokeStyle = '#000'; g.stroke();
-      if (big || ZOOM <= 900) { g.font = 'bold 10.5px sans-serif'; const tw = g.measureText(a.icao).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(q[0] - tw / 2 - 2, q[1] + 7, tw + 4, 12); g.fillStyle = '#000'; g.fillText(a.icao, q[0] - tw / 2, q[1] + 17); } }); }
+      if (big || ZOOM <= 900) { g.font = '900 13px sans-serif'; const tw = g.measureText(a.icao).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(q[0] - tw / 2 - 2, q[1] + 7, tw + 4, 15); g.fillStyle = '#000'; g.fillText(a.icao, q[0] - tw / 2, q[1] + 19); } }); }
   if (LAY.l && P && !L.noOfp) { const c = xy(P[0], P[1]); g.save(); g.setLineDash([3, 5]); g.lineWidth = 1.6;   // 飞机 → 1 小时内的备降场：虚线 + 方位 / 距离
     altNow(L, P, t).slice(0, 4).forEach(x => { const q = xy(x.a.pos[0], x.a.pos[1]); g.strokeStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(q[0], q[1]); g.stroke();
-      const lab = String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d), mx = c[0] + (q[0] - c[0]) * .55, my = c[1] + (q[1] - c[1]) * .55; g.setLineDash([]); g.font = 'bold 10.5px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.88)'; g.fillRect(mx - tw / 2 - 3, my - 8, tw + 6, 13); g.fillStyle = '#000'; g.fillText(lab, mx - tw / 2, my + 2); g.setLineDash([3, 5]); });
+      const lab = String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d), mx = c[0] + (q[0] - c[0]) * .55, my = c[1] + (q[1] - c[1]) * .55; g.setLineDash([]); g.font = '900 13px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.88)'; g.fillRect(mx - tw / 2 - 3, my - 10, tw + 6, 16); g.fillStyle = '#000'; g.fillText(lab, mx - tw / 2, my + 3); g.setLineDash([3, 5]); });
     g.restore(); }
   if (LAY.r && P) { const c = xy(P[0], P[1]);
     [[R1NM, '#d08a00', '1h · 410 nm'], [R2NM, '#5a6f99', '2h · 820 nm']].forEach(([nm, col, lab]) => { const r = nm * s; g.setLineDash([8, 7]); g.lineWidth = 2.2; g.strokeStyle = col; g.beginPath(); g.arc(c[0], c[1], r, 0, 7); g.stroke(); g.setLineDash([]);
-      if (c[1] - r > 14) { g.font = 'bold 11px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(c[0] - tw / 2 - 3, c[1] - r - 7, tw + 6, 14); g.fillStyle = col; g.fillText(lab, c[0] - tw / 2, c[1] - r + 4); } }); }
+      if (c[1] - r > 14) { g.font = '900 13px sans-serif'; const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(c[0] - tw / 2 - 3, c[1] - r - 9, tw + 6, 17); g.fillStyle = col; g.fillText(lab, c[0] - tw / 2, c[1] - r + 5); } }); }
 }
 function lypShow() { $('lyp').innerHTML = [['r', XS('◯ 1h / 2h 距离圈', '◯ 1h / 2h rings')], ['a', XS('🛬 航路机场', '🛬 Route airports')], ['l', XS('📋 合适备降列表', '📋 Suitable alternates')]].map(([k, t]) => '<span class="btn' + (LAY[k] ? ' on' : '') + '" data-ly="' + k + '">' + t + '</span>').join(''); }
 ['touchstart', 'pointerdown', 'wheel'].forEach(ev => $('wps').addEventListener(ev, () => { wpsTouch = Date.now(); }, { passive: true }));
 // 竖屏：「1 小时内备降」放到地图右下角（有内容才出现）；横屏放回右边栏
-const altlPlace = () => { const port = !matchMedia('(orientation:landscape) and (min-width:700px)').matches, a = $('altl'); if (port && a.parentNode !== $('mapw')) $('mapw').appendChild(a); else if (!port && a.parentNode !== $('side')) $('side').appendChild(a); };
+const altlPlace = () => { const port = !matchMedia('(orientation:landscape) and (min-width:700px)').matches, a = $('altl'); if (port && a.parentNode !== $('mapw')) $('mapw').appendChild(a); else if (!port && a.parentNode !== $('side')) $('side').appendChild(a); if (typeof altPlace === 'function') altPlace(); };
 altlPlace(); addEventListener('resize', altlPlace);
 $('b-flash').onclick = () => { $('menu').classList.remove('open'); setTimeout(inkFlash, 150); };
 document.querySelectorAll('[data-gh]').forEach(b => b.onclick = () => { GHOST = +b.dataset.gh; ls('ghost', String(GHOST)); ghostApply(); if (GHOST) inkFlash(); });
