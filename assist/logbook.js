@@ -284,6 +284,7 @@
         e.src = e.src || {}; let ch = false;
         ['offB', 'onB', 'to', 'ldg'].forEach(f => { const s = n.src[f]; if (n[f] && (!e[f] || (RK[s] || 0) >= (RK[e.src[f]] || 0)) && e[f] !== n[f]) { e[f] = n[f]; e.src[f] = s; ch = true; } });
         ['reg', 'type', 'pic', 'dp', 'ap', 'pts'].forEach(f => { if (!e[f] && n[f]) { e[f] = n[f]; ch = true; } });
+        if (e.co && n.type && e.type !== n.type) { e.type = n.type; ch = true; }   // 公司报告导入的记录：机型以新数据为准（例如 77X = B777F）
         if (n.pfTo != null && e.pfTo == null) { e.pfTo = n.pfTo; e.pfLdg = n.pfLdg; ch = true; }
         if (ch) upd++;
       });
