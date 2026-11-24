@@ -247,7 +247,7 @@
   function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 
   window.LBK = {
-    open() { editK = null; fromOfp(); render(); chip(); $('lb').classList.add('open'); $('lb').scrollTop = 0; cloud(true); const e = LB.find(x => x.k === curKey()); if (e) adsb(e, true).then(ok => { if (ok) render(); }); },
+    open() { editK = null; fromOfp(); render(); chip(); $('lb').classList.add('open'); $('lb').scrollTop = 0; cloud(true); importCloud(false); const e = LB.find(x => x.k === curKey()); if (e) adsb(e, true).then(ok => { if (ok) render(); }); },
     close() { $('lb').classList.remove('open'); try { pfUI(); } catch (e) {} },
     fmt(v) { SET.fmt = v; saveSet(); render(); },
     pf() { const e = LB.find(x => x.k === (editK || curKey())); if (!e) return; setPf(e, pfMode(e) === 'none' ? 'both' : 'none'); render(); },
@@ -266,6 +266,31 @@
     cloud() { cloud(false); }, calc, sunAlt, all: () => LB
   };
   window.addEventListener('online', () => cloud(true));
+  // ---------- 导入：私有云端 fidata/lbimport.json（例如公司的 Crew Log 报告整理好的），合并进记录本，一份只导一次 ----------
+  // 撤轮挡 / 挡轮挡 = 公司记录（按手改的等级）；起飞 / 落地 = 估算（ADS-B、手改的不会被盖掉）；已有的同一班只补缺的、更新时间
+  async function importCloud(force) {
+    const tok = (typeof lsGet === 'function') && lsGet('ghtok'), repo = ((typeof lsGet === 'function') && lsGet('ghrepo')) || 'chunhua1780/flight-box';
+    if (!tok || !navigator.onLine) return;
+    try {
+      const r = await fetch('https://api.github.com/repos/' + repo + '/contents/fidata/lbimport.json?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
+      if (!r.ok) return; const d = await r.json(); if (!d || !Array.isArray(d.entries) || (!force && ld('fa.lbimp', '') === d.made)) return;
+      const RK = { man: 3, adsb: 2, est: 1.5, fa: 1, plan: 0 }; let add = 0, upd = 0;
+      d.entries.forEach(n => {
+        let e = LB.find(x => x.k === n.k) || LB.find(x => !x.co && x.flt === n.flt && (x.depI === n.depI || x.dep === n.dep) && Math.abs((x.std || x.date || 0) - n.std) < 20 * 36e5);   // 只和原来记的比，导入的之间不互相合并
+        if (!e) { LB.push(n); add++; return; }
+        e.src = e.src || {}; let ch = false;
+        ['offB', 'onB', 'to', 'ldg'].forEach(f => { const s = n.src[f]; if (n[f] && (!e[f] || (RK[s] || 0) >= (RK[e.src[f]] || 0)) && e[f] !== n[f]) { e[f] = n[f]; e.src[f] = s; ch = true; } });
+        ['reg', 'type', 'pic', 'dp', 'ap', 'pts'].forEach(f => { if (!e[f] && n[f]) { e[f] = n[f]; ch = true; } });
+        if (n.pfTo != null && e.pfTo == null) { e.pfTo = n.pfTo; e.pfLdg = n.pfLdg; ch = true; }
+        if (ch) upd++;
+      });
+      LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date)); sv('fa.lbimp', d.made); save();
+      if (typeof toast === 'function') toast('📒 ' + T('已导入 ' + add + ' 条飞行记录（更新 ' + upd + ' 条），正在同步到云端', add + ' flights imported (' + upd + ' updated), syncing'), 6000);
+      if ($('lb').classList.contains('open')) render();
+    } catch (e) {}
+  }
+  window.LBK.importCloud = importCloud;
+  setTimeout(() => importCloud(false), 7000);
   setInterval(() => cloud(true), 15 * 60e3); setTimeout(() => cloud(true), 6000);
   // 有网时定期看看时钟有没有 ADS-B 时间（落地后自动补上）
   setInterval(() => { if (typeof S === 'undefined' || !S.ofp || !navigator.onLine) return; const e = LB.find(x => x.k === curKey()); const need = f => e && e.src[f] !== 'adsb' && e.src[f] !== 'man'; if (e && Date.now() > (e.to || 0) && (need('ldg') || need('offB') || need('onB')) && Date.now() - (e.ldg || e.to || 0) < 6 * 36e5) adsb(e, true).then(ok => { if (ok && $('lb').classList.contains('open')) render(); }); }, 10 * 60e3);
