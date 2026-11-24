@@ -34,12 +34,14 @@
       if (!j.ok) { cloudMsg = /缺少航班|数据格式|lbsync/.test(j.error || '') ? 'old' : /permission|权限|authoriz|Spreadsheet/i.test(j.error || '') ? 'auth' : 'err'; chip(); if (!quiet) toast(cloudTip(), 6000); return; }
       // 服务器已经按「新的赢」合并好：以它为准
       const mine = new Map(LB.map(e => [e.k, e])); LB = [];
-      const dels = []; (j.entries || []).forEach(e => { if (e.del) { dels.push(e.k); return; } const l = mine.get(e.k); LB.push(l && (l.u || 0) > (e.u || 0) ? l : e); });
+      const dels = [], seen = new Set(); (j.entries || []).forEach(e => { seen.add(e.k); if (e.del) { dels.push(e.k); return; } const l = mine.get(e.k); LB.push(l && ((l.u || 0) > (e.u || 0) || ((l.u || 0) === (e.u || 0) && hsh(strip(l)) !== hsh(strip(e)))) ? l : e); });   // 同步途中本机又改过：以本机为准，下一次传
+      let left = 0; mine.forEach((l, k) => { if (!seen.has(k) && !(k in SY.h)) { LB.push(l); left++; } });   // 同步的时候本机刚加的（例如刚导入的）：留着，下一次传上去
+      if (left || LB.some(e => seen.has(e.k) && mine.get(e.k) === e && (j.entries || []).some(x => x.k === e.k && hsh(strip(x)) !== hsh(strip(e))))) setTimeout(() => cloudSoon(), 500);
       LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date));
       if (j.set && +j.setU && (first || +j.setU > (SY.setU || 0))) { SET = Object.assign(SET, j.set); if (!SET.bf) SET.bf = {}; sv(SKEY, SET); }
-      SY = { h: {}, setH: hsh(SET), setU: +j.setU || SY.setU, at: now, url: j.url || SY.url, del: dels }; LB.forEach(e => { SY.h[e.k] = hsh(strip(e)); });
+      SY = { h: {}, setH: hsh(SET), setU: +j.setU || SY.setU, at: now, url: j.url || SY.url, del: dels }; const srv = new Map((j.entries || []).filter(x => !x.del).map(x => [x.k, x])); LB.forEach(e => { if (srv.has(e.k)) SY.h[e.k] = hsh(strip(srv.get(e.k))); });   // 记下云端那份的样子：本机不一样（同步途中改过 / 刚加的）下一次就会传   // 只记云端真的有的；本机刚加的下一次再传
       if (!+j.setU) { SY.setH = ''; cloudSoon(); }   // 云端还没有设置：下一次把本机的设置传上去
-      sv(KEY, LB); sv('fa.lbsync', SY); cloudMsg = 'ok'; chip();
+      sv(KEY, LB); sv('fa.lbsync', SY); cloudMsg = 'ok'; chip(); if (IMP && LB.length) { sv('fa.lbimp', IMP); IMP = null; }
       if ($('lb').classList.contains('open') && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#lb-pg'))) render();
       if (!quiet) toast('☁️ ' + T('已保存到云端', 'Saved to the cloud') + '（' + LB.length + '）', 2500);
     } catch (e) { cloudMsg = 'err'; chip(); if (!quiet) toast('⚠️ ' + T('没连上后台，回头会再试', 'Could not reach the backend — will retry')); }
@@ -268,6 +270,7 @@
   window.addEventListener('online', () => cloud(true));
   // ---------- 导入：私有云端 fidata/lbimport.json（例如公司的 Crew Log 报告整理好的），合并进记录本，一份只导一次 ----------
   // 撤轮挡 / 挡轮挡 = 公司记录（按手改的等级）；起飞 / 落地 = 估算（ADS-B、手改的不会被盖掉）；已有的同一班只补缺的、更新时间
+  let IMP = null;   // 导入了、等同步成功才记下「已导入」
   async function importCloud(force) {
     const tok = (typeof lsGet === 'function') && lsGet('ghtok'), repo = ((typeof lsGet === 'function') && lsGet('ghrepo')) || 'chunhua1780/flight-box';
     if (!tok || !navigator.onLine) return;
@@ -284,7 +287,7 @@
         if (n.pfTo != null && e.pfTo == null) { e.pfTo = n.pfTo; e.pfLdg = n.pfLdg; ch = true; }
         if (ch) upd++;
       });
-      LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date)); sv('fa.lbimp', d.made); save();
+      LB.sort((a, b) => (a.offB || a.date) - (b.offB || b.date)); IMP = d.made; save();
       if (typeof toast === 'function') toast('📒 ' + T('已导入 ' + add + ' 条飞行记录（更新 ' + upd + ' 条），正在同步到云端', add + ' flights imported (' + upd + ' updated), syncing'), 6000);
       if ($('lb').classList.contains('open')) render();
     } catch (e) {}
