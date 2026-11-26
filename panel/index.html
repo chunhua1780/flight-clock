@@ -416,7 +416,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611230806';
+const PAGEV = '202611261638';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -611,7 +611,8 @@ function flights(now) {
 }
 const atoOf = l => { try { return JSON.parse(ls('ato.' + l.k) || 'null'); } catch (e) { return null; } };
 const offOf = l => { const a = atoOf(l), w = a && (l.n || []).find(x => x[0] === a.w); if (w) return a.t - w[1] * MIN; return atdOf(l) || l.std + (l.tx || 0) * MIN; };
-const csOf = l => ls('cs.' + l.k) || l.cs || l.no;
+const noOf = l => ls('no.' + l.k) || l.no;   // 航班号：自己改的优先
+const csOf = l => ls('cs.' + l.k) || l.cs || noOf(l);
 function pick(now, F) {
   F = F || flights(now); const pin = ls('pin'), p = pin && F.find(l => l.k === pin);
   return p || F.find(l => offOf(l) + l.tr * MIN + 60 * MIN > now) || F[F.length - 1];
@@ -842,8 +843,8 @@ function draw() {
   const u = +(ls('upd') || 0); $('st').textContent = MSG || ((u ? X('更新于 ', 'Updated ') + dmZ(u) + ' · ' : '') + hmZ(now) + 'Z · ' + VER());
   const L = pick(now, F); CUR = L;
   // 航段下拉
-  const lg = F.map(l => '<div class="lg' + (L && l.k === L.k ? ' on' : '') + '" data-k="' + esc(l.k) + '">' + esc(csOf(l)) + ' · ' + esc(l.ai) + '→' + esc(l.bi) + (l.noOfp ? '' : ' 📄') + ' <small>' + esc(l.no) + ' · ' + dmZ(l.std) + (ls('pin') === l.k ? ' · 📌' : '') + '</small></div>').join('')
-    + '<div class="lg" data-k="">🔁 ' + X('自动（按时间选当前航段）', 'Auto (current leg by time)') + (ls('pin') ? '' : ' ✓') + '</div>' + (L ? '<div class="lg" data-k="#cs">✎ ' + X('改呼号', 'Change callsign') + '</div>' : '');
+  const lg = F.map(l => '<div class="lg' + (L && l.k === L.k ? ' on' : '') + '" data-k="' + esc(l.k) + '">' + esc(csOf(l)) + ' · ' + esc(l.ai) + '→' + esc(l.bi) + (l.noOfp ? '' : ' 📄') + ' <small>' + esc(noOf(l)) + (ls('no.' + l.k) ? '✎' : '') + ' · ' + dmZ(l.std) + (ls('pin') === l.k ? ' · 📌' : '') + '</small></div>').join('')
+    + '<div class="lg" data-k="">🔁 ' + X('自动（按时间选当前航段）', 'Auto (current leg by time)') + (ls('pin') ? '' : ' ✓') + '</div>' + (L ? '<div class="lg" data-k="#no">✎ ' + X('改航班号', 'Change flight no.') + '</div><div class="lg" data-k="#cs">✎ ' + X('改呼号', 'Change callsign') + '</div>' : '');
   if ($('legs').innerHTML !== lg) $('legs').innerHTML = lg;
   if (!L) { ['main', 'row', 'top'].forEach(i => $(i).style.display = 'none'); $('empty').style.display = 'flex';
     const eh = !ls('key') && !GH().tok ? '<div>' + X('填口令（和飞行助手里的一样）', 'Password (same as Flight Assist)') + '</div><input id="e-key" type="password" autocomplete="off" style="font-size:18px;padding:8px;width:80%;border:2px solid var(--line);border-radius:8px"><span class="btn" id="e-ok">✓ ' + X('保存并读取', 'Save') + '</span>' : X('还没有航班。', 'No flights yet.') + '<br><span class="btn" id="e-pick">📂 ' + X('选择飞行计划（云端 / 邮箱 / 手机文件）', 'Choose OFP') + '</span><span class="btn" id="e-up">🔄 ' + X('更新', 'Update') + '</span><span class="btn" id="e-set">⚙︎ ' + X('设置', 'Settings') + '</span><div class="ok" id="e-msg"></div>';
@@ -853,7 +854,7 @@ function draw() {
     setNight(MODE === 'night'); return; }
   ['row', 'top'].forEach(i => $(i).style.display = ''); $('main').style.display = ''; $('empty').style.display = 'none';
   const std = L.std, off = offOf(L), on = off + L.tr * MIN, LS = L.noOfp ? { el: (now - off) / MIN, ph: now < off ? 0 : now < on ? 1 : 2, src: 'PLAN' } : liveState(L, now, off, on), el = LS.el, ph = LS.ph;   // GPS 优先，没有就按计划
-  const cs = csOf(L), dg = String(L.no || '').replace(/^[A-Z]{2}/, '').replace(/^0+(?=\d)/, '');
+  const cs = csOf(L), dg = String(noOf(L) || '').replace(/^[A-Z]{2}/, '').replace(/^0+(?=\d)/, '');
   const fl = '<small>EK</small>' + esc(dg) + '<span class="dd">▾</span>'; if ($('fl').innerHTML !== fl) { $('fl').innerHTML = fl; } fitFl();   // 航班号统一 EK 开头；ATC 呼号写在下面一行
   $('rt').innerHTML = '<b class="rr">' + (ph === 0 && L.dep && L.arr ? esc(L.ai) + '<small>/' + esc(L.dep) + '</small> → ' + esc(L.bi) + '<small>/' + esc(L.arr) + '</small>' : esc(L.ai) + ' → ' + esc(L.bi)) + '</b><span class="rc">' + esc(cs) + (ls('cs.' + L.k) ? '✎' : '') + (L.reg ? ' · ' + esc(L.reg) : '') + '</span><b id="phx"></b>';
   $('ph').style.display = 'none'; $('phx').textContent = ph === 0 ? (off - now > 12 * HOUR ? X('计划 ', 'Planned ') + dmZ(off) : (L.std > now ? X('轮挡前 ', 'Off-blk in ') + dur(Math.floor((L.std - now) / MIN)) : X('已过轮挡 ', 'Off-blk +') + dur(Math.floor((now - L.std) / MIN)))) : ph === 1 ? '✈ ' + dur(el) + ' / ' + X('剩 ', 'to go ') + dur(L.tr - el) : X('已落地', 'Landed');
@@ -968,7 +969,8 @@ function openNotams(loc, onlyId) {
 /* ---------- 操作 ---------- */
 $('sel').onclick = () => $('legs').classList.toggle('open');
 $('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $('legs').classList.remove('open');
-  if (t.dataset.k === '#cs') { const L = CUR; const v = prompt(X('ATC 呼号（例如 UAE2AK；留空 = 用 OFP 上的 ', 'ATC callsign (e.g. UAE2AK; empty = OFP ') + (L.cs || L.no) + '）', ls('cs.' + L.k) || ''); if (v !== null) ls('cs.' + L.k, v.trim().toUpperCase().replace(/\s+/g, '')); }
+  if (t.dataset.k === '#no') { const L = CUR; const v = prompt(X('航班号（例如 EK0368；留空 = 用系统的 ', 'Flight no. (e.g. EK0368; empty = system ') + L.no + '）', ls('no.' + L.k) || ''); if (v !== null) { let n = v.trim().toUpperCase().replace(/\s+/g, ''); if (/^\d/.test(n)) n = 'EK' + n; ls('no.' + L.k, n); $('fl').dataset.f = ''; } }
+  else if (t.dataset.k === '#cs') { const L = CUR; const v = prompt(X('ATC 呼号（例如 UAE2AK；留空 = 用 OFP 上的 ', 'ATC callsign (e.g. UAE2AK; empty = OFP ') + (L.cs || L.no) + '）', ls('cs.' + L.k) || ''); if (v !== null) ls('cs.' + L.k, v.trim().toUpperCase().replace(/\s+/g, '')); }
   else ls('pin', t.dataset.k); draw(); };
 $('b-demo').onclick = () => demo();
 $('b-log').onclick = () => openLog();
