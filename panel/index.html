@@ -416,7 +416,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611271430';
+const PAGEV = '202611271435';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -1203,17 +1203,17 @@ $('zbd').onclick = () => { BOARDV = !BOARDV; draw(); };
 $('zly').onclick = () => { const p = $('lyp'); if (p.style.display === 'block') { p.style.display = 'none'; return; } lypShow(); p.style.display = 'block'; };
 $('lyp').onclick = e => { const b = e.target.closest('[data-ly]'); if (!b) return; LAY[b.dataset.ly] = LAY[b.dataset.ly] ? 0 : 1; ls('lay', JSON.stringify(LAY)); lypShow(); draw(); };
 // ---------- 机场提醒：飞往这些机场的航班，起飞前 24 小时到起飞一直显示，点「✓ 已办好」这一班就不再提醒 ----------
-// w：pre = 起飞前 24 小时到起飞；desc = 落地前 60 分钟到落地；land = 落地后 3 小时内
+// w：pre = 起飞前 24 小时到起飞；desc = 落地前 60 分钟一直到落地后 3 小时；land = 落地后 3 小时内
 const APN = {
   WADD: [{ zh: '巴厘岛：起飞前上网填写印尼入境健康声明，拿到二维码（落地要出示）', en: 'Bali: complete the online Indonesia arrival health declaration and get the QR code before departure (shown on arrival)' },
-         { w: 'land', zh: '巴厘岛：拿一桶水带去酒店（酒店没有水）', en: 'Bali: take a bottle of water to the hotel (none at the hotel)' }],
+         { w: 'desc', zh: '巴厘岛：拿一桶水带去酒店（酒店没有水）', en: 'Bali: take a bottle of water to the hotel (none at the hotel)' }],
   VHHH: [{ w: 'desc', zh: '香港：下飞机前拿点零食（酒店有水但没有吃的，半夜可能会饿）', en: 'Hong Kong: take some snacks before leaving the aircraft (hotel has water but no food)' }]
 };
 function apnShow(L, ph, now) {
   const b = $('apn'), off = offOf(L), on = off + (L.tr || 0) * MIN, k = 'apn.' + L.k;
   const N = (APN[L.arr] || APN[L.bi] || []).map((n, i) => Object.assign({ i: i }, n)).filter(n => { const w = n.w || 'pre';
     if (ls(k + (w === 'pre' ? '' : '.' + n.i))) return false;
-    return w === 'pre' ? ph === 0 && now > L.std - 24 * HOUR : w === 'desc' ? ph === 1 && now > on - 60 * MIN : ph === 2 && now < on + 3 * HOUR; });
+    return w === 'pre' ? ph === 0 && now > L.std - 24 * HOUR : w === 'desc' ? (ph === 1 && now > on - 60 * MIN) || (ph === 2 && now < on + 3 * HOUR) : ph === 2 && now < on + 3 * HOUR; });
   let h = '';
   if (N.length) { const w = N[0].w || 'pre';
     h = '<div class="ah">📌 ' + (w === 'pre' ? XS('起飞前要办', 'Before departure') : w === 'desc' ? XS('落地前别忘了', 'Before arrival') : XS('落地后别忘了', 'After landing')) + ' · ' + esc(L.arr || L.bi) + '</div>' + N.map(n => '<div class="ax">' + esc(LANG === 'en' ? n.en : n.zh) + (LANG === 'both' ? '<div style="font-size:12px;font-weight:600;color:#444">' + esc(n.en) + '</div>' : '') + '</div>').join('') + '<span class="btn" data-apn="' + esc(N.map(n => k + ((n.w || 'pre') === 'pre' ? '' : '.' + n.i)).join('|')) + '">✓ ' + XS('知道了', 'Done') + '</span>'; }
