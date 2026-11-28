@@ -416,7 +416,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611280526';
+const PAGEV = '202611280527';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -515,7 +515,7 @@ const FIRN = [
   [/\bBIRDS?\b[^.]{0,60}(?:ACTIVIT|MIGRAT|FLOCK|STRIKE)/, 'amber', '鸟群活动', 'Bird activity'],
   [/ARTILLERY|FIRING|\bEXER\b|MIL(?:ITARY)? EXERCISE|PARA DROP|DANGER AREA|DNG AREA|RESTRICTED AREA|PROHIBITED/, 'amber', '军事活动 / 限制区', 'Military activity / restricted area']
 ];
-const SV = 4;   // 摘要格式版本：旧的（没有航路坐标）有网时会重新读
+const SV = 5;   // 摘要格式版本：旧的（没有航路坐标）有网时会重新读
 const FIRALIAS = { ZGGG: 'ZGZU', ZGNN: 'ZGZU', ZJSY: 'ZJSA', ZPPP: 'ZPKM', ZBAA: 'ZBPE', ZSSS: 'ZSHA', ZHHH: 'ZHWH', ZLLL: 'ZLHW', ZWWW: 'ZWUQ' };
 function summarize(o) {
   const f = o.flight, t = o.times, W = o.weights || {}, F = o.fuel || {}, N = o.navlog || [], X = wptFill(N, Object.assign({}, o.fixes || {}));   // 缺坐标的点用上传的航路点数据库补
