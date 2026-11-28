@@ -289,7 +289,7 @@ html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.e
 <div id="app">
   <div id="top"><div id="sbar"></div><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="wps"></div><div id="legs"></div>
-  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span id="tocd"></span><div id="mcards"><div id="depc"></div><div id="apn"></div><div id="gpsc"></div></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><div id="lyp"></div>
+  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span id="tocd"></span><div id="mcards"><div id="depc"></div><div id="apn"></div><div id="gpsc"></div></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><span class="zb" id="zrot" style="top:260px;font-size:15px" title="Map orientation">N↑</span><div id="lyp"></div>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div><div id="altl"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div><div id="chk"></div>
@@ -416,7 +416,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611272230';
+const PAGEV = '202611280412';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -634,6 +634,7 @@ let LAND = null; fetch('land.json').then(r => r.json()).then(j => { LAND = j; LA
 function bbox(a) { let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (let i = 0; i < a.length; i += 2) { if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i + 1] < y0) y0 = a[i + 1]; if (a[i + 1] > y1) y1 = a[i + 1]; } return [x0, y0, x1, y1]; }
 let ZOOM = +(ls('zoom') || 700);   // 地图宽度（海里）
 const AREAS = {};                  // 点开的通告区域（红色）
+let MROT = (() => { try { return localStorage.getItem('pnl.mrot') || 'N'; } catch (e) { return 'N'; } })();
 let FOCUS = null;                  // 正在看某个通告区域：地图中心移过去（点 ◎ 回到飞机）
 function focusArea(A) { const pts = A.poly || [A.c || A.pt]; let la0 = 90, la1 = -90, lo0 = 999, lo1 = -999; pts.forEach(p => { la0 = Math.min(la0, p[0]); la1 = Math.max(la1, p[0]); lo0 = Math.min(lo0, p[1]); lo1 = Math.max(lo1, p[1]); });
   FOCUS = { c: [(la0 + la1) / 2, (lo0 + lo1) / 2] }; const span = Math.max((la1 - la0) * 60, (lo1 - lo0) * 60 * Math.cos((la0 + la1) / 2 * Math.PI / 180), A.r ? A.r * 2 : 30); ZOOM = Math.min(4000, Math.max(150, span * 2.2)); }
@@ -656,8 +657,11 @@ function drawMap(L, el, ph, S, hot) {
   const P = (S && S.P) || wpos(L, ph === 0 ? -1 : ph === 2 ? 1e9 : el).p, c0 = FOCUS ? FOCUS.c : [P[0], P[1]], k = Math.cos(c0[0] * Math.PI / 180), s = W / ZOOM;   // 像素 / 海里；看通告区域时中心在区域上
   $('zfoc').style.display = FOCUS ? '' : 'none';
   const FR = freeRect(cv, W, H), CX = FR[0], CY = FR[1];
-  const xy = (la, lo) => [CX + dlon(lo, c0[1]) * 60 * k * s, CY - (la - c0[0]) * 60 * s];   // 飞机永远在地图「看得见的部分」的正中
-  const vis = (bb) => { const sc = (LAND && LAND.s) || 20, la0 = bb[1] / sc, la1 = bb[3] / sc, lo0 = bb[0] / sc, lo1 = bb[2] / sc, hw = ZOOM / 60 / Math.max(.2, k) * .8, hh = ZOOM / 60 * H / W;
+  const cur0 = ph === 1 ? wpos(L, el) : null, gtrk = S && S.src === 'GPS' && GPS.fix && GPS.fix.trk >= 0 && GPS.fix.gs > 50 ? GPS.fix.trk : null;
+  const trkD = gtrk != null ? gtrk : cur0 && cur0.a && cur0.b ? brgOf([cur0.a[2], cur0.a[3]], [cur0.b[2], cur0.b[3]]) : N[1] ? brgOf([N[0][2], N[0][3]], [N[1][2], N[1][3]]) : 0;
+  const rot = (MROT === 'H' ? -trkD : MROT === 'R' ? 90 : MROT === 'L' ? -90 : 0) * Math.PI / 180, rc = Math.cos(rot), rs = Math.sin(rot);   // 地图方向：北向上 / 机头向上 / 北向右 / 北向左
+  const xy = (la, lo) => { const x = dlon(lo, c0[1]) * 60 * k * s, y = -(la - c0[0]) * 60 * s; return [CX + x * rc - y * rs, CY + x * rs + y * rc]; };   // 飞机永远在地图「看得见的部分」的正中   // 飞机永远在地图「看得见的部分」的正中
+  const vis = (bb) => { const sc = (LAND && LAND.s) || 20, la0 = bb[1] / sc, la1 = bb[3] / sc, lo0 = bb[0] / sc, lo1 = bb[2] / sc, hw = ZOOM / 60 / Math.max(.2, k) * (rot ? 1.6 : .8), hh = ZOOM / 60 * (rot ? Math.max(1, H / W) * 1.6 : H / W);
     return !(la1 < c0[0] - hh || la0 > c0[0] + hh) && (lo1 - lo0 > 300 || !(dlon(lo1, c0[1]) < -hw || dlon(lo0, c0[1]) > hw)); };
   // 陆地
   if (LAND) { const sc = LAND.s || 20; g.fillStyle = MC.land; g.strokeStyle = MC.coast; g.lineWidth = MC.coastW;   // 陆地：沙色
@@ -691,7 +695,7 @@ function drawMap(L, el, ph, S, hot) {
     if (!lastLab || Math.hypot(q[0] - lastLab[0], q[1] - lastLab[1]) > 46 || i === N.length - 1) { g.fillStyle = LT ? 'rgba(255,255,255,.8)' : '#fff'; g.fillRect(q[0] + 5, q[1] - 16, g.measureText(w[0]).width + 4, 16); if (!LT) { g.strokeStyle = fw ? MC.ho : '#000'; g.lineWidth = 1; g.strokeRect(q[0] + 5, q[1] - 16, g.measureText(w[0]).width + 4, 16); } g.fillStyle = fw ? (LT ? '#c25a00' : '#000') : '#000'; g.fillText(w[0], q[0] + 7, q[1] - 4); lastLab = q; } });
   // 飞机
   const ac = xy(P[0], P[1]); let hdg = 0;
-  if (S && S.src === 'GPS' && GPS.fix && GPS.fix.trk >= 0 && GPS.fix.gs > 50) hdg = GPS.fix.trk * Math.PI / 180;
+  if (S && S.src === 'GPS' && GPS.fix && GPS.fix.trk >= 0 && GPS.fix.gs > 50) hdg = GPS.fix.trk * Math.PI / 180 + rot;
   else if (cur && cur.a && cur.b) { const a = xy(cur.a[2], cur.a[3]), b = xy(cur.b[2], cur.b[3]); hdg = Math.atan2(b[0] - a[0], -(b[1] - a[1])); }
   // 有警告的管制区：在移交点画红色「!」
   const rf = new Set(((L.R && L.R.enr) || []).map(r => r[2].loc)); (L.fi || []).forEach(f => { if (!rf.has(FIRALIAS[f[1]] || f[1])) return; const w = N.find(x => x[0] === f[2]); if (!w) return; const q = xy(w[2], w[3]);
@@ -1154,17 +1158,17 @@ function apWx(L, icao, at) { const r = L.wx && L.wx[icao]; if (!r || !(r.m || r.
 const brgOf = (a, b) => { const r = Math.PI / 180, y = Math.sin((b[1] - a[1]) * r) * Math.cos(b[0] * r), x = Math.cos(a[0] * r) * Math.sin(b[0] * r) - Math.sin(a[0] * r) * Math.cos(b[0] * r) * Math.cos((b[1] - a[1]) * r); return (Math.atan2(y, x) / r + 360) % 360; };
 let ACTRK = 0;   // 飞机现在的航迹（真航向，度），画地图时更新
 // 1 小时圈以内的合适备降场：天气 → 类别 → 距离
-function altNow(L, pos, t) {
+function altNow(L, pos, t, lim) { lim = lim || R1NM;
   if (!pos) return []; const ti = tyIdx(L), R = { green: 0, none: 1, amber: 2, red: 3 };
-  return apCands(L).map(a => { const d = gcd(pos, a.pos); if (d > R1NM) return null; const cat = a.e ? ekCat(a.e, ti, t) : null; if (a.e && !(cat in CATO)) return null;
+  return apCands(L).map(a => { const d = gcd(pos, a.pos); if (d > lim) return null; const cat = a.e ? ekCat(a.e, ti, t) : null; if (a.e && !(cat in CATO)) return null;
     const wx = apWx(L, a.icao, t + d / R1NM * HOUR); return { a, d, cat, rate: wx ? wx.rate : 'none', brg: brgOf(pos, a.pos) }; }).filter(Boolean)
     .sort((x, y) => (R[x.rate] - R[y.rate]) || ((CATO[x.cat] == null ? 9 : CATO[x.cat]) - (CATO[y.cat] == null ? 9 : CATO[y.cat])) || (x.d - y.d)).slice(0, 6);
 }
 const ctTag = c => '<span class="ct c' + (c && c in CATO ? c : 'N') + '">' + (c && c in CATO ? c : '—') + '</span>';
 function altlShow(L, pos, t, ph) {
   const b = $('altl'); let h = '';
-  if (LAY.l && !L.noOfp && pos && ph !== 2) { const A = altNow(L, pos, t);
-    h = '<div class="ah"><span>🛬 ' + XS('1 小时内备降', 'Altn ≤ 1 h') + '</span><span class="gr">⠿</span>' + (EKT ? '' : '<small style="font-weight:600">' + XS('无授权表', 'no EK table') + '</small>') + '</div>'
+  if (LAY.l && !L.noOfp && pos && ph !== 2) { let A = altNow(L, pos, t), far = 0; if (!A.length) { A = altNow(L, pos, t, 1e5).sort((x, y) => x.d - y.d).slice(0, 3); far = 1; }   // 1 小时内没有：显示最近的 3 个
+    h = '<div class="ah"><span>🛬 ' + (far ? XS('最近备降（超过 1 小时）', 'Nearest altn (> 1 h)') : XS('1 小时内备降', 'Altn ≤ 1 h')) + '</span><span class="gr">⠿</span>' + (EKT ? '' : '<small style="font-weight:600">' + XS('无授权表', 'no EK table') + '</small>') + '</div>'
       + (A.length ? A.map(x => '<div class="ar" data-ap="' + x.a.icao + '"><span class="wd ' + x.rate + '"></span>' + ctTag(x.cat) + '<b>' + x.a.icao + '</b><span class="d"><i class="ba" style="transform:rotate(' + Math.round(x.brg) + 'deg)">↑</i>' + String(Math.round(x.brg) % 360).padStart(3, '0') + '° ' + Math.round(x.d) + 'nm · ' + Math.round(x.d / R1NM * 60) + "'</span></div>").join('') : '<div class="ar" style="cursor:default;color:#c00000">' + XS('1 小时内没有合适的机场', 'None within 1 h') + '</div>'); }
   if (b.innerHTML !== h) b.innerHTML = h;
   requestAnimationFrame(() => { if (b.parentNode === $('mapw') && altPos()) return; const c = $('alc'), up = b.parentNode === $('mapw') && c && c.style.display === 'block'; b.style.bottom = up ? (c.getBoundingClientRect().height + 62) + 'px' : ''; });   // 竖屏：警告卡片开着时，备降列表往上让开
@@ -1294,6 +1298,7 @@ $('wpl').onclick = e => { if (e.target.closest('[data-more]')) { ls('wpall', ls(
   if (!/^\d{4}$/.test(v.trim())) { ls('ato.' + CUR.k, ''); draw(); return; }
   const wp = CUR.n.find(x => x[0] === w.dataset.w), plan = offOf(CUR) + wp[1] * MIN, d0 = Date.UTC(new Date(plan).getUTCFullYear(), new Date(plan).getUTCMonth(), new Date(plan).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
   ls('ato.' + CUR.k, JSON.stringify({ w: wp[0], t: [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - plan) - Math.abs(b - plan))[0] })); draw(); };
+$('wps').onclick = e => $('wpl').onclick(e);   // 竖屏航路点条：点一个点也能改过点时间
 $('sinfo').onclick = e => { const t = e.target.closest('.si'); if (!t) return; if (t.dataset.fir) openNotams(t.dataset.fir); else if (t.dataset.nid) openNotams(t.dataset.loc, t.dataset.nid); else if (t.dataset.id) fiDetail(t.dataset.id); };
 $('alc-x').onclick = () => { ls('alclosed', ALSIG); draw(); };
 $('alx').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) { openNotams(t.dataset.loc, t.dataset.id); return; } const a = e.target.closest('.al'); if (!a) return;
@@ -1301,6 +1306,9 @@ $('alx').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) { o
   if (a.dataset.ofp) { showWarn(0); return; } if (a.dataset.fir) { openNotams(a.dataset.fir); return; } if (a.dataset.id) fiDetail(a.dataset.id); };
 $('wpl').addEventListener('scroll', () => { wplTouch = Date.now(); }, { passive: true });
 $('zcb').onclick = () => openCrew();
+const MROTL = { N: 'N↑', H: '✈↑', R: 'N→', L: '←N' };
+$('zrot').textContent = MROTL[MROT] || 'N↑';
+$('zrot').onclick = () => { MROT = { N: 'H', H: 'R', R: 'L', L: 'N' }[MROT] || 'N'; ls('mrot', MROT); $('zrot').textContent = MROTL[MROT]; draw(); };
 $('zfoc').onclick = () => { FOCUS = null; ZOOM = +(ls('zoom') || 700); draw(); };   // 回到飞机
 $('zin').onclick = () => { ZOOM = Math.max(150, ZOOM / 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
 $('zout').onclick = () => { ZOOM = Math.min(4000, ZOOM * 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
