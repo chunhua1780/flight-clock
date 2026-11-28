@@ -221,6 +221,7 @@ html.eink #apn{border-color:#000}html.eink #apn .ah{color:#000}
 .bx .sid{display:block;font-size:10.5px;font-weight:900;color:#1c5fc4;letter-spacing:.02em}html.eink .bx .sid{color:#000}
 .rt .rr small{font-size:.72em;font-weight:700;color:#444}
 /* 起飞前：大卡片（OFP 编号 + 跑道 + 离场程序）、航班号下面红色起飞倒计时 */
+#arrc{display:none;background:#fff;border:3px solid #000;border-radius:12px;padding:6px 14px 8px;box-shadow:0 4px 14px rgba(0,0,0,.25);text-align:center}#arrc .h{font-size:13px;font-weight:900;color:#444}#arrc .rw{font-size:44px;font-weight:900;line-height:1}#arrc .rw small{font-size:16px;color:#444;margin-right:6px}#arrc .st{font-size:30px;font-weight:900;color:#1c5fc4;margin-top:2px}#arrc .btn{margin-top:6px}
 #depc{display:none;background:#fff;border:3px solid #000;border-radius:12px;padding:4px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 #depc .on{font-size:12px;font-weight:900;color:#444;letter-spacing:.06em}#depc .on b{display:block;font-size:52px;line-height:.95;color:#000;letter-spacing:-.02em}
 #depc .rw{font-size:22px;font-weight:900;line-height:1.15;margin-top:3px}#depc .rw small{font-size:13px;color:#444;margin-right:4px}#depc .sd{font-size:20px;font-weight:900;color:#1c5fc4}
@@ -289,7 +290,7 @@ html.eink .rf .ch.r,html.eink .rf .ch.b{background:#000;border-color:#000}html.e
 <div id="app">
   <div id="top"><div id="sbar"></div><div id="sel"><span class="fl" id="fl"></span></div><div id="tbar"><div id="ovw"></div><span id="cbt"></span><span id="tlc"></span></div><div id="tinfo"><div class="rt" id="rt"></div><div class="row" id="row"></div><div class="ph" id="ph"></div><div id="hov"></div></div></div>
   <div id="wps"></div><div id="legs"></div>
-  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span id="tocd"></span><div id="mcards"><div id="depc"></div><div id="apn"></div><div id="gpsc"></div></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><span class="zb" id="zrot" style="top:260px;font-size:15px" title="Map orientation">N↑</span><div id="lyp"></div>
+  <div id="main"><div id="mapw"><canvas id="map"></canvas><span id="firl"></span><span id="gpsb"></span><span id="tocd"></span><div id="mcards"><div id="depc"></div><div id="arrc"></div><div id="apn"></div><div id="gpsc"></div></div><span class="zb" id="zin" style="top:8px">+</span><span class="zb" id="zout" style="top:50px">−</span><span class="zb" id="zfoc" style="top:92px;display:none">◎</span><span class="zb" id="zcb" style="top:134px;font-size:19px" title="Crew brief">📋</span><span class="zb" id="zly" style="top:176px;font-size:17px" title="Layers">ALT</span><span class="zb" id="zbd" style="top:218px;font-size:18px;display:none" title="Before departure">🛫</span><span class="zb" id="zrot" style="top:260px;font-size:15px" title="Map orientation">N↑</span><div id="lyp"></div>
     <div id="board"></div><div id="newb" style="position:absolute;left:8px;right:8px;top:8px;display:none;background:#0a8a3a;color:#fff;border-radius:12px;padding:8px 10px;font-weight:800;font-size:14px;z-index:4"></div><span id="demob"></span><div id="wpop"></div><span class="fab" id="b-menu">☰</span><div id="st"></div></div><div id="side"><div id="fhdr"></div><div id="wpl"></div><div id="sinfo"></div><div id="altl"></div></div></div>
   <div id="alc"><div class="ah"><b id="alt"></b><span class="ax" id="alc-x">✕</span></div><div id="alx"></div></div><span id="warn"></span>
   <div id="rk" style="display:none"></div><div id="chk"></div>
@@ -416,7 +417,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611280527';
+const PAGEV = '202611280532';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -515,7 +516,7 @@ const FIRN = [
   [/\bBIRDS?\b[^.]{0,60}(?:ACTIVIT|MIGRAT|FLOCK|STRIKE)/, 'amber', '鸟群活动', 'Bird activity'],
   [/ARTILLERY|FIRING|\bEXER\b|MIL(?:ITARY)? EXERCISE|PARA DROP|DANGER AREA|DNG AREA|RESTRICTED AREA|PROHIBITED/, 'amber', '军事活动 / 限制区', 'Military activity / restricted area']
 ];
-const SV = 5;   // 摘要格式版本：旧的（没有航路坐标）有网时会重新读
+const SV = 6;   // 摘要格式版本：旧的（没有航路坐标）有网时会重新读
 const FIRALIAS = { ZGGG: 'ZGZU', ZGNN: 'ZGZU', ZJSY: 'ZJSA', ZPPP: 'ZPKM', ZBAA: 'ZBPE', ZSSS: 'ZSHA', ZHHH: 'ZHWH', ZLLL: 'ZLHW', ZWWW: 'ZWUQ' };
 function summarize(o) {
   const f = o.flight, t = o.times, W = o.weights || {}, F = o.fuel || {}, N = o.navlog || [], X = wptFill(N, Object.assign({}, o.fixes || {}));   // 缺坐标的点用上传的航路点数据库补
@@ -528,7 +529,7 @@ function summarize(o) {
     WX.notams(o.notams[icao], at).filter(n => n.lv !== 'info').slice(0, 5).forEach(n => out.push({ lv: n.lv, zh: role[0] + ' ' + icao + '：' + n.zh, en: role[1] + ' ' + icao + ': ' + n.en, loc: icao, id: n.ids[0] }));
     return out;
   };
-  const leg = { sv: SV, ofpn: f.ofpn || 0, drw: f.depRwy || '', arw: f.arrRwy || '', sid: ((o.navlog || [])[1] && /^[A-Z]{2,6}\d[A-Z]$/.test(o.navlog[1].awy || '') ? o.navlog[1].awy : ''), k: f.no + f.date, no: f.no, date: f.date, dep: f.dep, arr: f.arr, ai: f.depIata, bi: f.arrIata, reg: f.reg || '', ty: f.type || '',
+  const leg = { sv: SV, ofpn: f.ofpn || 0, drw: f.depRwy || '', arw: f.arrRwy || '', sid: ((o.navlog || [])[1] && /^[A-Z]{2,6}\d[A-Z]$/.test(o.navlog[1].awy || '') ? o.navlog[1].awy : ''), star: (() => { const z = (o.navlog || [])[(o.navlog || []).length - 1]; return z && /^[A-Z]{2,6}\d[A-Z]$/.test(z.awy || '') ? z.awy : ''; })(), k: f.no + f.date, no: f.no, date: f.date, dep: f.dep, arr: f.arr, ai: f.depIata, bi: f.arrIata, reg: f.reg || '', ty: f.type || '',
     cs: f.cs || '', std: t.std, tx: t.taxi || 0, tr: t.trip || 0, fl: (+(String(t.crzFl || '').replace(/\D/g, '')) || 350) * 100, n: N.map(w => X[w.id] ? [w.id, w.t, Math.round(X[w.id][0] * 1000) / 1000, Math.round(X[w.id][1] * 1000) / 1000] : [w.id, w.t]), fi: (o.firs || []).filter(x => x.wp).map(x => [x.name.replace(/ FIR$/, ''), x.code, x.wp, x.t]), c: [], R: { dep: [], enr: [], arr: [] }, ap: [f.dep, f.arr].concat((o.alternates || []).map(a => a.icao)), nt: {} };
   // 全部通告（每个机场、每个管制区）：编号、原文、生效时间 —— 点开能看全文、译文、地图上的区域
   Object.keys(o.notams || {}).forEach(k => { leg.nt[k] = o.notams[k].map(n => [n.id, n.text, n.from, n.to]); });
@@ -876,7 +877,7 @@ function draw() {
   let row = tile(atdOf(L) ? 'ATD' : 'STD', '<span class="edit">' + hmZ(atdOf(L) || std) + 'Z</span>', atdOf(L) ? 'STD ' + hmZ(std) : '', 'c-atd')
     + tile('ETA', hmZ(on) + 'Z', L.noOfp ? X('按日历', 'roster') : dur(L.tr))
     + (wFix(L) ? tile('ZFW', '<span class="edit">' + (zfwOf(L) ? T(zfwOf(L)) : XS('输入', 'enter')) + '</span>', zfwOf(L) ? XS('实际', 'actual') : XS('计划 ', 'plan ') + T(L.w.z), 'c-zfw') : '');
-  ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now); altlShow(L, P && P.p, now, ph); chkShow(L, ph, now, F); gpscShow(L, ph, el, off, now); apnShow(L, ph, now); crrShow(L, ph, off, now); depShow(L, ph, off, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
+  ovwShow(L, ph, el); cbtShow(L, ph, now); tlcShow(L, ph, now); altlShow(L, P && P.p, now, ph); chkShow(L, ph, now, F); gpscShow(L, ph, el, off, now); apnShow(L, ph, now); crrShow(L, ph, off, now); arrShow(L, ph, off, now); depShow(L, ph, off, now);   // 航班号下面的红字：超重时最大油量 / 最大无油重
   if ($('row').innerHTML !== row) $('row').innerHTML = row;
   // 起飞前：起飞警告板（超重、起飞机场……）；真正起飞后才换成地图
   // 起飞前：地图照常显示；起飞前提醒板（重量、时间轴、起飞警告）点地图上的 🛫 打开 / 关上
@@ -1079,6 +1080,14 @@ function crewAlerts(L, S, now) { if (L.noOfp || S.ph !== 0 || now < L.std - 85 *
 // 机组轮休：飞行 9–12 小时 = 三组（3 个飞行员），超过 12 小时 = 两组（4 个飞行员）。休息 = 起飞 +10 分 到 落地 −60 分，平均分
 // 起飞后 5 分钟自动弹出，约 1 分钟后自己关；空中右下角一直有「😴 休息」按钮可以再看
 let CRR_OPEN = 0;
+// 落地前 1 小时：大字显示落地跑道 + 进场程序（STAR），点一下或按 ✓ 关掉（这一班不再出现）
+function arrShow(L, ph, off, now) {
+  const b = $('arrc'), on = off + (L.tr || 0) * MIN; let h = '';
+  if (ph === 1 && !L.noOfp && (L.arw || L.star) && now >= on - 60 * MIN && !ls('arrc.' + L.k))
+    h = '<div class="h">🛬 ' + XS('落地', 'Arrival') + ' · ' + esc(L.arr || L.bi) + '</div>' + (L.arw ? '<div class="rw"><small>RWY</small>' + esc(L.arw) + '</div>' : '') + (L.star ? '<div class="st">' + esc(L.star) + '</div>' : '') + '<span class="btn">✓ ' + XS('知道了', 'OK') + '</span>';
+  if (b.innerHTML !== h) b.innerHTML = h; b.style.display = h ? 'block' : 'none';
+}
+$('arrc').onclick = () => { if (CUR) ls('arrc.' + CUR.k, '1'); $('arrc').style.display = 'none'; };
 function crrBox() { let b = $('crr'); if (!b) { b = document.createElement('div'); b.id = 'crr'; b.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;background:#fff;color:#000;border:4px solid #000;border-radius:14px;padding:16px 22px;font-weight:800;text-align:center;min-width:280px;display:none'; b.onclick = () => { CRR_OPEN = 0; if (CUR) ls('crr.' + CUR.k, '1'); b.style.display = 'none'; }; document.body.appendChild(b); }
   let k = $('crrb'); if (!k) { k = document.createElement('div'); k.id = 'crrb'; k.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:998;background:#fff;color:#000;border:3px solid #000;border-radius:10px;padding:6px 12px;font-size:18px;font-weight:800;display:none'; k.textContent = '😴 ' + XS('休息', 'Rest'); k.onclick = () => { CRR_OPEN = Date.now(); draw(); }; document.body.appendChild(k); }
   return [b, k]; }
