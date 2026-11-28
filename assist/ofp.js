@@ -1,10 +1,18 @@
+// 经纬度航路点名 → [纬, 经]：S13E100、S0700E09430、N4530W03015、5530N（不认的返回 null）
+function llName(id) {
+  let m = /^([NS])(\d{2})(\d{2})?([EW])(\d{2,3})(\d{2})?$/.exec(id);
+  if (m) { const la = (+m[2] + (m[3] ? +m[3] / 60 : 0)) * (m[1] === 'S' ? -1 : 1), lo = (+m[5] + (m[6] ? +m[6] / 60 : 0)) * (m[4] === 'W' ? -1 : 1); return la <= 90 && Math.abs(lo) <= 180 ? [la, lo] : null; }
+  m = /^(\d{2})(\d{2})?([NS])(\d{2,3})(\d{2})?([EW])$/.exec(id);
+  if (m) return [(+m[1] + (m[2] ? +m[2] / 60 : 0)) * (m[3] === 'S' ? -1 : 1), (+m[4] + (m[5] ? +m[5] / 60 : 0)) * (m[6] === 'W' ? -1 : 1)];
+  return null;
+}
 /* 飞行助手 · OFP 解析（全部离线，时间一律 UTC）
  * 输入：OFP 包的文字（PDF 提取出来的，或者直接粘贴的）
  * 输出：{ flight, route, times, navlog[], fixes{}, alternates[], airports{ICAO:{roles,metar,taf}}, notams{ICAO:[]} }
  */
 (function (root) {
   'use strict';
-  const PV = 9;                                                               // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
+  const PV = 10;                                                              // 解析器版本：改了解析规则就加 1，页面会用保存的原文重新读
   const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
   const hhmm = s => s ? (+s.slice(0, 2)) * 60 + (+s.slice(2, 4)) : null;      // "0752" → 472 分钟
   const ll = s => {                                                          // "N2151.5" / "E11232.8" → 度
@@ -127,7 +135,7 @@
         if (sp && sp[2] === 'FIR') { const f = { name: sp[1].trim() + ' FIR', code: sp[3], afterIdx: out.navlog.length }; out.firs.push(f); sepSince = f; continue; }
         if (/^\s*(AWY|WPT)\s/.test(l) || /^-{5,}/.test(l.trim())) continue;
         // 航路点行：名字 … 累计时间 hhmm 后面跟 "...." 两组
-        const w = /^\s*([A-Z0-9_]{2,8})(?:\/\w+)?\b.*?\s(\d{4})\s+\.{4}\s+\.{4}/.exec(l);
+        const w = /^\s*([A-Z0-9_]{2,11})(?:\/\w+)?\b.*?\s(\d{4})\s+\.{4}\s+\.{4}/.exec(l);
         const first = /^\s*([A-Z]{4})\/\w+\s+[\d.]+\s*$/.exec(l);                       // 起飞机场那一行（没有时间）
         if (first && !out.navlog.length) { out.navlog.push({ id: first[1], t: 0, dist: 0 }); continue; }
         if (w) {
@@ -156,15 +164,20 @@
     }
 
     // ---------- 6. 航路点坐标（高空风表：名字一行、纬度一行、经度一行） ----------
+    // 经纬度点（S13E100 / S0700E09430 这种）表里名字是空的：按列位置对齐名字；空列用坐标反推名字，下面再按坐标名补
     for (let i = 1; i < L.length - 1; i++) {
-      const lats = L[i].match(/\b[NS]\d{4}\.\d\b/g);
-      if (!lats) continue;
-      const lons = (L[i + 1] || '').match(/\b[EW]\d{5}\.\d\b/g);
-      if (!lons || lons.length !== lats.length) continue;
-      const names = L[i - 1].trim().split(/\s{2,}|\s(?=[A-Z])/).map(s => s.trim()).filter(s => /^[A-Z0-9_]{2,8}$/.test(s) && s !== 'CLIMB' && s !== 'DESCENT');
-      if (names.length !== lats.length) continue;
-      names.forEach((n, k) => { out.fixes[n === 'T_O_D' ? 'TOD' : n] = [ll(lats[k]), ll(lons[k])]; });
+      const lats = [], lons = [];
+      L[i].replace(/\b[NS]\d{4}\.\d\b/g, (m, o) => { lats.push({ v: m, o }); return m; });
+      if (!lats.length) continue;
+      (L[i + 1] || '').replace(/\b[EW]\d{5}\.\d\b/g, (m, o) => { lons.push({ v: m, o }); return m; });
+      if (lons.length !== lats.length) continue;
+      const nm = []; L[i - 1].replace(/[A-Z0-9_]{2,11}/g, (m, o) => { if (m !== 'CLIMB' && m !== 'DESCENT') nm.push({ v: m, o }); return m; });
+      if (nm.some(n => !lats.some(a => Math.abs(a.o - n.o) <= 3))) { if (nm.length !== lats.length) continue; nm.forEach((n, k) => { n.o = lats[k].o; }); }   // 对不上列：老办法（个数相同才用）
+      lats.forEach((a, k) => { const n = nm.find(x => Math.abs(x.o - a.o) <= 3); const c = [ll(a.v), ll(lons[k].v)];
+        if (n) out.fixes[n.v === 'T_O_D' ? 'TOD' : n.v] = c; else out.llfix = (out.llfix || []).concat([c]); });
     }
+    // 名字本身就是坐标：S13E100、S0700E09430、N45W030、5530N ……（经纬度点名）
+    (out.navlog || []).forEach(w => { if (out.fixes[w.id]) return; const c = llName(w.id); if (c) out.fixes[w.id] = c; });
 
     // ---------- 7. 天气（METAR=SA/SP，TAF=FT/FC），按机场和角色 ----------
     const ws = L.findIndex(l => /^\s*Weather\s*$/.test(l));
