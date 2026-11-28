@@ -103,8 +103,8 @@ async function openLog() {
     $('lb-a').onclick = async () => { lbMsg = '⏳ ' + XS('取 ADS-B 起降时间…', 'Loading ADS-B times…'); paint(); let n = 0; for (const e of LBK.filter(x => x.std > Date.now() - 7 * 864e5)) { if (await lbAdsb(e)) n++; } lbMsg = n ? '✅ ' + XS('更新了 ' + n + ' 条（手改的不动）', n + ' updated (edited times kept)') : XS('没有新的 ADS-B 时间', 'No new ADS-B times'); paint(); lbSync().then(paint); };
     sh.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { ls('lbfmt', b.dataset.fmt); paint(); });
     if ($('lb-add')) $('lb-add').onclick = () => { lbFromLeg(CUR); lbMsg = '✅ ' + XS('已记下（有网时同步到所有设备）', 'Logged (syncs when online)'); paint(); lbSync().then(paint); };
-    sh.querySelectorAll('td.lbt').forEach(el => el.onclick = () => { const k = el.dataset.k, f = el.dataset.f, e = LBK.find(x => x.k === k); if (!e) return;
-      const v = prompt(e.flt + ' ' + ({ offB: XS('撤轮挡', 'OFF'), to: XS('起飞', 'T/O'), ldg: XS('落地', 'LDG'), onB: XS('挡轮挡', 'ON') })[f] + ' (UTC hhmm)', e[f] ? hmZ(e[f]) : ''); if (v === null || !/^\d{4}$/.test(v.trim())) return;
+    sh.querySelectorAll('td.lbt').forEach(el => el.onclick = async () => { const k = el.dataset.k, f = el.dataset.f, e = LBK.find(x => x.k === k); if (!e) return;
+      const v = await askT(e.flt + ' ' + ({ offB: XS('撤轮挡', 'OFF'), to: XS('起飞', 'T/O'), ldg: XS('落地', 'LDG'), onB: XS('挡轮挡', 'ON') })[f] + ' (UTC hhmm)', e[f] ? hmZ(e[f]) : ''); if (v === null || !/^\d{4}$/.test(v.trim())) return;
       const ref = e[f] || e.std || e.date, d0 = Date.UTC(new Date(ref).getUTCFullYear(), new Date(ref).getUTCMonth(), new Date(ref).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
       const y = JSON.parse(JSON.stringify(e)); y[f] = [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - ref) - Math.abs(b - ref))[0]; y.src = y.src || {}; y.src[f] = 'man'; lbPut(y); paint(); lbSync().then(paint); });
   };

@@ -416,7 +416,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611280438';
+const PAGEV = '202611280443';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -971,11 +971,21 @@ function openNotams(loc, onlyId) {
   $('sheet').querySelectorAll('.mb').forEach(b => b.onclick = () => { const id = b.dataset.a; if (AREAS[id]) { delete AREAS[id]; if (!Object.keys(AREAS).length) FOCUS = null; } else { const n = list.find(x => x[0] === id); if (n) { AREAS[id] = WX.area(n[1]); focusArea(AREAS[id]); } } $('sheet').style.display = 'none'; draw(); });
 }
 
+// 自己画的输入框（手机 App 里的 WebView 不弹系统 prompt）：返回输入的文字，取消 = null
+function askT(title, def) { return new Promise(res => {
+  let o = document.getElementById('askt'); if (o) o.remove();
+  o = document.createElement('div'); o.id = 'askt'; o.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.35);display:flex;align-items:flex-start;justify-content:center;padding-top:12vh';
+  o.innerHTML = '<div style="background:#fff;color:#000;border:3px solid #000;border-radius:12px;padding:14px;width:min(92vw,420px);box-sizing:border-box;font-weight:700"><div style="font-size:16px;margin-bottom:10px"></div><input style="width:100%;box-sizing:border-box;font-size:26px;font-weight:800;padding:8px;border:2px solid #000;border-radius:8px" autocomplete="off" autocapitalize="characters"><div style="display:flex;gap:10px;margin-top:12px"><span class="btn" data-a="x" style="flex:1;text-align:center">✕ ' + XS('取消', 'Cancel') + '</span><span class="btn" data-a="ok" style="flex:1;text-align:center;background:#000;color:#fff">✓ ' + XS('确定', 'OK') + '</span></div></div>';
+  o.firstChild.firstChild.textContent = title; const inp = o.querySelector('input'); inp.value = def == null ? '' : String(def);
+  const done = v => { o.remove(); res(v); };
+  o.onclick = e => { const a = e.target.closest('[data-a]'); if (a) done(a.dataset.a === 'ok' ? inp.value : null); else if (e.target === o) done(null); };
+  inp.onkeydown = e => { if (e.key === 'Enter') done(inp.value); else if (e.key === 'Escape') done(null); };
+  document.body.appendChild(o); setTimeout(() => { inp.focus(); inp.select(); }, 50); }); }
 /* ---------- 操作 ---------- */
 $('sel').onclick = () => $('legs').classList.toggle('open');
-$('legs').onclick = e => { const t = e.target.closest('.lg'); if (!t) return; $('legs').classList.remove('open');
-  if (t.dataset.k === '#no') { const L = CUR; const v = prompt(X('航班号（例如 EK0368 或 QR0123；只输数字 = EK；留空 = 用系统的 ', 'Flight no. (e.g. EK0368; empty = system ') + L.no + '）', ls('no.' + L.k) || ''); if (v !== null) { let n = v.trim().toUpperCase().replace(/\s+/g, ''); if (/^\d/.test(n)) n = 'EK' + n; ls('no.' + L.k, n); $('fl').dataset.f = ''; } }
-  else if (t.dataset.k === '#cs') { const L = CUR; const v = prompt(X('ATC 呼号（例如 UAE2AK；留空 = 用 OFP 上的 ', 'ATC callsign (e.g. UAE2AK; empty = OFP ') + (L.cs || L.no) + '）', ls('cs.' + L.k) || ''); if (v !== null) ls('cs.' + L.k, v.trim().toUpperCase().replace(/\s+/g, '')); }
+$('legs').onclick = async e => { const t = e.target.closest('.lg'); if (!t) return; $('legs').classList.remove('open');
+  if (t.dataset.k === '#no') { const L = CUR; const v = await askT(X('航班号（例如 EK0368 或 QR0123；只输数字 = EK；留空 = 用系统的 ', 'Flight no. (e.g. EK0368; empty = system ') + L.no + '）', ls('no.' + L.k) || ''); if (v !== null) { let n = v.trim().toUpperCase().replace(/\s+/g, ''); if (/^\d/.test(n)) n = 'EK' + n; ls('no.' + L.k, n); $('fl').dataset.f = ''; } }
+  else if (t.dataset.k === '#cs') { const L = CUR; const v = await askT(X('ATC 呼号（例如 UAE2AK；留空 = 用 OFP 上的 ', 'ATC callsign (e.g. UAE2AK; empty = OFP ') + (L.cs || L.no) + '）', ls('cs.' + L.k) || ''); if (v !== null) ls('cs.' + L.k, v.trim().toUpperCase().replace(/\s+/g, '')); }
   else ls('pin', t.dataset.k); draw(); };
 $('b-demo').onclick = () => demo();
 $('b-log').onclick = () => openLog();
@@ -1278,7 +1288,7 @@ function openCrew() { const L = CUR; if (!L) return; const sh = $('sheet'), back
   sh.innerHTML = '<div style="display:flex;align-items:center;gap:6px"><b style="font-size:18px">👥 ' + XS('机组简报', 'Crew brief') + ' · ' + esc(L.no) + ' · ' + hmZ(L.std - CB_MIN * MIN) + 'Z</b><span style="flex:1"></span><span class="btn" id="cb-s">📋 ' + XS('简洁版', 'Short brief') + '</span><span class="btn" id="sh-x">✕</span></div>'
     + legCard(L, false) + (back ? legCard(back, true, L) : '<div class="ok">' + XS('没有找到当天的回程航班', 'No return flight found') + '</div>');
   sh.style.display = 'block'; sh.scrollTop = 0; $('sh-x').onclick = () => { sh.style.display = 'none'; draw(); }; $('cb-s').onclick = () => openShort(); }
-$('b-zfw').onclick = () => { const L = CUR; if (!L || !wFix(L)) { MSG = XS('这个航班没有 OFP 重量数据', 'No OFP weights for this flight'); draw(); return; } const v = prompt(XS('实际无油重量 ZFW（吨，例如 245.3；留空 = 用计划 ', 'Actual ZFW (t; empty = plan ') + T(L.w.z) + '）', zfwOf(L) ? T(zfwOf(L)) : ''); if (v !== null) setZfw(L, v); };
+$('b-zfw').onclick = async () => { const L = CUR; if (!L || !wFix(L)) { MSG = XS('这个航班没有 OFP 重量数据', 'No OFP weights for this flight'); draw(); return; } const v = await askT(XS('实际无油重量 ZFW（吨，例如 245.3；留空 = 用计划 ', 'Actual ZFW (t; empty = plan ') + T(L.w.z) + '）', zfwOf(L) ? T(zfwOf(L)) : ''); if (v !== null) setZfw(L, v); };
 $('b-eink').onclick = () => { try { localStorage.setItem('pnl.eink', EINK ? '0' : '1'); } catch (e) {} location.reload(); };
 $('b-fi').onclick = async () => { ls('fit', '0'); MSG = '⏳ ' + X('下载区域提醒数据库…', 'Downloading Flight Intelligence…'); draw(); await fiSync();
   const n = FIDB && FIDB.items ? FIDB.items.length : 0, ok = n ? FIDB.items.filter(x => fiUsable(x, Date.now())).length : 0;
@@ -1293,9 +1303,9 @@ $('board').addEventListener('keydown', e => { if (e.target.id === 'zfwin' && e.k
 $('board').onclick = e => { if (e.target.closest('#zfwok')) { setZfw(CUR, $('zfwin').value); return; } if (e.target.closest('#b-pkg2')) { openPkg(); return; } const f = e.target.closest('[data-fi]'); if (f) { fiDetail(f.dataset.fi); return; } const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); };
 $('warn').onclick = () => { ls('alclosed', ''); draw(); };
 $('wpop').onclick = e => { const t = e.target.closest('.it[data-id]'); if (t) openNotams(t.dataset.loc, t.dataset.id); else $('wpop').style.display = 'none'; };
-$('wpl').onclick = e => { if (e.target.closest('[data-more]')) { ls('wpall', ls('wpall') === '1' ? '0' : '1'); draw(); return; } const t = e.target.closest('[data-fir]'); if (t) { openNotams(t.dataset.fir); return; }
+$('wpl').onclick = async e => { if (e.target.closest('[data-more]')) { ls('wpall', ls('wpall') === '1' ? '0' : '1'); draw(); return; } const t = e.target.closest('[data-fir]'); if (t) { openNotams(t.dataset.fir); return; }
   const w = e.target.closest('.wp[data-w]'); if (!w || !CUR || !CUR.n) return;   // 点航路点：填过这个点的实际时间
-  const v = prompt(X('过 ', 'Time over ') + w.dataset.w + X(' 的实际时间（UTC，4 位，例如 0815；留空 = 取消过点修正）', ' (UTC, e.g. 0815; empty = clear)'), hmZ(Date.now())); if (v === null) return;
+  const v = await askT(X('过 ', 'Time over ') + w.dataset.w + X(' 的实际时间（UTC，4 位，例如 0815；留空 = 取消过点修正）', ' (UTC, e.g. 0815; empty = clear)'), hmZ(Date.now())); if (v === null) return;
   if (!/^\d{4}$/.test(v.trim())) { ls('ato.' + CUR.k, ''); draw(); return; }
   const wp = CUR.n.find(x => x[0] === w.dataset.w), plan = offOf(CUR) + wp[1] * MIN, d0 = Date.UTC(new Date(plan).getUTCFullYear(), new Date(plan).getUTCMonth(), new Date(plan).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
   ls('ato.' + CUR.k, JSON.stringify({ w: wp[0], t: [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - plan) - Math.abs(b - plan))[0] })); draw(); };
@@ -1313,19 +1323,19 @@ $('zrot').onclick = () => { MROT = { N: 'H', H: 'R', R: 'L', L: 'N' }[MROT] || '
 $('zfoc').onclick = () => { FOCUS = null; ZOOM = +(ls('zoom') || 700); draw(); };   // 回到飞机
 $('zin').onclick = () => { ZOOM = Math.max(150, ZOOM / 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
 $('zout').onclick = () => { ZOOM = Math.min(4000, ZOOM * 1.6); ls('zoom', String(Math.round(ZOOM))); draw(); };
-$('row').addEventListener('click', e => {
+$('row').addEventListener('click', async e => {
   const L = CUR; if (!L) return;
   if (e.target.closest('#c-zfw')) { $('b-zfw').click(); return; }
   if (e.target.closest('#c-fir')) { const FI = L.fi || [], el = (Date.now() - offOf(L)) / MIN, fx = FI.find(f => f[3] > Math.max(0, el)); if (fx) openNotams(FIRALIAS[fx[1]] || fx[1]); return; }
   if (e.target.closest('#c-wp') && L.n) {
     const off = offOf(L), el = (Date.now() - off) / MIN, last = L.n.filter(w => w[1] <= el).slice(-1)[0] || L.n[1] || L.n[0];
-    const v = prompt(X('过点时间：航路点 + UTC 时间（例如 ', 'Time over waypoint: name + UTC (e.g. ') + (last ? last[0] : 'CHILA') + ' ' + hmZ(Date.now()) + X('）；留空 = 取消过点修正', '); empty = clear'), last ? last[0] + ' ' + hmZ(Date.now()) : ''); if (v === null) return;
+    const v = await askT(X('过点时间：航路点 + UTC 时间（例如 ', 'Time over waypoint: name + UTC (e.g. ') + (last ? last[0] : 'CHILA') + ' ' + hmZ(Date.now()) + X('）；留空 = 取消过点修正', '); empty = clear'), last ? last[0] + ' ' + hmZ(Date.now()) : ''); if (v === null) return;
     const mm = /^\s*([A-Z0-9]{2,8})\s+(\d{4})\s*$/i.exec(v); if (!mm) { ls('ato.' + L.k, ''); draw(); return; }
     const w = L.n.find(x => x[0] === mm[1].toUpperCase()); if (!w) { alert(X('这条航路上没有 ', 'No waypoint ') + mm[1]); return; }
     const plan = offOf(L) + w[1] * MIN, d0 = Date.UTC(new Date(plan).getUTCFullYear(), new Date(plan).getUTCMonth(), new Date(plan).getUTCDate()) + (+mm[2].slice(0, 2) * 60 + +mm[2].slice(2)) * MIN;
     ls('ato.' + L.k, JSON.stringify({ w: w[0], t: [d0 - 864e5, d0, d0 + 864e5].sort((a, b) => Math.abs(a - plan) - Math.abs(b - plan))[0] })); draw(); return; }
   if (e.target.closest('#c-atd')) {
-    const v = prompt(L.no + X(' 实际起飞 ATD（UTC，4 位，例如 0815；留空 = 按计划）', ' actual T/O time (UTC, e.g. 0815; empty = plan)'), atdOf(L) ? hmZ(atdOf(L)) : ''); if (v === null) return;
+    const v = await askT(L.no + X(' 实际起飞 ATD（UTC，4 位，例如 0815；留空 = 按计划）', ' actual T/O time (UTC, e.g. 0815; empty = plan)'), atdOf(L) ? hmZ(atdOf(L)) : ''); if (v === null) return;
     ls('ato.' + L.k, '');
     if (!/^\d{4}$/.test(v.trim())) ls('atd.' + L.k, '');
     else { const s = L.std, d0 = Date.UTC(new Date(s).getUTCFullYear(), new Date(s).getUTCMonth(), new Date(s).getUTCDate()) + (+v.slice(0, 2) * 60 + +v.slice(2)) * MIN;
