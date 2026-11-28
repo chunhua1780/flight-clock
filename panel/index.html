@@ -416,7 +416,7 @@ const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SE
 let busy = false, BAD = [];
 // 版本：网页版本（自动更新）+ App 版本
 const VER = () => { let w = '', a = ''; try { w = window.AndroidPanel && AndroidPanel.webVer ? AndroidPanel.webVer() : ''; a = window.AndroidPanel && AndroidPanel.version ? AndroidPanel.version() : ''; } catch (e) {} return 'v' + (w || PAGEV).slice(-8) + (a ? ' · App ' + a : ''); };
-const PAGEV = '202611280412';
+const PAGEV = '202611280438';
 async function update(quiet) {
   if (busy) return; if (!navigator.onLine) { MSG = '📵 ' + X('离线', 'Offline'); draw(); return; }
   if (!ls('key') && !GH().tok) { openSet(); return; }
@@ -858,6 +858,7 @@ function draw() {
     setNight(MODE === 'night'); return; }
   ['row', 'top'].forEach(i => $(i).style.display = ''); $('main').style.display = ''; $('empty').style.display = 'none';
   const std = L.std, off = offOf(L), on = off + L.tr * MIN, LS = L.noOfp ? { el: (now - off) / MIN, ph: now < off ? 0 : now < on ? 1 : 2, src: 'PLAN' } : liveState(L, now, off, on), el = LS.el, ph = LS.ph;   // GPS 优先，没有就按计划
+  const AW = (atoOf(L) || {}).w || '';   // 改过过点时间的航路点：名字后面加 ✎
   const cs = csOf(L), nm = String(noOf(L) || '').match(/^((?=.?[A-Z])[A-Z0-9]{2}(?=\d)|[A-Z]{2,3})?(.*)$/), pf = nm[1] || 'EK', dg = nm[2].replace(/^0+(?=\d)/, '');
   const fl = '<small>' + esc(pf) + '</small>' + esc(dg) + '<span class="dd">▾</span>'; if ($('fl').innerHTML !== fl) { $('fl').innerHTML = fl; } fitFl();   // 航班号统一 EK 开头；ATC 呼号写在下面一行
   $('rt').innerHTML = '<b class="rr">' + (ph === 0 && L.dep && L.arr ? esc(L.ai) + '<small>/' + esc(L.dep) + '</small> → ' + esc(L.bi) + '<small>/' + esc(L.arr) + '</small>' : esc(L.ai) + ' → ' + esc(L.bi)) + '</b><span class="rc">' + esc(cs) + (ls('cs.' + L.k) ? '✎' : '') + (L.reg ? ' · ' + esc(L.reg) : '') + '</span><b id="phx"></b>';
@@ -894,7 +895,7 @@ function draw() {
     N.slice(a0, a1).forEach(w => {
       const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
       const dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
-      h += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (ph === 0 && w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (ph === 0 && w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
+      h += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (AW === w[0] ? '✎' : '') + (ph === 0 && w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (ph === 0 && w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
         + (f ? '<span class="hf" data-fir="' + esc(code) + '"><span class="h1">' + (riskFir.has(code) ? '⚠' : '') + esc(f[0]) + '</span><span class="h2">' + esc(f[1]) + '</span></span>' : '') + '</span>'
         + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? '<span class="tg"> ' + dur(w[1] - el) + '</span>' : '') + '</span></div>';
     });
@@ -906,7 +907,7 @@ function draw() {
       N.slice(b0, b1).forEach(w => {
         const f = FIW[w[0]], code = f ? FIRALIAS[f[1]] || f[1] : '', past = ph === 1 && w[1] <= el || ph === 2, isNx = nx && w === nx;
         const dd = !past && w.length >= 4 ? Math.round(alongNm(Nc, cum, w[1]) - dNow) : null;
-        hs += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (ph === 0 && w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (ph === 0 && w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
+        hs += '<div class="wp' + (past ? ' past' : '') + (isNx ? ' nx' : '') + (f ? ' ho' : '') + '" data-w="' + esc(w[0]) + '"><span class="bx"><span class="n">' + esc(w[0]) + (AW === w[0] ? '✎' : '') + (ph === 0 && w === N[0] && L.drw ? '/' + esc(L.drw) : '') + '</span>' + (ph === 0 && w === N[0] && L.sid ? '<span class="sid">' + esc(L.sid) + '</span>' : '')
           + (f ? '<span class="hf" data-fir="' + esc(code) + '"><span class="h1">' + (riskFir.has(code) ? '⚠' : '') + esc(f[0]) + '</span><span class="h2">' + esc(f[1]) + '</span></span>' : '') + '</span>'
           + '<span class="m"><span class="t">' + hmZ(off + w[1] * MIN) + 'Z</span>' + (dd != null && dd >= 0 ? dd + 'nm' : '') + (!past && ph === 1 ? '<span class="tg"> ' + dur(w[1] - el) + '</span>' : '') + '</span></div>';
       });
