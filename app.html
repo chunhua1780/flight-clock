@@ -331,11 +331,7 @@ body:not(.clk-g) .bigclock .t .s{color:var(--clk);opacity:.8}
     <h2>Settings</h2>
     <p>Settings are saved on this iPad only.</p>
     <div class="pro-only">
-      <label>Staff number</label>
-      <input type="text" id="s-staff" spellcheck="false" autocomplete="off" inputmode="numeric">
-      <label>Activation code</label>
-      <input type="text" id="s-act" spellcheck="false" autocomplete="off">
-      <label>Your own Apps Script URL (ends with /exec) — <a href="pro/setup.html" target="_blank" style="color:inherit">how to set it up</a></label>
+      <label>Your own Apps Script URL (ends with /exec) — <a href="https://chunhua1780.github.io/flight-cloch/pro/setup.html" target="_blank" style="color:inherit">how to set it up</a></label>
       <input type="url" id="s-api2" spellcheck="false" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
     </div>
     <div class="ics-box">
@@ -406,9 +402,8 @@ window.onerror = function (m, src, line) {
    ===================================================================== */
 // 两个版本：full = 我自己用的全功能版（读我的日历、在线图片库、OFP 航路）
 //           lite = 给同事用的简洁版（内置照片、大圆航线、不连任何人的日历，第一次打开先设置）
-const EDITION = ({ lite: 'lite', pro: 'pro' })[new URLSearchParams(location.search).get('edition')] || 'full';
+const EDITION = ({ lite: 'lite', pro: 'pro' })[window.__ED || new URLSearchParams(location.search).get('edition')] || 'full';   // __ED：外壳验证激活码后注入
 const LITE = EDITION === 'lite', PRO = EDITION === 'pro';   // pro = 销售版：每人用自己的谷歌账户后台 + 员工号 + 激活码
-const LIC_PUB = { kty: 'EC', crv: 'P-256', x: '88QArA2VDZyQ5CWQns4tgdCGqgUp9pHAmZZg08aT1po', y: 'Kv2VZkXzFrjLXLkcuM7zbQASS65L_v03CZfAfwhAWoY' };
 const DEFAULTS = {
   api: PRO ? '' : 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec',   // 简洁版也经过这个脚本读取同事自己的日历地址（只读他填的那个）
   ics: '',
@@ -424,12 +419,6 @@ if (/AKfycbxSmqqVM38/.test(CFG.api)) CFG.api = DEFAULTS.api; // 旧接口自动�
 if (CFG.pickup === 85) CFG.pickup = 135;
 if (!CFG.v3) { CFG.photos = DEFAULTS.photos; CFG.v3 = 1; }
 if (!CFG.v4) { CFG.ofp = false; CFG.learn = false; CFG.v4 = 1; lsSet('fc.cfg', JSON.stringify(CFG)); }
-// 销售版激活：激活码 = 用私钥对「FC1|员工号」的签名，这里用公钥验证
-let LIC_OK = !PRO;
-const licCheck = async (staff, code) => { try { staff = String(staff || '').trim().toUpperCase().replace(/\s+/g, ''); code = String(code || '').trim(); if (!staff || !code) return false;
-  const k = await crypto.subtle.importKey('jwk', LIC_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']), b = atob(code.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((code.length + 3) % 4)), sig = Uint8Array.from(b, c => c.charCodeAt(0));
-  return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, k, sig, new TextEncoder().encode('FC1|' + staff)); } catch (e) { return false; } };
-const licReady = PRO ? licCheck(CFG.staff, CFG.act).then(v => { LIC_OK = v; }) : Promise.resolve();
 const Q = new URLSearchParams(location.search);
 if (Q.get('api')) { CFG.api = Q.get('api'); lsSet('fc.cfg', JSON.stringify(CFG)); }
 if (Q.get('token')) { CFG.token = Q.get('token'); lsSet('fc.cfg', JSON.stringify(CFG)); }
@@ -788,7 +777,6 @@ async function loadFlights() {
     return;
   }
   try {
-    await licReady; if (PRO && !LIC_OK) { S.sync = { ok: false, t: Date.now(), err: 'Not activated — enter staff number and activation code in ⚙︎' }; return; }
     if (!CFG.api || (LITE && !CFG.ics)) { S.sync = { ok: false, t: Date.now(), err: 'Calendar not set up yet' }; return; }
     const r = await fetchT(apiUrl(flightsQuery()), 30000, { cache: 'no-store' });
     const j = await r.json();
@@ -1706,7 +1694,7 @@ applyClr(CFG.clr, CFG.clrC, CFG.flow);
    SETTINGS / CHROME
    ===================================================================== */
 function openSettings() {
-  $('s-api').value = CFG.api; $('s-api2').value = CFG.api || ''; $('s-staff').value = CFG.staff || ''; $('s-act').value = CFG.act || ''; $('s-ics').value = CFG.ics || ''; $('s-pexels').value = CFG.pexels || ''; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
+  $('s-api').value = CFG.api; $('s-api2').value = CFG.api || ''; $('s-ics').value = CFG.ics || ''; $('s-pexels').value = CFG.pexels || ''; $('s-token').value = CFG.token; $('s-home').value = CFG.home;
   $('s-airline').value = CFG.airline; $('s-cs').value = CFG.cs; $('s-pickup').value = CFG.pickup;
   $('s-drop8').checked = CFG.drop8; $('s-dim').checked = CFG.dim; $('s-cal').checked = CFG.cal; $('s-photos').checked = CFG.photos; $('s-ofp').checked = !!CFG.ofp; $('s-dimfrom').value = CFG.dimFrom; $('s-dimto').value = CFG.dimTo;
   $('s-flow').checked = CFG.flow !== false; clrPick = { id: CFG.clr || 'white', c: CFG.clrC || '#7fd3ff' }; buildClrs();
@@ -1716,7 +1704,7 @@ function openSettings() {
 }
 function readSettings() {
   return {
-    api: (PRO ? $('s-api2').value.trim() : $('s-api').value.trim()) || DEFAULTS.api, staff: PRO ? $('s-staff').value.trim().toUpperCase() : CFG.staff, act: PRO ? $('s-act').value.trim() : CFG.act, ics: $('s-ics').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
+    api: (PRO ? $('s-api2').value.trim() : $('s-api').value.trim()) || DEFAULTS.api, ics: $('s-ics').value.trim(), pexels: $('s-pexels').value.trim(), token: $('s-token').value.trim(), home: $('s-home').value.trim().toUpperCase() || 'DXB',
     airline: $('s-airline').value.trim().toUpperCase() || 'EK', cs: $('s-cs').value.trim().toUpperCase() || 'UAE',
     pickup: Math.max(0, +$('s-pickup').value || 0), drop8: $('s-drop8').checked, dim: $('s-dim').checked, cal: $('s-cal').checked, photos: $('s-photos').checked, ofp: $('s-ofp').checked, v3: 1, v4: 1, clr: clrPick ? clrPick.id : CFG.clr, clrC: clrPick ? clrPick.c : CFG.clrC, flow: $('s-flow').checked,
     dimFrom: Math.min(23, Math.max(0, +$('s-dimfrom').value || 0)), dimTo: Math.min(23, Math.max(0, +$('s-dimto').value || 0))
@@ -1727,7 +1715,6 @@ $('s-close').onclick = () => { $('settings').classList.remove('open'); applyClr(
 $('s-save').onclick = async () => {
   CFG = Object.assign({}, DEFAULTS, readSettings());
   lsSet('fc.cfg', JSON.stringify(CFG));
-  if (PRO) LIC_OK = await licCheck(CFG.staff, CFG.act);
   applyClr(CFG.clr, CFG.clrC, CFG.flow);
   $('settings').classList.remove('open');
   S.view = null; await loadFlights(); render(true);
@@ -1738,7 +1725,6 @@ $('s-test').onclick = async () => {
   try {
     await apReady;
     if (LITE && !CFG.ics) throw new Error('Paste your Google Calendar secret address first');
-    if (PRO && !(await licCheck(CFG.staff, CFG.act))) throw new Error('Activation code does not match this staff number');
     if (PRO && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(CFG.api)) throw new Error('Paste your own Apps Script URL (ends with /exec)');
     const j = await (await fetchT(apiUrl(flightsQuery()), 30000, { cache: 'no-store' })).json();
     if (j.ok === false) throw new Error(j.error || 'Read failed');
@@ -1812,7 +1798,7 @@ if (window.top === window.self) setInterval(() => {
   if (TRIP) setInterval(() => render(true), 1500);
   // 简洁版第一次打开：还没填日历地址，先弹出设置
   if (LITE) document.body.classList.add('lite'); if (PRO) document.body.classList.add('pro');
-  if (PRO && (!CFG.api || !CFG.staff || !CFG.act) && !DEMO) { openSettings(); $('testout').textContent = 'Welcome! Enter your staff number, activation code and your own Apps Script URL (see “how to set it up”), tap “Test”, then “Save”.'; }
+  if (PRO && !CFG.api && !DEMO) { openSettings(); $('testout').textContent = 'Welcome! Paste your own Apps Script URL (see “how to set it up”), tap “Test”, then “Save”.'; }
   if (LITE && !CFG.ics && !DEMO) { openSettings(); $('testout').textContent = 'Welcome! Paste your Google Calendar secret address in the first box (tap “Where do I find it?” for help), tap “Test”, then “Save”.'; }
   await loadFlights();
   render(true);

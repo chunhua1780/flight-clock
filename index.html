@@ -1,67 +1,75 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Flight Clock">
-<meta name="theme-color" content="#000000">
 <title>Flight Clock</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="apple-touch-icon" href="https://chunhua1780.github.io/flight-cloch/icon-180.png">
+<link rel="icon" href="https://chunhua1780.github.io/flight-cloch/icon.svg" type="image/svg+xml">
 <style>
-html,body{margin:0;height:100%;background:#000;overflow:hidden}
+:root{--bg:#000;--fg:#eef1f5;--mut:#9aa3ae;--box:#15191f;--acc:#7fb2ff}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:17px/1.5 -apple-system,system-ui,sans-serif;overflow:hidden}
 iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;transition:opacity 2s ease}
-</style>
-</head>
-<body>
+#lg{display:none;position:fixed;inset:0;align-items:center;justify-content:center;padding:16px}
+#lg form{background:var(--box);border-radius:14px;padding:22px;width:100%;max-width:380px;box-sizing:border-box}
+h1{font-size:22px;margin:0 0 14px}label{display:block;color:var(--mut);font-size:14px;margin-top:12px}
+input{width:100%;box-sizing:border-box;font-size:18px;padding:10px;border-radius:8px;border:1px solid #333;background:#000;color:var(--fg)}
+button{margin-top:18px;width:100%;font-size:18px;padding:11px;border:0;border-radius:8px;background:var(--acc);color:#000;font-weight:700}
+#msg{margin-top:12px;color:#ff8a80;min-height:1em;font-size:15px}
+a{color:var(--acc)}
+#wait{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut)}
+</style></head><body>
+<div id="wait">Loading…</div>
+<div id="lg"><form id="f">
+  <h1>Flight Clock</h1>
+  <label>Staff number</label><input id="st" autocomplete="off" inputmode="numeric" required>
+  <label>Activation code</label><input id="cd" autocomplete="off" autocapitalize="characters" required>
+  <button>Activate</button>
+  <div id="msg"></div>
+  <p style="font-size:14px;color:var(--mut)">First time? <a href="https://chunhua1780.github.io/flight-cloch/pro/setup.html" target="_blank">Setup guide</a></p>
+</form></div>
 <script>
-/* 外壳：真正的时钟在 app.html 里。
-   发现新版本时，先在后台把新版本加载好，再用 2 秒淡入替换旧画面 —— 屏幕不会闪、不会白屏。 */
 (function () {
+  var API = 'https://script.google.com/macros/s/AKfycbwZjFasB7wsS6EugQrDi-woVnfy-H7lh29Nf5Ia04Ksx5jrzrhLku_6kz6TiWIi5ZQe/exec';
+  var BASE = 'https://chunhua1780.github.io/flight-cloch/';
+  function g(k) { try { return localStorage.getItem('fcs.' + k); } catch (e) { return null; } }
+  function s(k, v) { try { if (v == null) localStorage.removeItem('fcs.' + k); else localStorage.setItem('fcs.' + k, v); } catch (e) {} }
+  var dev = g('dev'); if (!dev) { dev = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); s('dev', dev); }
   var cur = null, ver = null;
-  function load(v) {
-    var q = new URLSearchParams(location.search);
-    q.set('embed', '1');
-    if (v) q.set('v', v);
+  function show(html, ed) {
+    var inj = '<base href="' + BASE + '"><script>window.__ED=' + JSON.stringify(ed) + ';<\/script>';
+    html = html.replace(/<head[^>]*>/i, function (m) { return m + inj; });
     var f = document.createElement('iframe');
-    f.setAttribute('allow', 'fullscreen; screen-wake-lock; autoplay');
-    f.setAttribute('allowfullscreen', '');
-    f.src = 'app.html?' + q.toString();
-    if (!cur) { cur = f; document.body.appendChild(f); return; }
-    // 保险：2 分钟后还没换成新版本（iPad 上新画面没加载完、内存不够等），就整页重新打开一次
-    setTimeout(function () { if (cur !== f) location.reload(); }, 120000);
-    f.style.opacity = '0';
-    f.style.pointerEvents = 'none';
-    document.body.appendChild(f);
-    f.onload = function () {
-      setTimeout(function () {              // 给新画面 12 秒加载照片、天气、地图
-        f.style.opacity = '1';
-        f.style.pointerEvents = '';
-        var old = cur; cur = f;
-        setTimeout(function () { if (old && old.parentNode) old.parentNode.removeChild(old); }, 2500);
-      }, 12000);
-    };
+    f.setAttribute('allow', 'fullscreen; screen-wake-lock; autoplay'); f.setAttribute('allowfullscreen', '');
+    if (cur) { f.style.opacity = '0'; f.style.pointerEvents = 'none'; }
+    f.srcdoc = html; document.body.appendChild(f); document.getElementById('wait').style.display = 'none';
+    if (cur) { var old = cur; f.onload = function () { setTimeout(function () { f.style.opacity = '1'; f.style.pointerEvents = ''; setTimeout(function () { if (old.parentNode) old.parentNode.removeChild(old); }, 2500); }, 12000); }; }
+    cur = f;
   }
-  function check(first) {
-    fetch('version.txt?_=' + Date.now(), { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
-      .then(function (v) {
-        v = (v || '').trim();
-        if (first) { ver = v || null; load(v); return; }
-        if (v && v.length < 40 && v !== ver) { ver = v; load(v); }
-      })
-      .catch(function () { if (first) load(''); });
+  function login(msg) { document.getElementById('wait').style.display = 'none'; document.getElementById('lg').style.display = 'flex'; document.getElementById('msg').textContent = msg || ''; if (g('staff')) document.getElementById('st').value = g('staff'); }
+  function fetchApp(staff, code, first) {
+    var u = API + '?action=clock&staff=' + encodeURIComponent(staff) + '&code=' + encodeURIComponent(code) + '&dev=' + encodeURIComponent(dev) + '&_=' + Date.now();
+    return fetch(u, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.ok) { if (/wrong|disabled|too many/.test(j.error || '')) { s('code', null); s('app', null); if (cur) { cur.remove(); cur = null; } login(j.error); } else if (first && !cur) login(j.error); return; }
+      s('staff', staff); s('code', code); s('ed', j.ed);
+      try { s('app', j.html); } catch (e) {}
+      document.getElementById('lg').style.display = 'none'; show(j.html, j.ed);
+    }).catch(function () { if (first && !cur) login('No connection — try again'); });
   }
-  window.__fcCheck = check;   // 测试用
-  check(true);
-  setInterval(function () { check(false); }, 10 * 60 * 1000);
-  // iPad 唤醒 / 切回来时也马上看看有没有新版本
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(false); });
+  document.getElementById('f').onsubmit = function (e) { e.preventDefault(); document.getElementById('msg').textContent = 'Checking…';
+    fetchApp(document.getElementById('st').value.trim().toUpperCase(), document.getElementById('cd').value.trim().toUpperCase(), true); };
+  var st = g('staff'), cd = g('code'), cached = g('app');
+  if (!st || !cd) { login(); return; }
+  if (cached) show(cached, g('ed') || 'pro'); else fetchApp(st, cd, true);
+  function check() {
+    fetch(BASE + 'version.txt?_=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (v) {
+      v = (v || '').trim(); if (!v || v.length > 40) return;
+      if (ver === null) { ver = v; if (cached) fetchApp(g('staff'), g('code'), false); return; }   // 启动时：后台再验证一次（停用的码会被关掉）
+      if (v !== ver) { ver = v; fetchApp(g('staff'), g('code'), false); }
+    }).catch(function () {});
+  }
+  check(); setInterval(check, 10 * 60 * 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
 })();
 </script>
-</body>
-</html>
+</body></html>

@@ -1,6 +1,6 @@
 /* ===== 自动更新 =====
    这个文件（Code）会自己从 GitHub 更新（每小时检查一次）。私人的口令、Key 和公司资料放在另一个文件 Secrets.gs 里，自动更新不会碰它。 */
-const BACKEND_VER = '2026-11-21b';
+const BACKEND_VER = '2026-11-28b';
 ['OFP_POST_KEY', 'PEXELS_KEY_INLINE', 'GEMINI_KEY_INLINE', 'GITHUB_TOKEN_INLINE', 'WAC_GZ', 'DEEPSEEK_KEY'].forEach(function (k) {
   Object.defineProperty(globalThis, k, { configurable: true, get: function () { return (typeof SECRETS === 'object' && SECRETS && SECRETS[k]) || ''; } });
 });
@@ -185,6 +185,7 @@ function doGet(e) {
   // 查后台版本和自动更新情况（不需要口令，不含任何私人资料）
   if (p.action === 'ver') { let u = null; try { u = JSON.parse(PropertiesService.getScriptProperties().getProperty('upd_last') || 'null'); } catch (x) {} let ao = null; try { ao = JSON.parse(PropertiesService.getScriptProperties().getProperty('aofp_last') || 'null'); } catch (x) {} return out_({ ok: true, v: BACKEND_VER, loader: globalThis.__LOADER || 0, lastCheck: globalThis.__LOADER ? null : u, mailOfp: ao }); }
   try {
+    if (p.action === 'clock') return out_(clockApp_(p));   // 时钟代码不放公开网站：验证员工号 + 激活码 + 设备后从私有仓库发出
     if (p.action === 'photo') return out_(photo_(p));
     if (p.action === 'ofpcheck') return out_(ofpCheck_());
     if (p.action === 'maildiag') return (OFP_POST_KEY && p.k === OFP_POST_KEY) ? out_(mailDiag_(p)) : out_({ ok: false, error: '要带口令：?action=maildiag&k=口令' });
@@ -1653,4 +1654,23 @@ function aofpRead_(bytes) {
     let x = null; try { x = JSON.parse(out); } catch (e) {}
     ((x && x.notams) || []).forEach(function (q) { if (!q || !q.id || !q.text || String(q.text).length < 10) return; const id = String(q.id).trim(); if (seen[id]) return; seen[id] = 1; nt.push([id, String(q.text)]); }); });
   return { d: d, nt: nt, err: nt.length ? '' : 'no NOTAMs extracted', groups: groups.length, dbg: dbg };
+}
+
+// ======== 时钟（销售版）发码 ========
+// 激活码表在私有仓库 lic/licences.json：{ "员工号": { "c": "激活码", "ed": "pro|full|lite", "max": 2, "off": 0, "n": "备注" } }
+// 绑定的设备记在脚本属性 licdev_员工号；off = 1 停用；把这一项删掉设备也就作废
+function clockApp_(p) {
+  const staff = String(p.staff || '').trim().toUpperCase().replace(/\s+/g, ''), code = String(p.code || '').toUpperCase().replace(/[^A-Z0-9]/g, ''), dev = String(p.dev || '').slice(0, 64);
+  if (!staff || !code || !dev) return { ok: false, error: 'missing' };
+  const cache = CacheService.getScriptCache(); let L = null;
+  try { L = JSON.parse(cache.get('lic') || 'null'); } catch (e) {}
+  if (!L) { try { L = JSON.parse(ghRawText_('lic/licences.json')); cache.put('lic', JSON.stringify(L), 300); } catch (e) { return { ok: false, error: 'licence list unavailable' }; } }
+  const r = L[staff];
+  if (!r || String(r.c).toUpperCase().replace(/[^A-Z0-9]/g, '') !== code) { Utilities.sleep(1500); return { ok: false, error: 'wrong staff number or code' }; }
+  if (r.off) return { ok: false, error: 'code disabled' };
+  const pr = PropertiesService.getScriptProperties(), k = 'licdev_' + staff; let D = []; try { D = JSON.parse(pr.getProperty(k) || '[]'); } catch (e) {}
+  if (D.indexOf(dev) < 0) { if (D.length >= (r.max || 2)) return { ok: false, error: 'too many devices (max ' + (r.max || 2) + ')' }; D.push(dev); pr.setProperty(k, JSON.stringify(D)); }
+  if (p.check) return { ok: true, ed: r.ed || 'pro' };
+  const html = ghRawText_('clock/app.html'); if (!/<html/i.test(html)) return { ok: false, error: 'app unavailable' };
+  return { ok: true, ed: r.ed || 'pro', html: html };
 }
