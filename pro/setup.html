@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flight Clock Setup</title>
+<style>
+:root{--bg:#fff;--fg:#111;--mut:#555;--box:#f2f4f7;--acc:#0a5bd8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1116;--fg:#eef1f5;--mut:#a7b0bd;--box:#1a1f27;--acc:#7fb2ff}}
+:root[data-theme="dark"]{--bg:#0e1116;--fg:#eef1f5;--mut:#a7b0bd;--box:#1a1f27;--acc:#7fb2ff}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.55 -apple-system,system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:26px;margin:0 0 6px}h2{font-size:19px;margin:28px 0 8px}
+p,li{color:var(--fg)}small,.m{color:var(--mut)}
+ol{padding-left:22px}li{margin:6px 0}
+code{background:var(--box);padding:1px 5px;border-radius:4px;word-break:break-all}
+.box{background:var(--box);border-radius:10px;padding:12px 14px}
+a{color:var(--acc)}
+</style></head><body><main>
+<h1>Flight Clock — first-time setup</h1>
+<p class="m">About 10 minutes, once. Your roster stays in your own Google account; nobody else can read it.</p>
+
+<h2>1. Put your roster in your Google Calendar</h2>
+<p>Subscribe or import your roster into Google Calendar (calendar.google.com) so that each flight is an event, e.g. <code>EK0302 DXB-PVG</code>.</p>
+
+<h2>2. Make your own backend (Google Apps Script)</h2>
+<ol>
+<li>Open <a href="https://script.google.com" target="_blank">script.google.com</a> with the same Google account → <b>New project</b>. Name it “Flight Clock”.</li>
+<li>Open <a href="../apps-script/Code.txt" target="_blank">this code file</a>, select all, copy, and paste it over everything in <b>Code.gs</b>. Press 💾 Save.</li>
+<li>In the function menu at the top choose <b>setup</b> → <b>Run</b>. Allow the permissions (Advanced → Go to Flight Clock → Allow). This is your own script reading your own calendar.</li>
+<li><b>Deploy → New deployment</b> → type <b>Web app</b>. Execute as: <b>Me</b>. Who has access: <b>Anyone</b>. → Deploy.</li>
+<li>Copy the <b>Web app URL</b> (ends with <code>/exec</code>). Keep it private.</li>
+</ol>
+
+<h2>3. Open the clock</h2>
+<ol>
+<li>On the iPad open <a href="./">the Flight Clock</a> in Safari → Share → <b>Add to Home Screen</b>.</li>
+<li>In ⚙︎ Settings enter your <b>staff number</b>, your <b>activation code</b> and the <b>Web app URL</b> from step 2.</li>
+<li>Tap <b>Test</b> — it should list your next flights — then <b>Save</b>.</li>
+</ol>
+
+<div class="box"><b>Activation code</b><br><small>Each code works only with the staff number it was issued for. Contact the seller to get one.</small></div>
+<p class="m" style="margin-top:24px">Awareness aid only — always use official company sources for operational decisions.</p>
+</main></body></html>
